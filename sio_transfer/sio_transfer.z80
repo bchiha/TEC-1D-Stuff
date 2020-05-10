@@ -1,0 +1,151 @@
+; SIO to TTY USB polling attempt
+; Uses JMON Menu and Perimeter to select read/send and
+; to save Buffer and Length variable
+; these are store ad 0898-99, 089A-9B
+
+;Port 7 on TEC is connected to CE
+;A5 is connected to  Control/Data, and A4 is connected to A/B
+SIO_DA:     EQU     00000111B 
+SIO_CA:     EQU     00100111B ;A5 is C/D, and A4 is A/B
+SIO_DB:     EQU     00010111B 
+SIO_CB:     EQU     00110111B ;A5 is C/D, and A4 is A/6
+
+
+            ORG    1500H 
+; Set up Menu to select READ/SEND
+; Set up Perimeter to Buffer/Length
+SIO_TRANSFER:        
+            LD      HL,M_DATA ; Perimter data
+            LD      DE,0880H ; Destination for menu/perimiter to use
+            LD      BC,0018H ; Number of bytes to copy
+            LDIR     ; Copy it
+            JP      0041H ; Call the menu
+
+UPLOAD_SEL:          
+            LD      HL,SEND_TO_USB ; Store upload start address
+            JP      CALL_PERM ; Call Perimter to get Buffer/Length
+
+DOWNLOAD_SEL:        
+            LD      HL,READ_FROM_USB ; Store download start address
+
+CALL_PERM:           
+            LD      (0888H),HL ; Into 0x0888 (Perimeter Call)
+            JP      0044H ; Call the perimeter to get Buffer/Length
+
+; Receive data from USB,
+; Store data in HL address be BC bytes
+READ_FROM_USB:       
+            CALL    INIT_SIO 
+
+READ:                ; Read in data from USB
+            XOR     a ; Load A with RR0
+            OUT     (SIO_CA),a ; Select RR0
+
+            IN      a,(SIO_CA) ; Read RR0
+            BIT     0,a ; Check bit 0, RX Character Available
+            JR      Z,READ ; If nothing, check again
+            IN      a,(SIO_DA) ; Read SIO
+            LD      (HL),a ; Load A into HL
+            INC     HL ; move HL to next location
+            DEC     BC ; Decrease BC
+            LD      a,b ; load a with b
+            OR      c ; or with c
+            JR      NZ,READ ; if not zero then read again
+            RST     00 
+
+; Send data to USB
+; Start at address HL for BC bytes
+SEND_TO_USB:         
+            CALL    INIT_SIO 
+
+SEND:                ; Send data to USB
+
+;B = hb, C = lb
+            LD      a,(HL) ; load HL to a
+            OUT     (SIO_DA),a ; Send it out!
+CHECKSENT:           
+            XOR     a ; Load A with RR0
+            OUT     (SIO_CA),a ; Select RR0
+            IN      a,(SIO_CA) ; Read RR0
+            BIT     2,a ; Check if TX buf is empty
+            JR      Z,CHECKSENT ; Wait until buffer is empty
+            INC     HL ; 
+            DEC     BC ; Decrease BC
+            LD      a,b ; load a with b
+            OR      c ; or with c
+            JR      NZ,SEND ; if not zero then read again
+            RST     00 
+
+INIT_SIO:            
+            LD      HL,CTLTBL ; Setup data
+            CALL    IPORTS ; Setup the SIO
+
+            LD      HL,(0898H) ; Buffer Location (From Perimeter)
+            LD      BC,(089AH) ; Length Location (From Perimeter)
+
+            RET      
+
+IPORTS:              ; Initialize the SIO, requires Bites, Port and Data
+            LD      a,(HL) ; Load Control Table (Bytes)
+            OR      a ; Test for zero
+            RET     Z ; Return if zero
+            LD      b,a ; Save bites in B
+            INC     HL ; Go to Port address
+            LD      c,(HL) ; Load C with port address
+            INC     HL ; Go to Data
+
+            OTIR     ; Output HL data, B times, to port C
+            JR      IPORTS ; Jump to the next port
+
+CTLTBL:              
+            DB      09H ; 9 Lines
+            DB      SIO_CA ; Port Number
+            DB      00011000b ; write into WR0: channel reset
+            DB      00010100b ; write into WR0: select WR4 / Reset Int
+            DB      11000100b ; write into WR4: presc. 64x, 1 stop bit, no parity
+            DB      00010011b ; write into WR0: select WR3 / Reset Int
+            DB      11100001b ; write into WR3: 8 bits/RX char; auto enable ON; RX enable
+            DB      00010101b ; write into WR0: select WR5 / Reset Int
+            DB      01101000b ; write into WR5: TX 8 bits, BREAK off, TX Enable
+            DB      00010001b ; write into WR0: select WR1 / Reset Int
+            DB      00000000b ; write into WR1: disable all interrupts
+            DB      0H 
+
+
+M_DATA:              
+
+; Perimiter Setup
+            DB      0xFF,0xFF ; Blank
+            DW      PERM_DA_TBL ; LED display for data, 2 bytes each
+            DB      0x99,0x08 ; Store keyed info here at 0x0898
+            DB      0x00,0x01 ; Number of perimeter items, =2
+            DB      0xFF,0xFF ; Function to call when GO Pressed (filled in by menu)
+
+            DB      0xFF,0xFF,0xFF ; Blank
+
+; Menu Setup
+            DB      0xFF,0xFF ; Blank
+            DB      0x00,0x01 ; Number of menu items, = 2
+            DW      MENU_JP_TBL ; Jump table for menu items
+            DW      MENU_AD_TBL ; Menu Address LED display table
+            DW      MENU_DA_TBL ; Menu Data LED display table
+            DB      0xC9 ; return (unused)
+
+PERM_DA_TBL:         ; Perimter Display for DATA LED
+            DB      0x6F,0xEC ; "Ad" Address
+            DB      0xC2,0xC7 ; "LE" Length
+
+MENU_JP_TBL:         ; Menu Jump table
+            JP      UPLOAD_SEL ; Jump to upload from TEC to USB
+            JP      DOWNLOAD_SEL ; Jump to download from USE to TEC
+
+MENU_AD_TBL:         ; Menu Display for ADDRESS LEDs
+            DB      0xEA,0x4F,0xC2,0xEB ; "UpLO"
+            DB      0xEC,0xEB,0xE1,0x64 ; "dOWn"
+
+MENU_DA_TBL:         ; Menu Display for DATA LEDs
+            DB      0x6F,0xEC ; "Ad"
+            DB      0xC2,0xEC ; "Ld"
+
+
+
