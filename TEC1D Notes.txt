@@ -1,19 +1,22 @@
 TEC-1D Notes
 
+
+Using MON2 here are my notes.  I've also have code added to my NVRam.  Some program and some utilities to help with key input, 8x8 LED's and screen multiplexing
+
 Shift AD - Go to address in 08D2,08D3
 Shift 3  - Go to address in 08D4,08D5
 
 Restarts, C7 (00h),CF,D7,DF,E7,EF,F7,FF
 
 Music - Call 01A0, address of notes in 08D6,08D7
-		Notes from 00 (Silence) to 31, end with FF (Stop), FE (loop)
+	Notes from 00 (Silence) to 31, end with FF (Stop), FE (loop)
 
 Tone -	load a with a value between 00 to 31 and Call 0170
 
 Writing - Call 03D8, address of text in 08D0,08D1
-		  Text from 00 to 09 (numbers), 0A to 23 (letters)
+	  Text from 00 to 09 (numbers), 0A to 23 (letters)
           24(.), 25(‘), 26(!), 27(-), 28(+), 29( )
-		  end with FF (Stop), FE (loop)
+	  end with FF (Stop), FE (loop)
 
 KeyData - Call 1000, Key at 08E0, stores key in register a & i to use
 
@@ -26,13 +29,13 @@ Block Transfer
 11 aa bb 	- To address DE 0xbbaa
 01 aa bb	- Byte Count BC 0xbbaa
 ED B0		- LDIR - Inc HL and DE, Dec BC; repeat until BC = 0.
-C7			- Restart
+C7		- Restart
 
 Delay Routine
 11 FF bb	- ld de,0xFFbb — delay by bb until zero, higher bb longer delay
-1B			- dec de		- if bb = FF then delay by 2.5 seconds
-7B			- ld a,e
-B2			- or d
+1B		- dec de		- if bb = FF then delay by 2.5 seconds
+7B		- ld a,e
+B2		- or d
 20 FB		- jr nz,0xFB
 
 Output a to leds
@@ -44,24 +47,24 @@ Multiplex test
 06 06		ld b,0x06
 21 00 0D	ld hl,0x0D00
 36 00		ld (hl),0x00
-23			inc hl
+23		inc hl
 10 FB		djnz 0xFB
 0E 00		ld c,0x00
-79			ld a,c
+79		ld a,c
 CD 10 10	call 0x1010 ;seven segment convert for a
 32 00 0D	ld (0x0D00),a
 06 FF		ld b,0xFF ;delay
 CD 40 10	call 0x1040 ;multiplex display
 10 FB		djnz 0xFB
-0C			inc c
-79			ld a,c
+0C		inc c
+79		ld a,c
 FE 2A		cp 0x2A
 C2 02 09	jp nz, 0x0902
 C3 00 09	jp 0x0900
 
 8x8 scroll test	- use 0D00-07 for display buffer
-			 	- use 0D08,09 as display ref address.  First byte = No of lines to scroll
-				- then vertical hex going upwards to display on 8x8
+ 	- use 0D08,09 as display ref address.  First byte = No of lines to scroll
+	- then vertical hex going upwards to display on 8x8
 									;clear display
 
 Put 0D08,09 = 00,0B
@@ -79,8 +82,8 @@ E	7F 7F 49 49
 0B20	00 7D 00 7D 00 7D 00 00 00 00 00 00 00
 
 8x8 mapper test	- use 0D00-07 for display buffer
-				- use 0D08,09 as display ref address, First byte = No of 8x8
-				- blocks to map, then vertical hex going upwards to display
+	- use 0D08,09 as display ref address, First byte = No of 8x8
+	- blocks to map, then vertical hex going upwards to display
 
 TRY THIS
 Put 0D08,09 = 00,0B
@@ -94,11 +97,11 @@ SPEECH MODULE
 Allophones tester
 
 06 00		ld b,0x00
-78			ld a,b
+78		ld a,b
 FE 3F		cp 0x3F - number of allophones on chip
 28 F9		jr z, START
 D3 05		out (5),a - send to speech module
-04			inc b
+04		inc b
 D3 02		out (2),a - send a to led
 3E 01		ld a,0x01
 D3 01		out (1),a - light up first led
@@ -106,33 +109,33 @@ D3 01		out (1),a - light up first led
 
 Relative Jump displacements from 18 XX where XX is the displacement value
 ** **		F9 FA
-**			FB
+**		FB
 ** **		FC FD
 18 XX		FE FF
 ** ** ** 	00 01 02
 ** **		03 04
-**			05
+**		05
 
 JMON LED Scan and Key test using RST 18
 21 00 08	ld hl, 0x0800 - screen buffer
 06 06		ld b, 0x06
-78			ld a,b
-77			ld (hl), a
-23			inc hl
+78		ld a,b
+77		ld (hl), a
+23		inc hl
 10 FB		djnz to ld a,b
-DF			RST 18 (LED Scan and key check) (This save key in A)
+DF		RST 18 (LED Scan and key check) (This save key in A)
 FE 05		cmp 0x05 (key 5)
 20 FB		jr nz, to RST 18 (keep scanning	 and key check)
-C7			RST 0 quit
+C7		RST 0 quit
 
 Useful Ops
 
 Registers
 —————
 3A aa bb 		- Load A with contents of address 0xbbaa
-7E				- Load A with contents of HL
-0A				- Load A with contents of BC
-1A				- Load A with contents of DE
+7E			- Load A with contents of HL
+0A			- Load A with contents of BC
+1A			- Load A with contents of DE
 3E aa			- Load A with 0xaa
 32 aa bb		- Load address 0xbbaa with contents of A
 
@@ -160,602 +163,600 @@ NVRAM Index
 1400	- Magic Square - Transfer to 0C00 and run, set 8x8 port 3 > latch 6, port 4 > latch 5 
 
 1000		KEYWAIT:	ORG 0x1000
-1000	21 E0 08		ld hl,08E0		;KeyData location from NMI interrupt
-1003	3E FF			ld a,0xFF		;FF is default value if no key pressed
-1005	BE				cp (hl)			;Compare a with value in HL
-1006	28 FA			jr z,0xFA		;If true then go back -6 to start
-1008	7E				ld a,(hl)		;get Key data into a
-1009	E6 1F			and 0x1F		;mask lower 5 bits
-100B	ED 47			ld i,a			;save a in i register
+1000	21 E0 08		ld hl,08E0	;KeyData location from NMI interrupt
+1003	3E FF			ld a,0xFF	;FF is default value if no key pressed
+1005	BE			cp (hl)		;Compare a with value in HL
+1006	28 FA			jr z,0xFA	;If true then go back -6 to start
+1008	7E			ld a,(hl)	;get Key data into a
+1009	E6 1F			and 0x1F	;mask lower 5 bits
+100B	ED 47			ld i,a		;save a in i register
 100D	36 FF			ld (hl),0xFF	;put FF back in 08E0 for next key press
-100F	C9				ret
+100F	C9			ret
 1010		HEX2SEG:	ORG 0x1010
-1010	C5				push bc			;save bc
-1011	D5				push de			;save de
-1012	06 29			ld b,0x29		;blank character
+1010	C5			push bc		;save bc
+1011	D5			push de		;save de
+1012	06 29			ld b,0x29	;blank character
 1014	11 80 00		ld de,0x0080	;hex to seven segment table
-1017	26 00			ld h,0x00		;load h with 00
-1019	6F				ld l,a			;load key press to l, now hl = 00aa
-101A	19				add hl,de		;add de to hl to get table reference
-101B	46				ld b,(hl)		;load segment data to b
-101C	78				ld a,b			;load b into a
-101D	D1				pop de			;restore de
-101E	C1				pop bc			;restore bc
-101F	C9				ret
-1020		DELAY:		ORG 0x1020		;note must load d first before call
-1020	1E FF			ld e,0xFF		;load e with FF
-1022	1B				dec de			;decrement de
-1023	7B				ld a,e			;load e in a
-1024	B2				or d			;or d with a, if the same then zero
-1025	20 FB			jr nz,0xFB		;if or isn’t zero go back -5 and dec de
-1027	C9				ret
-1028	FF				db 0xFF
-1029	FF				db 0xFF
-102A	FF				db 0xFF
-102B	FF				db 0xFF
-102C	FF				db 0xFF
-102D	FF				db 0xFF
-102E	FF				db 0xFF
-102F	FF				db 0xFF
+1017	26 00			ld h,0x00	;load h with 00
+1019	6F			ld l,a		;load key press to l, now hl = 00aa
+101A	19			add hl,de	;add de to hl to get table reference
+101B	46			ld b,(hl)	;load segment data to b
+101C	78			ld a,b		;load b into a
+101D	D1			pop de		;restore de
+101E	C1			pop bc		;restore bc
+101F	C9			ret
+1020		DELAY:		ORG 0x1020	;note must load d first before call
+1020	1E FF			ld e,0xFF	;load e with FF
+1022	1B			dec de		;decrement de
+1023	7B			ld a,e		;load e in a
+1024	B2			or d		;or d with a, if the same then zero
+1025	20 FB			jr nz,0xFB	;if or isn’t zero go back -5 and dec de
+1027	C9			ret
+1028	FF			db 0xFF
+1029	FF			db 0xFF
+102A	FF			db 0xFF
+102B	FF			db 0xFF
+102C	FF			db 0xFF
+102D	FF			db 0xFF
+102E	FF			db 0xFF
+102F	FF			db 0xFF
 1030		KEYREAD:	ORG 0x1030
-1030	21 E0 08		ld hl,0x08E0		;KeyData location from NMI interrupt
-1033	7E				ld a,(hl)		;get Key data into a
-1034	FE FF			cp 0xFF			;check if has key data
-1036	28 02			jr z,0x02		;if true ignore mask
-1038	E6 1F			and 0x1F		;mask lower 5 bits
-103A	ED 47			ld i,a			;save a in i register
+1030	21 E0 08		ld hl,0x08E0	;KeyData location from NMI interrupt
+1033	7E			ld a,(hl)	;get Key data into a
+1034	FE FF			cp 0xFF		;check if has key data
+1036	28 02			jr z,0x02	;if true ignore mask
+1038	E6 1F			and 0x1F	;mask lower 5 bits
+103A	ED 47			ld i,a		;save a in i register
 103C	36 FF			ld (hl),0xFF	;put FF back in 08E0 for next key press
-103E	C9				ret
-103F	FF				db 0xFF
-1040		SCRMULTI:	ORG 0x1040		;must be called repetatively
-1040	C5				push bc			;save bc
-1041	06 20			ld b,0x20		;left most led segment address
+103E	C9			ret
+103F	FF			db 0xFF
+1040		SCRMULTI:	ORG 0x1040	;must be called repetatively
+1040	C5			push bc		;save bc
+1041	06 20			ld b,0x20	;left most led segment address
 1043	21 00 0D		ld hl,0x0D00	;first screen location at 0x0D00
-1046	7E				ld a,(hl)		;load a with segment data
-1047	D3 02			out (2),a		;latch segment data to led segments
-1049	78				ld a,b			;load led segment to a
-104A	D3 01			out (1),a		;turn on led segment
-104C	06 40			ld b,0x40		;scan rate on/off timer
-104E	10 FE			djnz 0xFE		;leave segment on for b iterations
-1050	23				inc hl			;increment to next segment location
-1051	47				ld b,a			;load b with led segment
-1052	AF				xor a			;zero a
-1053	D3 01			out (1),a		;turn off led segment
-1055	CB 08			rrc b			;shift b to next led segment to the right
-1057	30 ED			jr nc,0xED		;if more segments to show jump back -19 to 1045
-1059	D3 02			out (2),a		;latch segment data off to led segments
-105B	C1				pop bc			;restore bc
-105C	C9				ret
-105D	FF				db 0xFF
-105E	FF				db 0xFF
-105F	FF				db 0xFF
-1060		8X8MULTI:	ORG 0x1060		;Multiplex scan routine for 8x8 display
+1046	7E			ld a,(hl)	;load a with segment data
+1047	D3 02			out (2),a	;latch segment data to led segments
+1049	78			ld a,b		;load led segment to a
+104A	D3 01			out (1),a	;turn on led segment
+104C	06 40			ld b,0x40	;scan rate on/off timer
+104E	10 FE			djnz 0xFE	;leave segment on for b iterations
+1050	23			inc hl		;increment to next segment location
+1051	47			ld b,a		;load b with led segment
+1052	AF			xor a		;zero a
+1053	D3 01			out (1),a	;turn off led segment
+1055	CB 08			rrc b		;shift b to next led segment to the right
+1057	30 ED			jr nc,0xED	;if more segments to show jump back -19 to 1045
+1059	D3 02			out (2),a	;latch segment data off to led segments
+105B	C1			pop bc		;restore bc
+105C	C9			ret
+105D	FF			db 0xFF
+105E	FF			db 0xFF
+105F	FF			db 0xFF
+1060		8X8MULTI:	ORG 0x1060	;Multiplex scan routine for 8x8 display
 1060	21 07 0D		ld hl,0x0D07	;load hl with top end of 8x8 screen buffer
-1063	06 80			ld b,0x80		;load b with 80 (right most port on 8x8)
-1065	7E				ld a,(hl)		;load a with contents of hl
-1066	D3 04			out (04),a		;output hl display to port 4
-1068	78				ld a,b			;now load port to a
-1069	D3 03			out (03),a		;output row port 6 (on)
-106B	06 40			ld b,0x40		;load b with led ON time of 40
-106D	10 FE			djnz 0x106D		;count down b
-106F	2B				dec hl			;move to next 8x8 column
-1070	47				ld b,a			;save a (row port) in b
-1071	AF				xor a			;zero a to blank row
-1072	D3 03			out (03),a		;output row port 6 (off)
-1074	CB 08			rrc b			;shift scan bit right one
+1063	06 80			ld b,0x80	;load b with 80 (right most port on 8x8)
+1065	7E			ld a,(hl)	;load a with contents of hl
+1066	D3 04			out (04),a	;output hl display to port 4
+1068	78			ld a,b		;now load port to a
+1069	D3 03			out (03),a	;output row port 6 (on)
+106B	06 40			ld b,0x40	;load b with led ON time of 40
+106D	10 FE			djnz 0x106D	;count down b
+106F	2B			dec hl		;move to next 8x8 column
+1070	47			ld b,a		;save a (row port) in b
+1071	AF			xor a		;zero a to blank row
+1072	D3 03			out (03),a	;output row port 6 (off)
+1074	CB 08			rrc b		;shift scan bit right one
 1076	30 ED			jr nc,0x1065	;if b isn’t zero display next row
-1078	C9				ret				;return
-1079	FF				db 0xFF
-107A	FF				db 0xFF
-107B	FF				db 0xFF
-107C	FF				db 0xFF
-107D	FF				db 0xFF
-107E	FF				db 0xFF
-107F	FF				db 0xFF
-1080		8x8SCROLL:	ORG 0x1080		;Scroller for 8x8 display
+1078	C9			ret		;return
+1079	FF			db 0xFF
+107A	FF			db 0xFF
+107B	FF			db 0xFF
+107C	FF			db 0xFF
+107D	FF			db 0xFF
+107E	FF			db 0xFF
+107F	FF			db 0xFF
+1080		8x8SCROLL:	ORG 0x1080	;Scroller for 8x8 display
 
 1080		JHEX2SEG:	ORG 0x1010
-1080	C5				push bc			;save bc
-1081	D5				push de			;save de
-1082	06 29			ld b,0x00		;blank character
+1080	C5			push bc		;save bc
+1081	D5			push de		;save de
+1082	06 29			ld b,0x00	;blank character
 1084	11 D0 07		ld de,0x07D0	;hex to seven segment table
-1087	26 00			ld h,0x00		;load h with 00
-1089	6F				ld l,a			;load key press to l, now hl = 00aa
-108A	19				add hl,de		;add de to hl to get table reference
-108B	46				ld b,(hl)		;load segment data to b
-108C	78				ld a,b			;load b into a
-108D	D1				pop de			;restore de
-108E	C1				pop bc			;restore bc
-108F	C9				ret
+1087	26 00			ld h,0x00	;load h with 00
+1089	6F			ld l,a		;load key press to l, now hl = 00aa
+108A	19			add hl,de	;add de to hl to get table reference
+108B	46			ld b,(hl)	;load segment data to b
+108C	78			ld a,b		;load b into a
+108D	D1			pop de		;restore de
+108E	C1			pop bc		;restore bc
+108F	C9			ret
 
 
 1100	Segment Game
-										;A running digital clock
-										;Display buffer stored at 0D00-0D06
-1200		TECCLOCK:	ORG 0x1200		;Set 0D07 (sec), 0D08 (min), 0D09 (hrs) 
+						;A running digital clock
+						;Display buffer stored at 0D00-0D06
+1200		TECCLOCK:	ORG 0x1200	;Set 0D07 (sec), 0D08 (min), 0D09 (hrs) 
 1200	FD 21 07 0D		ld iy, 0x0D07	;set iy to the clock buffer for write
-1204	06 02			ld b,0x02		;count for 60’s check on mm & ss update
+1204	06 02			ld b,0x02	;count for 60’s check on mm & ss update
 1206	FD 7E 00		ld a,(iy+0x00)	;load a with seconds or minutes
-1209	C6 01			add a,0x01		;add one to a
-120B	27				daa				;convert a from hex to decimal
-120C	FE 60			cp 0x60			;test a=60 sec or min, if false ignore min/hrs
-120E	20 13			jr nz,0x13		;if not zero jump 13 ahead to 1223
-1210	AF				xor a			;zero a
+1209	C6 01			add a,0x01	;add one to a
+120B	27			daa		;convert a from hex to decimal
+120C	FE 60			cp 0x60		;test a=60 sec or min, if false ignore min/hrs
+120E	20 13			jr nz,0x13	;if not zero jump 13 ahead to 1223
+1210	AF			xor a		;zero a
 1211	FD 77 00		ld (iy+0x00),a	;store a back in clock buffer
-1214	FD 23			inc iy			;increment iy
-1216	10 EE			djnz 0xEE		;decrease b and jump back -17 to 1206 if != 0
+1214	FD 23			inc iy		;increment iy
+1216	10 EE			djnz 0xEE	;decrease b and jump back -17 to 1206 if != 0
 1218	FD 7E 00		ld a,(iy+0x00)	;load a with hours
-121B	C6 01			add a,0x01		;add one to a
-121D	27				daa				;convert a from hex to decimal
-121E	FE 24			cp 0x24			;test a=24 hours
-1220	20 01			jr nz,0x01		;if not zero jump 1 ahead to 1223
-1222	AF				xor a			;zero a
-1223		DISPLAY:	ORG 0x1223		;Convert and Display the digits
+121B	C6 01			add a,0x01	;add one to a
+121D	27			daa		;convert a from hex to decimal
+121E	FE 24			cp 0x24		;test a=24 hours
+1220	20 01			jr nz,0x01	;if not zero jump 1 ahead to 1223
+1222	AF			xor a		;zero a
+1223		DISPLAY:	ORG 0x1223	;Convert and Display the digits
 1223	FD 77 00		ld (iy+0x00),a	;store a back in clock buffer
-1226	06 03			ld b,0x03		;load b with 3, number of bytes to convert
+1226	06 03			ld b,0x03	;load b with 3, number of bytes to convert
 1228	21 06 0D		ld hl,0x0D06	;load hl with end of display buffer (+6)
 122B	DD 21 07 0D		ld ix,0x0D07	;load ix to the clock buffer for read
-122F		LOOP1:	ORG 0x122F			;Update clock buffer with converted digit
+122F		LOOP1:	ORG 0x122F		;Update clock buffer with converted digit
 122F	DD 7E 00		ld a,(ix+0x00)	;load a with seconds or minutes or hours
-1232	DD 23			inc ix			;increment ix
-1234	C5				push bc			;save bc
-1235	F5				push af			;save af
-1236	E6 0F			and 0x0F		;and a with 0b1111, get lower nibble 4 bits
-1238	47				ld b,a			;load b with a, for use convert routine
-1239	CD 73 12		call 0x1273		;call byte convert to seven segment routine
-123C	F1				pop af			;restore af
-123D	CB 3F			srl a			;shift a one place to the right to get higher nibble
-123F	CB 3F			srl a			;shift a one place to the right
-1241	CB 3F			srl a			;shift a one place to the right
-1243	CB 3F			srl a			;shift a one place to the right
-1245	47				ld b,a			;load b with a, for use convert routine
-1246	CD 73 12		call 0x1273		;call byte convert to seven segment routine
-1249	C1				pop bc			;restore bc
-124A	10 E3			djnz 0xE3		;decrease b and jump back -29 to 122F if != 0
-124C	06 FC			ld b,0xFC		;load b with 0xFC, 253 cycles before next update
-124E		LOOP2:	ORG 0x124E			;Loop to display on LED’s before next update
+1232	DD 23			inc ix		;increment ix
+1234	C5			push bc		;save bc
+1235	F5			push af		;save af
+1236	E6 0F			and 0x0F	;and a with 0b1111, get lower nibble 4 bits
+1238	47			ld b,a		;load b with a, for use convert routine
+1239	CD 73 12		call 0x1273	;call byte convert to seven segment routine
+123C	F1			pop af		;restore af
+123D	CB 3F			srl a		;shift a one place to the right to get higher nibble
+123F	CB 3F			srl a		;shift a one place to the right
+1241	CB 3F			srl a		;shift a one place to the right
+1243	CB 3F			srl a		;shift a one place to the right
+1245	47			ld b,a		;load b with a, for use convert routine
+1246	CD 73 12		call 0x1273	;call byte convert to seven segment routine
+1249	C1			pop bc		;restore bc
+124A	10 E3			djnz 0xE3	;decrease b and jump back -29 to 122F if != 0
+124C	06 FC			ld b,0xFC	;load b with 0xFC, 253 cycles before next update
+124E		LOOP2:	ORG 0x124E		;Loop to display on LED’s before next update
 124E	DD 21 00 0D		ld ix,0x0D00	;load ix to the display buffer for write
-1252	C5				push bc			;save bc
-1253	06 07			ld b,0x07		;load b with 0x07 number of digits to display
-1255	0E 40			ld c,0x40		;load c with 0x40 for blank display
-1257		OUTLOOP:	ORG 0x1257		;Output to LED’s using out (n) and multiplexing
+1252	C5			push bc		;save bc
+1253	06 07			ld b,0x07	;load b with 0x07 number of digits to display
+1255	0E 40			ld c,0x40	;load c with 0x40 for blank display
+1257		OUTLOOP:	ORG 0x1257	;Output to LED’s using out (n) and multiplexing
 1257	DD 7E 00		ld a,(ix+0x00)	;load a with converted pattern for output
-125A	D3 02			out (2),a		;load a to led segments
-125C	79				ld a,c			;load a with c (led display)
-125D	D3 01			out (1),a		;load a to led display
-125F	CB 39			srl c			;shift a one place to the right (next display)
-1261	AF				xor a			;zero a
-1262	1E 39			ld e,0x39		;load e with time delay of 0x39
-1264	1D				dec e			;decrement e
-1265	20 FD			jr nz,0xFD		;if not zero jump -1 back to 1264
-1267	D3 01			out (1),a		;load a with 0x00 to blank the led display
-1269	DD 23			inc ix			;increment ix to next digit
-126B	10 EA			djnz 0xEA		;decrease b and jump back -22 to 1257 if !=0
-126D	C1				pop bc			;restore bc
-126E	10 DE			djnz 0xDE		;decrease b and jump back -34 to 124E if !=0
-1270	C3 93 12		jp 0x1289		;jump to timing delay routine
-1273		TBLLOOKUP:	ORG 0x1273		;Digit lookup routine to convert decimal to sseg
+125A	D3 02			out (2),a	;load a to led segments
+125C	79			ld a,c		;load a with c (led display)
+125D	D3 01			out (1),a	;load a to led display
+125F	CB 39			srl c		;shift a one place to the right (next display)
+1261	AF			xor a		;zero a
+1262	1E 39			ld e,0x39	;load e with time delay of 0x39
+1264	1D			dec e		;decrement e
+1265	20 FD			jr nz,0xFD	;if not zero jump -1 back to 1264
+1267	D3 01			out (1),a	;load a with 0x00 to blank the led display
+1269	DD 23			inc ix		;increment ix to next digit
+126B	10 EA			djnz 0xEA	;decrease b and jump back -22 to 1257 if !=0
+126D	C1			pop bc		;restore bc
+126E	10 DE			djnz 0xDE	;decrease b and jump back -34 to 124E if !=0
+1270	C3 93 12		jp 0x1289	;jump to timing delay routine
+1273		TBLLOOKUP:	ORG 0x1273	;Digit lookup routine to convert decimal to sseg
 1273	11 7F 12		ld de,0x127F	;load de with decimal to seven segment table
-1276	F5				push af			;save af
-1277	7B				load a,e		;load a with e (initially 7F or 0b1111111)
-1278	80				add a,b			;load a with b which is the pattern address
-1279	5F				load e,a		;load e with a load new offset to de
-127A	1A				ld a,(de)		;load a with contents of de
-127B	77				ld (hl),a		;load contents of hl with a
-127C	2B				dec hl			;decrease hl
-127D	F1				pop af			;restore af
-127E	C9				ret				;return
-127F		BUFFERS:	ORG 0x127F		;Digit lookup and clock and display buffers
-127F	EB				db 0xEB			;0
-1280	28				db 0x28			;1
-1281	CD				db 0xCD			;2
-1282	AD				db 0xAD			;3
-1283	2E				db 0x2E			;4
-1284	A7				db 0xA7			;5
-1285	E7				db 0xE7			;6
-1286	29				db 0x29			;7
-1287	EF				db 0xEF			;8
-1288	AF				db 0xAF			;9
-1289	06 37			ld b,0x37		;load b with 0x37
-128B	10 FE			djnz 0xFE		;decrease b and jump back -2 to 1294 if !=0
-128D	C3 00 12		jp 0x1200		;jump to beginning of program
+1276	F5			push af		;save af
+1277	7B			load a,e	;load a with e (initially 7F or 0b1111111)
+1278	80			add a,b		;load a with b which is the pattern address
+1279	5F			load e,a	;load e with a load new offset to de
+127A	1A			ld a,(de)	;load a with contents of de
+127B	77			ld (hl),a	;load contents of hl with a
+127C	2B			dec hl		;decrease hl
+127D	F1			pop af		;restore af
+127E	C9			ret		;return
+127F		BUFFERS:	ORG 0x127F	;Digit lookup and clock and display buffers
+127F	EB			db 0xEB		;0
+1280	28			db 0x28		;1
+1281	CD			db 0xCD		;2
+1282	AD			db 0xAD		;3
+1283	2E			db 0x2E		;4
+1284	A7			db 0xA7		;5
+1285	E7			db 0xE7		;6
+1286	29			db 0x29		;7
+1287	EF			db 0xEF		;8
+1288	AF			db 0xAF		;9
+1289	06 37			ld b,0x37	;load b with 0x37
+128B	10 FE			djnz 0xFE	;decrease b and jump back -2 to 1294 if !=0
+128D	C3 00 12		jp 0x1200	;jump to beginning of program
 
-										;8x8 scroll										;put scan routine in 0A00, use 0D00-07 for display buffer
-										;use 0B00, as display ref address.  First byte = No of lines to scroll
-										;then vertical hex going upwards to display on 8x8
+;8x8 scroll										
+	;put scan routine in 0A00, use 0D00-07 for display buffer
+	;use 0B00, as display ref address.  First byte = No of lines to scroll
+	;then vertical hex going upwards to display on 8x8
 1290		8x8Scroller: 		ORG 0x1290   
 1290	21 00 0D		LD hl,0x0D00	;hl = Display buffer
-1293	06 08			LD b,0x08		;num columns
+1293	06 08			LD b,0x08	;num columns
 1295	36 00			LD (hl),0x00	;store 0 at DISPLAY
-1297	23				INC hl			;point to next digit
-1298	10 FB			DJNZ 0xFB		;b-- if b > 0 jump -5
+1297	23			INC hl		;point to next digit
+1298	10 FB			DJNZ 0xFB	;b-- if b > 0 jump -5
 										;find initial starting location
 129A	21 00 0B		LD hl,0x0B00   
-129D	7E				LD a,(hl)  		;number of columns to count
+129D	7E			LD a,(hl)  	;number of columns to count
 129E	FE 00			CP 0x00   
-12A0	28 25			JR Z,0x25		;if zero then end   
-12A2	23				INC hl   
-12A3	4F				LD c,a   		;c = counter
+12A0	28 25			JR Z,0x25	;if zero then end   
+12A2	23			INC hl   
+12A3	4F			LD c,a   	;c = counter
 12A4	DD 21 00 0D		LD ix,0x0D00	;load ix with display ref address
 12A8	06 07			LD b,0x07   
 12AA	DD 7E 01		LD a,(ix+1)   	;shuffle one down 7 times
 12AD	DD 77 00		LD (ix+0),a   
-12B0	DD 23			INC ix  		;next display buf 
-12B2	10 F6			DJNZ 0xF6		;go back to -10  
-12B4	7E				LD a,(hl)   	;load next display to last column
+12B0	DD 23			INC ix  	;next display buf 
+12B2	10 F6			DJNZ 0xF6	;go back to -10  
+12B4	7E			LD a,(hl)   	;load next display to last column
 12B5	32 07 0D		LD (0x0D07),a   
-12B8	23				INC hl   		;move to next display buf
+12B8	23			INC hl   	;move to next display buf
 12B9	06 40			LD b,0x40   	;hold screen on for 0x40
-12BB	E5				PUSH hl   		;save hl
-12BC	C5				PUSH bc   		;save bc
+12BB	E5			PUSH hl   	;save hl
+12BC	C5			PUSH bc   	;save bc
 12BD	CD 60 10		CALL SCAN   	;display the buffer
-12C0	C1				POP	bc   		;restore bc
-12C1	10 F9			DJNZ 0xF9		;go back -7 if be isn’t 0
-12C3	E1				POP	hl  		;restore hl for next buff ref 
-12C4	0D				DEC	c   		;decrease counter
-12C5	20 DD			JR nz,0xDD		;if counter !=0 then jump back to ix setup
-12C7	C3 90 12		jp 0x1290		;jump to beginning of program
-12CA	FF				DB 0xFF
-12CB	FF				DB 0xFF
-12CC	FF				DB 0xFF
-12CD	FF				DB 0xFF
-12CE	FF				DB 0xFF
-12CF	FF				DB 0xFF
-										;8x8 Mapper, use 0D00-07 for display buffer start address
-										;use 0B00, as display ref address, First byte = No of 8x8
-										;blocks to scroll, then vertical hex going upwards to display on 8x8
+12C0	C1			POP	bc   	;restore bc
+12C1	10 F9			DJNZ 0xF9	;go back -7 if be isn’t 0
+12C3	E1			POP	hl  	;restore hl for next buff ref 
+12C4	0D			DEC	c   	;decrease counter
+12C5	20 DD			JR nz,0xDD	;if counter !=0 then jump back to ix setup
+12C7	C3 90 12		jp 0x1290	;jump to beginning of program
+12CA	FF			DB 0xFF
+12CB	FF			DB 0xFF
+12CC	FF			DB 0xFF
+12CD	FF			DB 0xFF
+12CE	FF			DB 0xFF
+12CF	FF			DB 0xFF
+
+;8x8 Mapper, use 0D00-07 for display buffer start address
+	;use 0B00, as display ref address, First byte = No of 8x8
+	;blocks to scroll, then vertical hex going upwards to display on 8x8
 12D0		8x8Mapper:			ORG 0x12D0
 12D0	21 00 0D		LD hl,0x0D00	;hl = Display buffer
-12D3	06 08			LD b,0x08		;num columns
+12D3	06 08			LD b,0x08	;num columns
 12D5	36 00			LD (hl),0x00	;store 0 at DISPLAY
-12D7	23				INC hl			;point to next digit
-12D8	10 FB			DJNZ 0xFB		;b-- if b > 0 jump -5
-										;find initial starting location
+12D7	23			INC hl		;point to next digit
+12D8	10 FB			DJNZ 0xFB	;b-- if b > 0 jump -5
+						;find initial starting location
 12DA	2A 08 0D		LD hl,(0x0D08)   
-12DD	7E				LD a,(hl)  		;number of columns to count
+12DD	7E			LD a,(hl)  	;number of columns to count
 12DE	FE 00			CP 0x00   
-12E0	28 1A			JR Z,0x12FC		;if zero then end  
-12E2	23				INC hl			;get first value
-12E3	4F				LD c,a			;save counter in c
-12E4	C5				PUSH bc			;save bc
+12E0	28 1A			JR Z,0x12FC	;if zero then end  
+12E2	23			INC hl		;get first value
+12E3	4F			LD c,a		;save counter in c
+12E4	C5			PUSH bc		;save bc
 12E5	11 00 0D		LD de,0x0D00	;load destination with 8x8 matrix address
 12E8	01 08 00		LD bc,0x0008	;load bc with count of 8 bits
-12EB	ED B0			LDIR			;copy hl to de, bc times until bc=0
-12ED	06 40			LD b,0x40		;hold screen on for 0x40
-12EF	E5				PUSH hl   		;save hl
-12F0	C5				PUSH bc   		;save bc
+12EB	ED B0			LDIR		;copy hl to de, bc times until bc=0
+12ED	06 40			LD b,0x40	;hold screen on for 0x40
+12EF	E5			PUSH hl   	;save hl
+12F0	C5			PUSH bc   	;save bc
 12F1	CD 60 10		CALL SCAN   	;display the buffer
-12F4	C1				POP	bc   		;restore bc
-12F5	10 F9			DJNZ 0xF9		;go back -7 if be isn’t 0
-12F7	E1				POP	hl  		;restore hl for next buff ref 
-12F8	C1				POP bc			;restore bc to get count
-12F9	0D				DEC	c   		;decrease counter
+12F4	C1			POP	bc   	;restore bc
+12F5	10 F9			DJNZ 0xF9	;go back -7 if be isn’t 0
+12F7	E1			POP	hl  	;restore hl for next buff ref 
+12F8	C1			POP bc		;restore bc to get count
+12F9	0D			DEC	c   	;decrease counter
 12FA	20 E8			JR nz,0x12E4	;if counter !=0 then jump back to block copy
-12FC	C3 D0 12		jp 0x12D0		;jump to beginning of program
-12FF	FF				DB 0xFF
-										;NIM Game
-										;Remove a match 1,2,3 and don’t be the last
+12FC	C3 D0 12		jp 0x12D0	;jump to beginning of program
+12FF	FF			DB 0xFF
+
+;NIM Game
+;Remove a match 1,2,3 and don’t be the last
 1300		NIM: 		ORG 0x1300   
-1300	DD 21 00 08		LD ix,DISPLAY		;ix = display[0]
-1304	3E 23			LD a,0x23			;23 matches in BCD
+1300	DD 21 00 08		LD ix,DISPLAY	;ix = display[0]
+1304	3E 23			LD a,0x23	;23 matches in BCD
 1306	32 98 08		LD (NIMMATCHES),a	;save in total matches
-1309	3E 01			LD a,0x01			;player
+1309	3E 01			LD a,0x01	;player
 130B	32 99 08		LD (NIMPLAYER),a	;save current player
-130E	21 00 08		LD hl,DISPLAY		;hl = DISPLAY
-1311	06 06			LD b,0x06			;num digits
+130E	21 00 08		LD hl,DISPLAY	;hl = DISPLAY
+1311	06 06			LD b,0x06	;num digits
 1313		NIMLOOP1:	ORG 0x1313
-1313	36 00			LD (hl),0x00		;store 0 at DISPLAY
-1315	23				INC hl				;point to next digit
-1316	10 FB			DJNZ NIMLOOP1		;b-- if b > 0 jump to 1313
-1318	1E 00			LD e,0x00			; e = 0
+1313	36 00			LD (hl),0x00	;store 0 at DISPLAY
+1315	23			INC hl		;point to next digit
+1316	10 FB			DJNZ NIMLOOP1	;b-- if b > 0 jump to 1313
+1318	1E 00			LD e,0x00	; e = 0
 131A		NIMLOOP2:	ORG 0x131A
-131A	CD 9E 13		CALL NIMDISPLAY		;fill display with data
-131D	DF 00 00		RST 18				;scan LED
-1320	00 00 00		NOP					;check key pressed if any
-1323	00 00			NOP					;a = key
-1325	FE 04			CP 0x04				;if (key >= 4)
-1327 	30 F1			JR nc,0x131A		;  goto 131A
-1329	FE 00			CP 0x00				;if (key == 0)
-132B	28 ED			JR z,0x131A			;  goto 0x131A
-132D 	5F				LD e,a				;e = choice
+131A	CD 9E 13		CALL NIMDISPLAY	;fill display with data
+131D	DF 00 00		RST 18		;scan LED
+1320	00 00 00		NOP		;check key pressed if any
+1323	00 00			NOP		;a = key
+1325	FE 04			CP 0x04		;if (key >= 4)
+1327 	30 F1			JR nc,0x131A	;  goto 131A
+1329	FE 00			CP 0x00		;if (key == 0)
+132B	28 ED			JR z,0x131A	;  goto 0x131A
+132D 	5F			LD e,a		;e = choice
 132E 	3A 98 08		LD a,(NIMMATCHES)	;a = num_matches
-1331	BB				CP e				;if (num_matches <= e)
-1332	28 54			JR z,NIMLOSER		;  goto NIMLOSER if zero of carry
-1334	38 52			JR c,NIMLOSER   
-1336	93				SUB e				;a = a - choice
-1337	27				DAA					;BCD adjust
+1331	BB			CP e		;if (num_matches <= e)
+1332	28 54			JR z,NIMLOSER	;  goto NIMLOSER if zero of carry
+1334	38 52			JR c,NIMLOSER  
+1336	93			SUB e		;a = a - choice
+1337	27			DAA		;BCD adjust
 1338	32 98 08		LD (NIMMATCHES),a	;update
-133B	3E 01			LD a,0x01			;player
+133B	3E 01			LD a,0x01	;player
 133D 	32 99 08		LD (NIMPLAYER),a	;save current player
-1340 	CD 9E 13		CALL NIMDISPLAY		;render nim state
+1340 	CD 9E 13		CALL NIMDISPLAY	;render nim state
 1343	16 00			LD d,0x00   
 1345		NIMLOOP3:	ORG 0x1345
-1345	CD 36 08		CALL SCRMULTI		;scan LEDS 255 times
-1348	15				DEC d   
+1345	CD 36 08		CALL SCRMULTI	;scan LEDS 255 times
+1348	15			DEC d   
 1349	20 FA			JR nz,NIMLOOP3   
 134B	3A 98 08		LD a,(NIMMATCHES)	;a = num_matches
-134E	FE 01			CP 0x01				;if (a == 1)
-1350	28 3C			JR z,NIMWINNER		;   goto NIMWINNER
-1352	3D				DEC a				;a = num_matches - 1
-1353	27				DAA					;BCD adjust
+134E	FE 01			CP 0x01		;if (a == 1)
+1350	28 3C			JR z,NIMWINNER  ;goto NIMWINNER
+1352	3D			DEC a		;a = num_matches - 1
+1353	27			DAA		;BCD adjust
 1354		NIMLOOP4:	ORG 0x1354
-1354	D6 04			SUB 0x04			;a -= 4
-1356	27				DAA					;BCD adjust
+1354	D6 04			SUB 0x04	;a -= 4
+1356	27			DAA		;BCD adjust
 1357	30 FB			JR nc,NIMLOOP4   
 1359	C6 04			ADD a,0x04   
-135B 	27				DAA					;a = (num_matches - 1) % 4
-135C	FE 00			CP 0x00				;if (a == 0) //no move available
-135E	28 20			JR z,NIMRAND		;  goto random_move
+135B 	27			DAA		;a = (num_matches - 1) % 4
+135C	FE 00			CP 0x00		;if (a == 0) //no move available
+135E	28 20			JR z,NIMRAND	;  goto random_move
 1360		NIMRESUME:	ORG 0x1360
-1360	5F				LD e,a				;e = a -- computer's choice
+1360	5F			LD e,a		;e = a -- computer's choice
 1361	3A 98 08		LD a,(NIMMATCHES)	;a = num_matches
-1364	93				SUB e				;a = a - choice
-1365	27				DAA					;BCD adjust
+1364	93			SUB e		;a = a - choice
+1365	27			DAA		;BCD adjust
 1366	32 98 08		LD (NIMMATCHES),a	;update
-1369	3E 02			LD a,0x02			;computer
-136B	32 99 08		LD (NIMPLAYER),a	;save current player
+1369	3E 02			LD a,0x02	;computer
+136B	32 99 08		LD (NIMPLAYER),a ;save current player
 136E	CD 9E 13		CALL NIMDISPLAY   
 1371	16 00			LD d,0x00   
 1373		NIMLOOP5:	ORG 0x1373
-1373	CD 36 08		CALL SCRMULTI		;scan LEDS 255 times
-1376	15				DEC d   
+1373	CD 36 08		CALL SCRMULTI	;scan LEDS 255 times
+1376	15			DEC d   
 1377	20 FA			JR nz,NIMLOOP5   
-1379	3E 02			LD a,0x02			;player
+1379	3E 02			LD a,0x02	;player
 137B	32 99 08		LD (NIMPLAYER),a	;save current player
 137E	18 9A			JR 0x131A   
 1380		NIMRAND:	ORG 0x1380
-1380	ED 5F			LD a,r				;get "random" num from refresh register
-1382	E6 03			AND 0x03			;truncate range to 0-3
-1384	28 4C			JR z,NIMADJUST		;if choice == 0 choice++
-1386	18 D8			JR NIMRESUME		;use choice
+1380	ED 5F			LD a,r		;get "random" num from refresh register
+1382	E6 03			AND 0x03	;truncate range to 0-3
+1384	28 4C			JR z,NIMADJUST	;if choice == 0 choice++
+1386	18 D8			JR NIMRESUME	;use choice
 1388		NIMLOSER:	ORG 0x1388
-1388	11 D6 13		LD de,NIMLOSE		;show loser text
+1388	11 D6 13		LD de,NIMLOSE	;show loser text
 138B	C3 91 13		JP NIMTEXT   
 138E		NIMWINNER:	ORG 0x138E
-138E	11 E7 13		LD de,NIMWIN		;show winner text
+138E	11 E7 13		LD de,NIMWIN	;show winner text
 1391		NIMTEXT:	ORG 0x1391
-1391	ED 53 D0 08		LD (MESSADR),de		;show text
-1395	CD D8 03		CALL 0x03D8			;message scroll
-1398	CF 00 00		RST 08, KEYWAIT		;wait for key
+1391	ED 53 D0 08		LD (MESSADR),de	;show text
+1395	CD D8 03		CALL 0x03D8	;message scroll
+1398	CF 00 00		RST 08, KEYWAIT	;wait for key
 139B	C3 00 13		JP NIM   
 139E		NIMDISPLAY:	ORG 0x139E
 139E	3A 99 08		LD a,(NIMPLAYER)	;load player
-13A1	FE 01			CP 0x01				;is human?
+13A1	FE 01			CP 0x01		;is human?
 13A3	28 06			JR z,NIMPLAY   
 13A5	DD 36 00 C3		LD (ix+0x00),0xC3	;"C" Computer
 13A9	18 04			JR NIMDISPLAY2   
 13AB		NIMPLAY:	ORG 0x13AB
 13AB	DD 36 00 AE		LD (ix+0x00),0xae	;"Y" You
 13AF		NIMDISPLAY2:ORG 0x13AF
-13AF	7B 				LD a,e				;key pressed
-13B0	CD 80 10		CALL JHEX2SEG		;SEG CONVERT
-13B3	DD 77 02		LD (ix+0x02),a		;key pressed
+13AF	7B 			LD a,e		;key pressed
+13B0	CD 80 10		CALL JHEX2SEG	;SEG CONVERT
+13B3	DD 77 02		LD (ix+0x02),a	;key pressed
 13B6	3A 98 08		LD a,(NIMMATCHES)	;a = num_matches
-13B9	F5				PUSH af   
-13BA	E6 0F			AND 0x0F			;get lower nibble
-13BC	CD 80 10		CALL JHEX2SEG		;SEG CONVERT
-13BF	DD 77 05		LD (ix+0x05),a		;lower nibble
-13C2	F1				POP af   
-13C3	CB 3F			SRL a				;shift a one place to the right
-13C5	CB 3F			SRL a				;shift a one place to the right
-13C7	CB 3F			SRL a				;shift a one place to the right
-13C9	CB 3F			SRL a				;shift a one place to the right
-13CB	CD 80 10		CALL JHEX2SEG		;SEG CONVERT
-13CE	DD 77 04		LD (ix+0x04),a		;upper nibble
-13D1	C9				RET					;return
+13B9	F5			PUSH af   
+13BA	E6 0F			AND 0x0F	;get lower nibble
+13BC	CD 80 10		CALL JHEX2SEG	;SEG CONVERT
+13BF	DD 77 05		LD (ix+0x05),a	;lower nibble
+13C2	F1			POP af   
+13C3	CB 3F			SRL a		;shift a one place to the right
+13C5	CB 3F			SRL a		;shift a one place to the right
+13C7	CB 3F			SRL a		;shift a one place to the right
+13C9	CB 3F			SRL a		;shift a one place to the right
+13CB	CD 80 10		CALL JHEX2SEG	;SEG CONVERT
+13CE	DD 77 04		LD (ix+0x04),a	;upper nibble
+13D1	C9			RET		;return
 13D2		NIMADJUST:	ORG 0x13D2
-13D2	3C				INC a				;turn 0 into 1
-13D3	C3 60 13		JP NIMRESUME		;resume
+13D2	3C			INC a		;turn 0 into 1
+13D3	C3 60 13		JP NIMRESUME	;resume
 13D6		NIMLOSE:	ORG 0x13D6
-13D6	22				DB 0x22				;y
-13D7	18				DB 0x18				;o
-13D8	1E				DB 0x1E				;u
-13D9	29				DB 0x29   
-13DA	15				DB 0x15				;l
-13DB	18				DB 0x18				;o
-13DC	1C				DB 0x1C				;s
-13DD	0E				DB 0x0E				;e
-13DE	29				DB 0x29   
-13DF	1C				DB 0x1C				;s
-13E0	1D				DB 0x1D				;t
-13E1	1E				DB 0x1E				;u
-13E2	19				DB 0x19				;p
-13E3	12				DB 0x12				;i
-13E4	0D				DB 0x0D				;d
-13E5	26				DB 0x26				;!
-13E6	FF				DB 0xFF				;ENDOFTEXT
+13D6	22			DB 0x22		;y
+13D7	18			DB 0x18		;o
+13D8	1E			DB 0x1E		;u
+13D9	29			DB 0x29   
+13DA	15			DB 0x15		;l
+13DB	18			DB 0x18		;o
+13DC	1C			DB 0x1C		;s
+13DD	0E			DB 0x0E		;e
+13DE	29			DB 0x29   
+13DF	1C			DB 0x1C		;s
+13E0	1D			DB 0x1D		;t
+13E1	1E			DB 0x1E		;u
+13E2	19			DB 0x19		;p
+13E3	12			DB 0x12		;i
+13E4	0D			DB 0x0D		;d
+13E5	26			DB 0x26		;!
+13E6	FF			DB 0xFF		;ENDOFTEXT
 13E7		NIMWIN:		ORG 0x13E7
-13E7	18				DB 0x18				;o
-13E8	11				DB 0x11				;h
-13E9	29				DB 0x29   
-13EA	17				DB 0x17				;n
-13EB	18				DB 0x18				;o
-13EC	24				DB 0x24				;.
-13ED	24				DB 0x24				;.
-13EE	24				DB 0x24				;.
-13EF	12				DB 0x12				;i
-13F0	29				DB 0x29   
-13F1	15				DB 0x15				;l
-13F2	18				DB 0x18				;o
-13F3	1C				DB 0x1C				;s
-13F4	1D				DB 0x1D				;t
-13F5	26				DB 0x26				;!
-13F6	FF				DB 0xFF				;ENDOFTEXT
-13F7	FF				DB 0XFF
-13F8	FF				DB 0XFF
-13F9	FF				DB 0XFF
-13FA	FF				DB 0XFF
-13FB	FF				DB 0XFF
-13FC	FF				DB 0XFF
-13FD	FF				DB 0XFF
-13FE	FF				DB 0XFF
-13FF	FF				DB 0XFF
+13E7	18			DB 0x18		;o
+13E8	11			DB 0x11		;h
+13E9	29			DB 0x29   
+13EA	17			DB 0x17		;n
+13EB	18			DB 0x18		;o
+13EC	24			DB 0x24		;.
+13ED	24			DB 0x24		;.
+13EE	24			DB 0x24		;.
+13EF	12			DB 0x12		;i
+13F0	29			DB 0x29  
+13F1	15			DB 0x15		;l
+13F2	18			DB 0x18		;o
+13F3	1C			DB 0x1C		;s
+13F4	1D			DB 0x1D		;t
+13F5	26			DB 0x26		;!
+13F6	FF			DB 0xFF		;ENDOFTEXT
+13F7	FF			DB 0XFF
+13F8	FF			DB 0XFF
+13F9	FF			DB 0XFF
+13FA	FF			DB 0XFF
+13FB	FF			DB 0XFF
+13FC	FF			DB 0XFF
+13FD	FF			DB 0XFF
+13FE	FF			DB 0XFF
+13FF	FF			DB 0XFF
 
-											;Magic Square
-											;Connect 8x8 to ports 5 and 6
-											;Copy source to 0C00 and key in 0D00 tables
-1400	11 00 00		ld de,0x0000		;Random number generated by the duration
-1403	13				inc de				;it takes the player to release the go key
-1404	DB 03			in a,(03)			;at the start of the program
+;Magic Square
+	;Connect 8x8 to ports 5 and 6
+	;Copy source to 0C00 and key in 0D00 tables
+1400	11 00 00		ld de,0x0000	;Random number generated by the duration
+1403	13			inc de		;it takes the player to release the go key
+1404	DB 03			in a,(03)	;at the start of the program
 1406	CB 77			bit 6,a
 1408	28 F9			jr z,0x1403
-140A	ED 5F			ld a,r				;Refresh register loaded into a
-140C	82				add a,d				;d is added to a
-140D	32 40 0D		ld (0x0D40),a		;store a (random number 1)
-1410	8B				add a,e				;e with carry is stored in a
-1411	32 41 0D		ld (0x0D41),a		;store a (random number 2)
-1414	82				add a,d
-1415	83				add a,e				;add d and e to a
-1416	07				rlca				;rotate a one bit with carry
-1417	32 42 0D		ld (0x0D42),a		;store a (random number 3)
+140A	ED 5F			ld a,r		;Refresh register loaded into a
+140C	82			add a,d		;d is added to a
+140D	32 40 0D		ld (0x0D40),a	;store a (random number 1)
+1410	8B			add a,e		;e with carry is stored in a
+1411	32 41 0D		ld (0x0D41),a	;store a (random number 2)
+1414	82			add a,d
+1415	83			add a,e		;add d and e to a
+1416	07			rlca		;rotate a one bit with carry
+1417	32 42 0D		ld (0x0D42),a	;store a (random number 3)
 141A		MAINLOOP:	ORG 0x141A
-141A	CD AB 0C		call 0x0CAB			;Call 3x3 to 8x8 conversion routine
-141D	CD E7 0C		call 0x0CE7			;Call multiplex scan routine
-1420	DB 03			in a,(03)			;test for key pressed (need jmon resistor)
-1422	CB 77			bit 6,a				;test bit 6 for low (key pressed)
-1424	28 06			jr z,0x0C2C			;if key pressed then jump 6 ahead
-1426	AF				xor a				;zero a
-1427	32 43 0D		ld (0x0D43),a		;store a in key pressed location
-142A	18 F1			jr 0x0C1D			;jump to scan unless key pressed
-142C	3A 43 0D		ld a,(0x0D43)		;load last key pressed
-142F	B7				or a				;compare with current key
-1430	20 EB			jr nz,0x0C1D		;if same as previous just back to scan
+141A	CD AB 0C		call 0x0CAB	;Call 3x3 to 8x8 conversion routine
+141D	CD E7 0C		call 0x0CE7	;Call multiplex scan routine
+1420	DB 03			in a,(03)	;test for key pressed (need jmon resistor)
+1422	CB 77			bit 6,a		;test bit 6 for low (key pressed)
+1424	28 06			jr z,0x0C2C	;if key pressed then jump 6 ahead
+1426	AF			xor a		;zero a
+1427	32 43 0D		ld (0x0D43),a	;store a in key pressed location
+142A	18 F1			jr 0x0C1D	;jump to scan unless key pressed
+142C	3A 43 0D		ld a,(0x0D43)	;load last key pressed
+142F	B7			or a		;compare with current key
+1430	20 EB			jr nz,0x0C1D	;if same as previous just back to scan
 1432	3E FF			ld a,0xFF
-1434	32 43 0D		ld (0x0D43),a		;store FF in key pressed location
-1437	21 00 0D		ld hl,0x0D00		;make hl base of key table
-143A	01 09 00		ld bc,0x0009		;make bc number of valid keys (9)
-143D	DB 00			in a,(00)			;get key pressed
-143F	E6 1F			and 0x1F			;mask unwanted bits
-1441	ED B1			cpir				;compare a with HL, decrease BC if no match
-1443	20 D8			jr nz,0x0C1D		;if no valid key found then jump back to scan
-1445	CD D8 0C		call 0x0CD8			;key is valid call beep
-1448	2B				dec hl				;get hl back to key pressed
-1449	11 09 00		ld de,0x0009		;load de with table index based on hl
-144C	06 03			ld b,0x03			;load b with 3 for each matrix bite
-144E	19				add hl,de			;add hl with de (+9 from key pressed)
-144F	7E				ld a,(hl)			;load a with hl (first bite based on key pressed)
-1450	19				add hl,de			;add hl with de (+9 from first bite)
-1451	E5				push hl				;save hl
+1434	32 43 0D		ld (0x0D43),a	;store FF in key pressed location
+1437	21 00 0D		ld hl,0x0D00	;make hl base of key table
+143A	01 09 00		ld bc,0x0009	;make bc number of valid keys (9)
+143D	DB 00			in a,(00)	;get key pressed
+143F	E6 1F			and 0x1F	;mask unwanted bits
+1441	ED B1			cpir		;compare a with HL, decrease BC if no match
+1443	20 D8			jr nz,0x0C1D	;if no valid key found then jump back to scan
+1445	CD D8 0C		call 0x0CD8	;key is valid call beep
+1448	2B			dec hl		;get hl back to key pressed
+1449	11 09 00		ld de,0x0009	;load de with table index based on hl
+144C	06 03			ld b,0x03	;load b with 3 for each matrix bite
+144E	19			add hl,de	;add hl with de (+9 from key pressed)
+144F	7E			ld a,(hl)	;load a with hl (first bite based on key pressed)
+1450	19			add hl,de	;add hl with de (+9 from first bite)
+1451	E5			push hl		;save hl
 
 
-1452	6E				ld l,(hl)			;load contents of hl to l (0x40,0x41,0x42 from table)
-1453	AE				xor (hl)			;toggle hl bits
-1454	77				ld (hl),a			;store updated byte back to hl
+1452	6E			ld l,(hl)	;load contents of hl to l (0x40,0x41,0x42 from table)
+1453	AE			xor (hl)	;toggle hl bits
+1454	77			ld (hl),a	;store updated byte back to hl
 
 
-1455	E1				pop hl				;recover hl
-1456	10 F6			djnz 0x0C4E			;loop for all three bytes
-1458	21 40 0D		ld hl,0x0D40		;check for box pattern, load first byte
-145B	7E				ld a,(hl)			;load a with contents of hl
-145C	E6 07			and 0x07			;remove unwanted bits mask with 111
-145E	FE 07			cp 0x07				;compare with 111
-1460	20 B8			jr nz,0x0C1A		;no match, jump to main playing loop
-1462	23				inc hl				;move to next byte
-1463	7E				ld a,(hl)			;load a with contents of hl
-1464	E6 07			and 0x07			;remove unwanted bits mask with 111
-1466	FE 05			cp 0x05				;compare with 101
-1468	20 B0			jr nz,0x0C1A		;no match, jump to main playing loop
-146A	23				inc hl				;move to next byte
-146B	7E				ld a,(hl)			;load a with contents of hl
-146C	E6 07			and 0x07			;remove unwanted bits mask with 111
-146E	FE 07			cp 0x07				;compare with 111
-1470	20 A8			jr nz,0x0C1A		;no match, jump to main playing loop
-1472	CD AB 0C		call 0x0C1A			;Pattern correct! Call 3x3TO8x8 conversion
-1475	11 30 00		ld de,0x0030		;load de with Win tone
-1478	CD DB 0C		call 0x0CDB			;call Tone
-147B	06 03			ld b,0x03			;set B to flash 3 times
-147D	C5				push bc				;push bc to save count
-147E	16 10			ld d,0x10			;load d with scan counter
-1480	CD E7 0C		call 0x0CE7			;Call multiplex scan routine
-1483	15				dec d				;loop until d=0
-1484	20 FA			jr nz,0x0C80		;
-1486	AF				xor a				;clear display
-1487	D3 06			out (06),a			;blank 8x8 latch
-1489	CD D8 0C		call 0x0CD8			;call tone
-148C	01 00 15		ld bc,0x1500		;load bc with OFF time
-148F	0B				dec bc				;decrease bc
-1490	78				ld a,b				;load a with b
-1491	B1				or c				;or a with c (which is 00)
-1492	20 FB			jr nz,0x0C8F		;jump back to decrease bc
-1494	C1				pop bc				;restore bc for next flash
-1495	10 E6			djnz 0x0C7D			;decrease b and jump to 0x147D
-1497	CD E7 0C		call 0x0CE7			;Call multiplex scan routine
-149A	DB 00			in a,(00)			;check for key pressed
-149C	E6 1F			and 0x1F			;mask off unwanted bits
-149E	FE 12			cp 0x12				;check if GO key pressed
-14A0	20 F5			jr nz,0x0C97		;jump back to scan if not
-14A2	11 80 00		ld de,0x0080		;load de with restart tone
-14A5	CD DB 0C		call 0x0CDB			;call Tone
-14A8	C3 00 0C		jp 0x0C00			;jump back to start
-14AB		3x3TO8x8:	ORG 0x0CAB			;3x3 to 8x8 conversion routine
-14AB	06 03			ld b,0x03			;load b with 3 conversions
-14AD	21 40 0D		ld hl,0x0D40		;load hl with first byte to convert
-14B0	11 50 0D		ld de,0x0D50		;load de with 8x8 buffer start
-14B3	C5				push bc				;save b counter
-14B4	7E				ld a,(hl)			;get first byte
-14B5	CD C4 0C		call 0x0CC4			;call 1TO3BIT
-14B8 	12				ld (de),a			;load new a to 8x8
-14B9	13				inc de				;move to next 8x8 byte
-14BA 	12				ld (de),a			;load new a to 8x8 (second time)
-14BB	13				inc de				;move to next 8x8 byte
-14BC	AF				xor a				;zero a (blank line)
-14BD 	12				ld (de),a			;load new a to 8x8 (third time)
-14BE	13				inc de				;move to next 8x8 byte
-14BF	23				inc hl				;move to next byte
-14C0	C1				pop bc				;recover count
-14C1	10 F0			djnz 0x0CB3			;do next 3x3 byte
-14C3	C9				ret					;return
-14C4		1TO3BIT:	ORG 0x0CC4			;1 to 3 bit conversion (a to be converted)
-14C4	01 00 03		ld bc,0x0300		;b = 3 loops, c = cleared for display byte
-14C7	0F				rrca				;rotate bits one to right, carry bit is set
-14C8	30 02			jr nc,0x0CCC		;jump to 14CC if carry is not 0
-14CA	CB F9			set 7,c				;set bit 7 of c (now bit 7 and carry are set)
-14CC	CB 11			rl c				;rotate c left 1 bit, carry is put in bit 0
-14CE	CB 11			rl c				;rotate c left again, 
-14D0	CB 11			rl c				;rotate c left again (space)
-14D2	10 F3			djnz 0x0CC7			;check next bit in a
-14D4	CB 19			rr c				;remove last space
-14D6	79				ld a,c				;place result in a
-14D7	C9				ret					;return
-14D8		BEEP:		ORG 0x0CD8			;Play a Beep
-14D8	11 50 50		ld de,0x5050		;D = period, E = loop counter
-14DB	AF				xor a				;zero a (some jumps come here if de set prior)
-14DC	D3 01			out (01),a			;output to speaker
-14DE	42				ld b,d				;load b with d
-14DF	10 FE			djnz 0x0CDF			;count down b
-14E1	EE 80			xor 80				;make a 80 which is the speaker location
-14E3	1D				dec e				;decrease e
-14E4	20 F6			jr nz,0x0CDC		;jump to 14DC if e isn’t zero
-14E6	C9				ret					;return
-14E7		SCAN:		ORG 0x0CE7			;Multiplex scan routine
-14E7	21 57 0D		ld hl,0x0D57		;load hl with top end of 8x8 screen buffer
-14EA	06 80			ld b,0x80			;load b with 80 (right most port on 8x8)
-14EC	7E				ld a,(hl)			;load a with contents of hl
-14ED	D3 05			out (05),a			;output hl display to port 5
-14EF	78				ld a,b				;now load port to a
-14F0	D3 06			out (06),a			;output row port 6 (on)
-14F2	06 40			ld b,0x40			;load b with led ON time of 40
-14F4	10 FE			djnz 0x0CF4			;count down b
-14F6	2B				dec hl				;move to next 8x8 column
-14F7	47				ld b,a				;save a (row port) in b
-14F8	AF				xor a				;zero a to blank row
-14F9	D3 06			out (06),a			;output row port 6 (off)
-14FB	CB 08			rrc b				;shift scan bit right one
-14FD	30 ED			jr nc,0x0CEC		;if b isn’t zero display next row
-14FF	C9				ret					;return
+1455	E1			pop hl		;recover hl
+1456	10 F6			djnz 0x0C4E	;loop for all three bytes
+1458	21 40 0D		ld hl,0x0D40	;check for box pattern, load first byte
+145B	7E			ld a,(hl)	;load a with contents of hl
+145C	E6 07			and 0x07	;remove unwanted bits mask with 111
+145E	FE 07			cp 0x07		;compare with 111
+1460	20 B8			jr nz,0x0C1A	;no match, jump to main playing loop
+1462	23			inc hl		;move to next byte
+1463	7E			ld a,(hl)	;load a with contents of hl
+1464	E6 07			and 0x07	;remove unwanted bits mask with 111
+1466	FE 05			cp 0x05		;compare with 101
+1468	20 B0			jr nz,0x0C1A	;no match, jump to main playing loop
+146A	23			inc hl		;move to next byte
+146B	7E			ld a,(hl)	;load a with contents of hl
+146C	E6 07			and 0x07	;remove unwanted bits mask with 111
+146E	FE 07			cp 0x07		;compare with 111
+1470	20 A8			jr nz,0x0C1A	;no match, jump to main playing loop
+1472	CD AB 0C		call 0x0C1A	;Pattern correct! Call 3x3TO8x8 conversion
+1475	11 30 00		ld de,0x0030	;load de with Win tone
+1478	CD DB 0C		call 0x0CDB	;call Tone
+147B	06 03			ld b,0x03	;set B to flash 3 times
+147D	C5			push bc		;push bc to save count
+147E	16 10			ld d,0x10	;load d with scan counter
+1480	CD E7 0C		call 0x0CE7	;Call multiplex scan routine
+1483	15			dec d		;loop until d=0
+1484	20 FA			jr nz,0x0C80	;
+1486	AF			xor a		;clear display
+1487	D3 06			out (06),a	;blank 8x8 latch
+1489	CD D8 0C		call 0x0CD8	;call tone
+148C	01 00 15		ld bc,0x1500	;load bc with OFF time
+148F	0B			dec bc		;decrease bc
+1490	78			ld a,b		;load a with b
+1491	B1			or c		;or a with c (which is 00)
+1492	20 FB			jr nz,0x0C8F	;jump back to decrease bc
+1494	C1			pop bc		;restore bc for next flash
+1495	10 E6			djnz 0x0C7D	;decrease b and jump to 0x147D
+1497	CD E7 0C		call 0x0CE7	;Call multiplex scan routine
+149A	DB 00			in a,(00)	;check for key pressed
+149C	E6 1F			and 0x1F	;mask off unwanted bits
+149E	FE 12			cp 0x12		;check if GO key pressed
+14A0	20 F5			jr nz,0x0C97	;jump back to scan if not
+14A2	11 80 00		ld de,0x0080	;load de with restart tone
+14A5	CD DB 0C		call 0x0CDB	;call Tone
+14A8	C3 00 0C		jp 0x0C00	;jump back to start
+14AB		3x3TO8x8:	ORG 0x0CAB	;3x3 to 8x8 conversion routine
+14AB	06 03			ld b,0x03	;load b with 3 conversions
+14AD	21 40 0D		ld hl,0x0D40	;load hl with first byte to convert
+14B0	11 50 0D		ld de,0x0D50	;load de with 8x8 buffer start
+14B3	C5			push bc		;save b counter
+14B4	7E			ld a,(hl)	;get first byte
+14B5	CD C4 0C		call 0x0CC4	;call 1TO3BIT
+14B8 	12			ld (de),a	;load new a to 8x8
+14B9	13			inc de		;move to next 8x8 byte
+14BA 	12			ld (de),a	;load new a to 8x8 (second time)
+14BB	13			inc de		;move to next 8x8 byte
+14BC	AF			xor a		;zero a (blank line)
+14BD 	12			ld (de),a	;load new a to 8x8 (third time)
+14BE	13			inc de		;move to next 8x8 byte
+14BF	23			inc hl		;move to next byte
+14C0	C1			pop bc		;recover count
+14C1	10 F0			djnz 0x0CB3	;do next 3x3 byte
+14C3	C9			ret		;return
+14C4		1TO3BIT:	ORG 0x0CC4	;1 to 3 bit conversion (a to be converted)
+14C4	01 00 03		ld bc,0x0300	;b = 3 loops, c = cleared for display byte
+14C7	0F			rrca		;rotate bits one to right, carry bit is set
+14C8	30 02			jr nc,0x0CCC	;jump to 14CC if carry is not 0
+14CA	CB F9			set 7,c		;set bit 7 of c (now bit 7 and carry are set)
+14CC	CB 11			rl c		;rotate c left 1 bit, carry is put in bit 0
+14CE	CB 11			rl c		;rotate c left again, 
+14D0	CB 11			rl c		;rotate c left again (space)
+14D2	10 F3			djnz 0x0CC7	;check next bit in a
+14D4	CB 19			rr c		;remove last space
+14D6	79			ld a,c		;place result in a
+14D7	C9			ret		;return
+14D8		BEEP:		ORG 0x0CD8	;Play a Beep
+14D8	11 50 50		ld de,0x5050	;D = period, E = loop counter
+14DB	AF			xor a		;zero a (some jumps come here if de set prior)
+14DC	D3 01			out (01),a	;output to speaker
+14DE	42			ld b,d		;load b with d
+14DF	10 FE			djnz 0x0CDF	;count down b
+14E1	EE 80			xor 80		;make a 80 which is the speaker location
+14E3	1D			dec e		;decrease e
+14E4	20 F6			jr nz,0x0CDC	;jump to 14DC if e isn’t zero
+14E6	C9			ret		;return
+14E7		SCAN:		ORG 0x0CE7	;Multiplex scan routine
+14E7	21 57 0D		ld hl,0x0D57	;load hl with top end of 8x8 screen buffer
+14EA	06 80			ld b,0x80	;load b with 80 (right most port on 8x8)
+14EC	7E			ld a,(hl)	;load a with contents of hl
+14ED	D3 05			out (05),a	;output hl display to port 5
+14EF	78			ld a,b		;now load port to a
+14F0	D3 06			out (06),a	;output row port 6 (on)
+14F2	06 40			ld b,0x40	;load b with led ON time of 40
+14F4	10 FE			djnz 0x0CF4	;count down b
+14F6	2B			dec hl		;move to next 8x8 column
+14F7	47			ld b,a		;save a (row port) in b
+14F8	AF			xor a		;zero a to blank row
+14F9	D3 06			out (06),a	;output row port 6 (off)
+14FB	CB 08			rrc b		;shift scan bit right one
+14FD	30 ED			jr nc,0x0CEC	;if b isn’t zero display next row
+14FF	C9			ret		;return
 
 DATA TABLES 
-0D00	04 05 06 08 09 0A 0C 0D 0E			;key pressed
-0D09	06 04 00 07 02 00 03 01 00			;bottom row bits of key pressed
-0D12	40 40 40 40 40 40 40 40 40			;first 3x3 location 0x0D40
-0D1B	04 06 04 02 07 02 01 03 01			;middle row bits of key pressed
-0D24	41 41 41 41 41 41 41 41 41			;second 3x3 location 0x0D41
-0D2D	00 04 06 00 02 07 00 01 03			;top row bits of key pressed
-0D36	42 42 42 42 42 42 42 42 42 			;third 3x3 location 0x0D42
-
-
-
-
-
+0D00	04 05 06 08 09 0A 0C 0D 0E		;key pressed
+0D09	06 04 00 07 02 00 03 01 00		;bottom row bits of key pressed
+0D12	40 40 40 40 40 40 40 40 40		;first 3x3 location 0x0D40
+0D1B	04 06 04 02 07 02 01 03 01		;middle row bits of key pressed
+0D24	41 41 41 41 41 41 41 41 41		;second 3x3 location 0x0D41
+0D2D	00 04 06 00 02 07 00 01 03		;top row bits of key pressed
+0D36	42 42 42 42 42 42 42 42 42 		;third 3x3 location 0x0D42
 
 
