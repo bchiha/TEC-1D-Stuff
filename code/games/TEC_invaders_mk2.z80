@@ -33,6 +33,9 @@ START:
 GAME:
             CALL    MOVPLA     ;Move Player
             CALL    MOVBUL     ;Move Bullet
+
+            CALL    MOVINV     ;Move Invaders
+
             CALL    UPDSCR     ;Update Screen
             CALL    SCAN       ;Scan the 8x8
             ;Loop to Start
@@ -154,6 +157,81 @@ MOVBUL:
             LD       (BULLET),A  ;Clear X pos if no bullet
             ;TODO: Check collision
 MB1:
+            RET
+
+; Move invaders from Right to Left and back.  When top invader line hits the end
+; Move invaders down a line.  The Horizontal page is moved then mapped to the
+; vertical for displaying.
+MOVINV:
+            ; Find top line
+            LD      HL,INVADH-1
+MI1:
+            INC     HL
+            LD      A,(HL)
+            OR      A
+            JR      Z,MI1
+            ; Find current direction and move if possible
+            LD      A,(INVDIR)
+            OR      A
+            JR      NZ,MLEFT
+MRIGHT:
+            LD      A,(HL)
+MI2:
+            RLCA
+            JR      C,MDROP  ;At edge, drop down a line
+            LD      (HL),A
+            INC     HL
+            LD      A,(HL)
+            OR      A  ;If empty line end of shift
+            JR      Z,ROTCW
+            JR      MI2
+MLEFT:
+            LD      A,(HL)
+MI3:
+            RRCA
+            JR      C,MDROP  ;At edge, drop down a line
+            LD      (HL),A
+            INC     HL
+            LD      A,(HL)
+            OR      A  ;If empty line end of shift
+            JR      Z,ROTCW
+            JR      MI3
+
+            ;Drop Invaders down a line. If hit bottom then end of game
+MDROP:
+            ;Rotate down on line
+            LD      IX,INVADH+6
+            LD      B,07H
+MI4:
+            LD      A,(IX+0)
+            LD      (IX+1),A
+            DEC     IX
+            DJNZ    MI4 
+            ;Change direction flag
+            LD      A,(INVDIR)
+            XOR     01H
+            LD      (INVDIR),A
+            ;TODO: bottom of screen End of game
+
+            ; Rotate Screen bytes 90 degress Clockwise.
+            ; This allows Left to Right bit manipulation
+ROTCW:                
+            LD      DE,INVADV 
+            LD      B,08H 
+ROT1:               
+            PUSH    BC 
+            LD      B,08H 
+            LD      HL,INVADH 
+            XOR     A 
+ROT2:               
+            RRC     (HL) 
+            RLA      
+            INC     HL 
+            DJNZ    ROT2 
+            LD      (DE),A 
+            INC     DE 
+            POP     BC 
+            DJNZ    ROT1 
             RET
 
 ;Initialize the screen data
