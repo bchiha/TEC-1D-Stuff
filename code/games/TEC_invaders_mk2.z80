@@ -1,0 +1,241 @@
+; TEC Invaders V2.
+; 
+; This is my version of the TEC invaders
+; 
+; Brian Chiha
+; 
+; 
+
+;Data locations
+SCREEN:     EQU     0D00H ;Game Screen (Merge of INVADV,PLAYER,BULLET,UFOPOS and INVBOM) (8-bytes)
+INVADV:     EQU     0D08H ;Invaders in vertical position for display             (8-bytes)
+INVADH:     EQU     0D10H ;Invaders in horizontal position for easy bit move     (8-bytes)
+INVBOM:     EQU     0D18H ;Invader Bomb position vertically.                     (8-bytes)
+PLAYER:     EQU     0D20H ;Position in byte IE: 00100000 (three from the right)  (1-byte)
+BULLET:     EQU     0D21H ;Position of bullet X (Horizontal) and Y (Verticallly) (2-bytes)
+UFOPOS:     EQU     0D23H ;Position in byte IE: 00010000 (four from the right)   (1-byte)
+ACTCNT:     EQU     0D24H ;Counter to action updates when certian bits are set   (1-byte)
+KEYPRE:     EQU     0D25H ;Key Pressed Flag, 00-False, FF-True                   (1-byte)
+INVDIR:     EQU     0D26H ;Direction of Invaders, 00=Right, 01=Left              (1-byte)
+;Contstants
+INITPL:     EQU     00010000B  ;Initial Player X position, bit set = ...0....
+INVSPD:     EQU     00001000B  ;Invaders movement speed
+UFOSPD:     EQU     00000100B  ;UFO movement speed
+UFOCRE:     EQU     00010000B  ;UFO creation rate
+
+
+            ORG    0900H 
+START:               
+            CALL    SETUP
+ 
+            
+            ; Game Loop
+GAME:
+            CALL    MOVPLA     ;Move Player
+            CALL    MOVBUL     ;Move Bullet
+            CALL    UPDSCR     ;Update Screen
+            CALL    SCAN       ;Scan the 8x8
+            ;Loop to Start
+            JR      GAME
+
+;Update Screen by merging all displays
+UPDSCR:
+            ;Place Invaders
+            LD      BC,0008H 
+            LD      DE,SCREEN 
+            LD      HL,INVADV
+            LDIR
+
+            ;Place Bombs
+
+            ;Place Bullet.  Move HL to X pos, then OR with vertical
+            LD      A,(BULLET)
+            OR      A
+            JR      Z,U4   ;No bullet so ignore update
+            LD      DE,SCREEN
+U2:
+            RLCA           ;Bit must be present
+            JR      C,U3   ;Move DE to X position
+            INC     DE
+            JR      U2
+U3:
+            LD      A,(BULLET+1)
+            LD      B,A
+            LD      A,(DE) 
+            OR      B      
+            LD      (DE),A ;Update DE with Y position
+
+U4:
+            ;Place Player
+            LD      A,(PLAYER)
+            LD      DE,SCREEN
+U5:
+            RLCA
+            JR      C,U6
+            INC     DE
+            JR      U5
+U6:
+            LD      A,(DE)
+            SET     0,A
+            LD      (DE),A
+
+            ;Place UFO
+RET
+
+; Check for key pressed: Either 
+; "+" For Shoot
+; "1" For Left and "9" for Right,
+; Then Either create a bullet or move the player
+; Need DAT board or 4K7 Resistor mod from NMI to D6 link 
+; 
+MOVPLA:    
+            ; Test for key pressed with D6 set
+            IN       A,(03)
+            BIT      6,A  ; Bit 6, If not set A=NZ
+            JR       Z,MP2
+            ; Store 0 for last key if no key pressed
+            XOR      A
+            LD       (KEYPRE),A
+MP1:
+            RET
+MP2:
+            ; Key has been pressed
+            LD       A,(KEYPRE)
+            OR       A
+            JR       NZ,MP1 ; Just return if same
+            LD       A,0FFH
+            LD       (KEYPRE),A
+            ; Get Key
+            IN       A,(00)
+            AND      01FH ; Mask unwanted bits
+            ; Check for Valid Keys
+LEFT:
+            CP       01H  ; Left
+            JR       NZ, RIGHT
+            LD       A,(PLAYER)
+            RLCA     ; If Carry then don't move as its already left
+            JR       C,MP1
+            LD       (PLAYER),A
+            JR       MP1   ; Return
+RIGHT:
+            CP       09H  ; Right
+            JR       NZ, SHOOT
+            LD       A,(PLAYER)
+            RRCA     ; If Carry then don't move as its already right
+            JR       C,MP1
+            LD       (PLAYER),A
+            JR       MP1   ; Return
+SHOOT:
+            CP       10H  ; "+"
+            JR       NZ,MP1
+            ;Ensure no bullet is active, BULLET or BULLET+1 should be 00
+            LD       A,(BULLET)
+            OR       A
+            JR       NZ,MP1
+            ;Create bullet at players position + 1 up
+            LD       A,(PLAYER)
+            LD       (BULLET),A ; X position
+            LD       A,02H  ;Second bit from bottom
+            LD       (BULLET+1),A
+            RET
+
+; If Bullet exists, move it upwards until it hits an invader or
+; goes off the top of the screen
+MOVBUL:
+            ;Check if bullet active
+            LD       A,(BULLET+1) ;Y Pos bullet
+            OR       A
+            JR       Z,MB1
+            ;Shift it one
+            SLA      A
+            LD       (BULLET+1),A
+            OR       A
+            JR       NZ,MB1
+            LD       (BULLET),A  ;Clear X pos if no bullet
+            ;TODO: Check collision
+MB1:
+            RET
+
+;Initialize the screen data
+SETUP: 
+; Copy Vertical Invaders
+            LD      BC,0008H 
+            LD      DE,INVADV 
+            LD      HL,INITIV 
+            LDIR
+; Copy Horizontal Invaders
+            LD      BC,0008H 
+            LD      DE,INVADH 
+            LD      HL,INITIH 
+            LDIR     
+; Fill Invaders Bombs with 0 x 8 times
+            LD      HL,INVBOM
+            LD      DE,INVBOM+1
+            XOR     A
+            LD      (HL),A
+            LD      BC,07H
+            LDIR
+; Fill Player position.  Start at ...0....
+            LD      A,INITPL 
+            LD      (PLAYER),A 
+; Fill Bullet Pos., UFO Pos., Action Counter, Key Pressed and Inv Dir to 0
+            LD      HL,BULLET
+            LD      DE,BULLET+1
+            XOR     A
+            LD      (HL),A
+            LD      BC,05H
+            LDIR 
+            RET
+
+; Multiplex the 8x8 Display
+SCAN:                
+            LD      B,10H 
+S1:               
+            PUSH    BC 
+            LD      B,01H 
+            LD      HL,SCREEN 
+S2:               
+            LD      A,(HL) 
+            OUT     (06),A 
+            LD      A,B 
+            OUT     (05),A 
+            LD      B,40H 
+S3:         DJNZ    S3 
+            LD      B,A 
+            XOR     A 
+            OUT     (05),A 
+            INC     HL 
+            RLC     B 
+            JR      NC,S2 
+            POP     BC 
+            DJNZ    S1 
+            RET      
+
+; Screen Data
+
+; Invaders are initially shown as
+; . . . . . . . .
+; O O O O . . . .
+; O O O O . . . .
+; O O O O . . . .
+; . . . . . . . .
+; . . . . . . . .
+; . . . . . . . .
+; . . . . . . . .
+; 
+INITIV:     DB      70H,70H,70H,70H,00H,00H,00H,00H 
+
+; Invaders rotated to the left for easy bit move
+; . . . . . . . .
+; . . . . . . . .
+; . . . . . . . .
+; . . . . . . . .
+; . O O O . . . .
+; . O O O . . . .
+; . O O O . . . .
+; . O O O . . . .
+; 
+INITIH:     DB      00H,0FH,0FH,0FH,00H,00H,00H,00H 
+
+
+
