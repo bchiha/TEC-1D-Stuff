@@ -1,8 +1,30 @@
-; TEC Invaders V2.
+; TEC Invaders Mark 2.
+;
+; By
+; Brian Chiha -- May 2020
+; brian.chiha@gmail.com
 ; 
 ; This is my version of the TEC invaders
-; 
-; Brian Chiha
+; --------------------------------------
+;
+; Setup
+; ----- 
+;
+; To be run on the TEC-1D with either JMON or MON2.  For the keyboard to work
+; it requires EITHER a 4k7 resistor between the NMI (pin 17 on Z-80) and D6 (pin
+; 10 on the Z-80) OR the DAT (LCD) expanstion board fitted to port 3.  The 
+; current TEC-1D boards have the JMON MOD resitor connection already there.
+; The 8x8 LED board is fitted to ports 5 and 6 with the port select strobe of the
+; left hand latch going to port 6.
+;
+; To Play
+; -------
+;
+; Use '1' to move Left, '9' to move right and '+' to shoot.  10 Points for 
+; hitting an invader and 50 Points for the UFO on the top row.  Player has
+; 3 lives and the game is over when all lives are lost.  You lose a life if
+; the invaders land or you get hit by one of their bombs.  Invaders come
+; in waves and get faster every wave.
 ; 
 ; 
 
@@ -17,14 +39,18 @@ UFOPOS:     EQU     0D23H ;Position in byte IE: 00010000 (four from the right)  
 ACTCNT:     EQU     0D24H ;Counter to action updates when certian bits are set   (1-byte)
 KEYPRE:     EQU     0D25H ;Key Pressed Flag, 00-False, FF-True                   (1-byte)
 INVDIR:     EQU     0D26H ;Direction of Invaders, 00=Right, 01=Left              (1-byte)
+PLAYSC:     EQU     0D27H ;Player current score                                  (2-bytes)
+PLAYLV:     EQU     0D29H ;Player current Lives                                  (1-byte)
+LEDSCR:     EQU     0D2AH ;Score and lives segment data for LED display          (6-bytes)
 ;Contstants
 INITPL:     EQU     00010000B  ;Initial Player X position, bit set = ...0....
+INITLV:     EQU     00000011B  ;Initial Lives #3
 INVSPD:     EQU     00001000B  ;Invaders movement speed
 UFOSPD:     EQU     00000100B  ;UFO movement speed
 UFOCRE:     EQU     00010000B  ;UFO creation rate
 
 
-            ORG    0900H 
+            ORG     0900H 
 START:               
             CALL    SETUP
  
@@ -34,10 +60,23 @@ GAME:
             CALL    MOVPLA     ;Move Player
             CALL    MOVBUL     ;Move Bullet
 
-            CALL    MOVINV     ;Move Invaders
+            ; Delayed timed movement for invaders, ufo and ufo creation
+;            LD      A,(ACTCNT) ;Get action counter
+;            LD      B,A
 
+;            AND     INVSPD
+;            JR      NZ,CONT
+;            CALL    MOVINV     ;Move Invaders
+
+CONT:
             CALL    UPDSCR     ;Update Screen
-            CALL    SCAN       ;Scan the 8x8
+            CALL    UPDSCO     ;Update Score
+            CALL    SCAN       ;Scan the 8x8 and Seven Segments
+
+            ;Update action counter
+;            LD      HL,ACTCNT
+;            INC     (HL)
+
             ;Loop to Start
             JR      GAME
 
@@ -85,6 +124,22 @@ U6:
             ;Place UFO
 RET
 
+;Update the LED's to display the LEDSCR buffer based off PLAYSC & PLAYLV
+;Unfortunately I had to hard code this as AF,BC,HL and DE all get used... :(
+UPDSCO:
+            LD      BC,LEDSCR  ;Location of screen buffer
+            LD      HL,PLAYSC  ;Player Score (2) and Lives (1)
+            LD      A,(HL)
+            CALL    SEGCON     ;Convert A to Segment Hex, Store in BC
+            INC     HL
+            LD      A,(HL)
+            CALL    SEGCON     ;Convert A to Segment Hex, Store in BC
+            INC     HL
+            LD      A,(HL)
+            CALL    SEGCON     ;Convert A to Segment Hex, Store in BC
+            RET
+
+
 ; Check for key pressed: Either 
 ; "+" For Shoot
 ; "1" For Left and "9" for Right,
@@ -93,68 +148,68 @@ RET
 ; 
 MOVPLA:    
             ; Test for key pressed with D6 set
-            IN       A,(03)
-            BIT      6,A  ; Bit 6, If not set A=NZ
-            JR       Z,MP2
+            IN      A,(03)
+            BIT     6,A  ; Bit 6, If not set A=NZ
+            JR      Z,MP2
             ; Store 0 for last key if no key pressed
-            XOR      A
-            LD       (KEYPRE),A
+            XOR     A
+            LD      (KEYPRE),A
 MP1:
             RET
 MP2:
             ; Key has been pressed
-            LD       A,(KEYPRE)
-            OR       A
-            JR       NZ,MP1 ; Just return if same
-            LD       A,0FFH
-            LD       (KEYPRE),A
+            LD      A,(KEYPRE)
+            OR      A
+            JR      NZ,MP1 ; Just return if same
+            LD      A,0FFH
+            LD      (KEYPRE),A
             ; Get Key
-            IN       A,(00)
-            AND      01FH ; Mask unwanted bits
+            IN      A,(00)
+            AND     01FH ; Mask unwanted bits
             ; Check for Valid Keys
 LEFT:
-            CP       01H  ; Left
-            JR       NZ, RIGHT
-            LD       A,(PLAYER)
-            RLCA     ; If Carry then don't move as its already left
-            JR       C,MP1
-            LD       (PLAYER),A
-            JR       MP1   ; Return
+            CP      01H  ; Left
+            JR      NZ, RIGHT
+            LD      A,(PLAYER)
+            RLCA    ; If Carry then don't move as its already left
+            JR      C,MP1
+            LD      (PLAYER),A
+            JR      MP1   ; Return
 RIGHT:
-            CP       09H  ; Right
-            JR       NZ, SHOOT
-            LD       A,(PLAYER)
-            RRCA     ; If Carry then don't move as its already right
-            JR       C,MP1
-            LD       (PLAYER),A
-            JR       MP1   ; Return
+            CP      09H  ; Right
+            JR      NZ, SHOOT
+            LD      A,(PLAYER)
+            RRCA    ; If Carry then don't move as its already right
+            JR      C,MP1
+            LD      (PLAYER),A
+            JR      MP1   ; Return
 SHOOT:
-            CP       10H  ; "+"
-            JR       NZ,MP1
+            CP      10H  ; "+"
+            JR      NZ,MP1
             ;Ensure no bullet is active, BULLET or BULLET+1 should be 00
-            LD       A,(BULLET)
-            OR       A
-            JR       NZ,MP1
+            LD      A,(BULLET)
+            OR      A
+            JR      NZ,MP1
             ;Create bullet at players position + 1 up
-            LD       A,(PLAYER)
-            LD       (BULLET),A ; X position
-            LD       A,02H  ;Second bit from bottom
-            LD       (BULLET+1),A
+            LD      A,(PLAYER)
+            LD      (BULLET),A ; X position
+            LD      A,02H  ;Second bit from bottom
+            LD      (BULLET+1),A
             RET
 
 ; If Bullet exists, move it upwards until it hits an invader or
 ; goes off the top of the screen
 MOVBUL:
             ;Check if bullet active
-            LD       A,(BULLET+1) ;Y Pos bullet
-            OR       A
-            JR       Z,MB1
+            LD      A,(BULLET+1) ;Y Pos bullet
+            OR      A
+            JR      Z,MB1
             ;Shift it one
-            SLA      A
-            LD       (BULLET+1),A
-            OR       A
-            JR       NZ,MB1
-            LD       (BULLET),A  ;Clear X pos if no bullet
+            SLA     A
+            LD      (BULLET+1),A
+            OR      A
+            JR      NZ,MB1
+            LD      (BULLET),A  ;Clear X pos if no bullet
             ;TODO: Check collision
 MB1:
             RET
@@ -256,38 +311,72 @@ SETUP:
 ; Fill Player position.  Start at ...0....
             LD      A,INITPL 
             LD      (PLAYER),A 
-; Fill Bullet Pos., UFO Pos., Action Counter, Key Pressed and Inv Dir to 0
+; Fill Player initial lives
+            LD      A,INITLV 
+            LD      (PLAYLV),A 
+; Fill Bullet Pos., UFO Pos., Action Counter, Key Pressed
+; Invader Dir, Player's score to 0
             LD      HL,BULLET
             LD      DE,BULLET+1
             XOR     A
             LD      (HL),A
-            LD      BC,05H
+            LD      BC,07H
             LDIR 
             RET
 
-; Multiplex the 8x8 Display
+; Multiplex the 8x8 Display and the Seven Segment LEDS
 SCAN:                
             LD      B,10H 
 S1:               
             PUSH    BC 
-            LD      B,01H 
-            LD      HL,SCREEN 
+            LD      B,01H   ;Counter for 8x8
+            ;LD      C,40H   ;Counter for LED's
+            LD      HL,SCREEN
+            LD      DE,LEDSCR+5 
 S2:               
             LD      A,(HL) 
-            OUT     (06),A 
+            OUT     (06),A
+            LD      A,(DE)
+            OUT     (02),A 
             LD      A,B 
-            OUT     (05),A 
+            OUT     (05),A
+            CP      80H     ;If port 80 (Speaker), Skip
+            JR      Z,S3 
+            OUT     (01),A 
+S3:
             LD      B,40H 
-S3:         DJNZ    S3 
+S4:         DJNZ    S4 
             LD      B,A 
             XOR     A 
             OUT     (05),A 
-            INC     HL 
+            OUT     (01),A
+            DEC     DE
+            INC     HL
             RLC     B 
             JR      NC,S2 
             POP     BC 
             DJNZ    S1 
             RET      
+
+;Convert A to two display bytes for Seven Segment, Store Result in location
+;of BC
+SEGCON:
+            PUSH     AF
+            RLCA
+            RLCA
+            RLCA
+            RLCA
+            CALL     SC1
+            POP      AF
+SC1:
+            AND      0FH
+            LD       DE,SEGTBL
+            ADD      A,E
+            LD       E,A
+            LD       A,(DE)
+            LD       (BC),A
+            INC      BC
+            RET
 
 ; Screen Data
 
@@ -301,7 +390,7 @@ S3:         DJNZ    S3
 ; . . . . . . . .
 ; . . . . . . . .
 ; 
-INITIV:     DB      70H,70H,70H,70H,00H,00H,00H,00H 
+INITIV:     DB       70H,70H,70H,70H,00H,00H,00H,00H 
 
 ; Invaders rotated to the left for easy bit move
 ; . . . . . . . .
@@ -313,7 +402,10 @@ INITIV:     DB      70H,70H,70H,70H,00H,00H,00H,00H
 ; . O O O . . . .
 ; . O O O . . . .
 ; 
-INITIH:     DB      00H,0FH,0FH,0FH,00H,00H,00H,00H 
+INITIH:     DB       00H,0FH,0FH,0FH,00H,00H,00H,00H
+
+; 0-9 to Seven Segment Table
+SEGTBL:     DB       0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H,0EFH,2FH 
 
 
 
