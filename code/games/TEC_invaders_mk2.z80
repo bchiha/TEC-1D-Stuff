@@ -36,46 +36,42 @@ INVBOM:     EQU     0D18H ;Invader Bomb position vertically.                    
 PLAYER:     EQU     0D20H ;Position in byte IE: 00100000 (three from the right)  (1-byte)
 BULLET:     EQU     0D21H ;Position of bullet X (Horizontal) and Y (Verticallly) (2-bytes)
 UFOPOS:     EQU     0D23H ;Position in byte IE: 00010000 (four from the right)   (1-byte)
-ACTCNT:     EQU     0D24H ;Counter to action updates when certian bits are set   (1-byte)
-KEYPRE:     EQU     0D25H ;Key Pressed Flag, 00-False, FF-True                   (1-byte)
-INVDIR:     EQU     0D26H ;Direction of Invaders, 00=Right, 01=Left              (1-byte)
-PLAYSC:     EQU     0D27H ;Player current score                                  (2-bytes)
-PLAYLV:     EQU     0D29H ;Player current Lives                                  (1-byte)
+KEYPRE:     EQU     0D24H ;Key Pressed Flag, 00-False, FF-True                   (1-byte)
+INVDIR:     EQU     0D25H ;Direction of Invaders, 00=Right, 01=Left              (1-byte)
+PLAYSC:     EQU     0D26H ;Player current score                                  (2-bytes)
+PLAYLV:     EQU     0D28H ;Player current Lives                                  (1-byte)
+INVCNT:     EQU     0D29H ;Counter to action invader movement when it hits zero  (1-byte)
 LEDSCR:     EQU     0D2AH ;Score and lives segment data for LED display          (6-bytes)
 ;Contstants
 INITPL:     EQU     00010000B  ;Initial Player X position, bit set = ...0....
-INITLV:     EQU     00000011B  ;Initial Lives #3
-INVSPD:     EQU     00001000B  ;Invaders movement speed
+INITLV:     EQU     03H        ;Initial Lives #3
+INVSPD:     EQU     12H        ;Initial Invaders movement speed
 UFOSPD:     EQU     00000100B  ;UFO movement speed
 UFOCRE:     EQU     00010000B  ;UFO creation rate
 
 
             ORG     0900H 
 START:               
-            CALL    SETUP
- 
+            CALL    SETUP 
             
             ; Game Loop
 GAME:
             CALL    MOVPLA     ;Move Player
             CALL    MOVBUL     ;Move Bullet
+            CALL    MOVUFO     ;Move UFO
 
             ; Delayed timed movement for invaders, ufo and ufo creation
-;            LD      A,(ACTCNT) ;Get action counter
-;            LD      B,A
+            LD      A,(INVCNT)  ;Get invader counter
+            DEC     A
+            JR      NZ,SKIPMV   ;Not Zero so don't move
+            CALL    MOVINV      ;Move Invaders
+            LD      A,INVSPD    ;Reset invader counter            
+SKIPMV:
+            LD      (INVCNT),A  ;Save counter
 
-;            AND     INVSPD
-;            JR      NZ,CONT
-;            CALL    MOVINV     ;Move Invaders
-
-CONT:
             CALL    UPDSCR     ;Update Screen
             CALL    UPDSCO     ;Update Score
             CALL    SCAN       ;Scan the 8x8 and Seven Segments
-
-            ;Update action counter
-;            LD      HL,ACTCNT
-;            INC     (HL)
 
             ;Loop to Start
             JR      GAME
@@ -122,7 +118,21 @@ U6:
             LD      (DE),A
 
             ;Place UFO
-RET
+            LD      A,(UFOPOS)
+            OR      A
+            JR      Z,U9 ;Doesn't exist to skip drawing it
+            LD      DE,SCREEN
+U7:
+            RLCA
+            JR      C,U8
+            INC     DE
+            JR      U7
+U8:
+            LD      A,(DE)
+            SET     7,A
+            LD      (DE),A
+U9:
+            RET
 
 ;Update the LED's to display the LEDSCR buffer based off PLAYSC & PLAYLV
 ;Unfortunately I had to hard code this as AF,BC,HL and DE all get used... :(
@@ -204,7 +214,7 @@ MOVBUL:
             LD      A,(BULLET+1) ;Y Pos bullet
             OR      A
             JR      Z,MB1
-            ;Shift it one
+            ;Shift it one bit to the left
             SLA     A
             LD      (BULLET+1),A
             OR      A
@@ -212,6 +222,19 @@ MOVBUL:
             LD      (BULLET),A  ;Clear X pos if no bullet
             ;TODO: Check collision
 MB1:
+            RET
+
+; If UFO exists, move it one bit to the left.  Remove it if
+; goes off the left of the screen
+MOVUFO:
+            ;Check if ufo active
+            LD      A,(UFOPOS) ; Active if any bit set
+            OR      A
+            JR      Z,MU1
+            ;Shift it one bit to the left
+            SLA     A
+            LD      (UFOPOS),A  ;If zero then automatically clears itself
+MU1:
             RET
 
 ; Move invaders from Right to Left and back.  When top invader line hits the end
@@ -314,13 +337,16 @@ SETUP:
 ; Fill Player initial lives
             LD      A,INITLV 
             LD      (PLAYLV),A 
+; Fill Invaders initial speed
+            LD      A,INVSPD
+            LD      (INVCNT),A 
 ; Fill Bullet Pos., UFO Pos., Action Counter, Key Pressed
 ; Invader Dir, Player's score to 0
             LD      HL,BULLET
             LD      DE,BULLET+1
             XOR     A
             LD      (HL),A
-            LD      BC,07H
+            LD      BC,06H
             LDIR 
             RET
 
