@@ -333,6 +333,20 @@ ROT2:
             DJNZ    ROT1 
             RET
 
+;Add A to current score.  A = score to add
+ADDSCO:
+            LD      HL,PLAYSC+1 ;Tens
+            ADD     A,(HL)
+            DAA
+            LD      (HL),A
+            RET     NC          ;No overflow
+            DEC     HL          ;Hundreds
+            LD      A,00H
+            ADC     A,(HL)
+            DAA
+            LD      (HL),A
+            RET
+
 ;Initialize the screen data
 SETUP: 
 ; Copy Vertical Invaders
