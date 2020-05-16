@@ -42,33 +42,54 @@ PLAYSC:     EQU     0D26H ;Player current score                                 
 PLAYLV:     EQU     0D28H ;Player current Lives                                  (1-byte)
 INVCNT:     EQU     0D29H ;Counter to action invader movement when it hits zero  (1-byte)
 LEDSCR:     EQU     0D2AH ;Score and lives segment data for LED display          (6-bytes)
+RANDNO:     EQU     0D30H ;Random 8-Bit Number. Set when RANDOM is called        (1-byte)
 ;Contstants
 INITPL:     EQU     00010000B  ;Initial Player X position, bit set = ...0....
 INITLV:     EQU     03H        ;Initial Lives #3
 INVSPD:     EQU     12H        ;Initial Invaders movement speed
-UFOSPD:     EQU     00000100B  ;UFO movement speed
-UFOCRE:     EQU     00010000B  ;UFO creation rate
+UFOSPD:     EQU     00000011B  ;UFO movement speed
+UFOCRE:     EQU     06H        ;UFO creation rate
 
 
             ORG     0900H 
 START:               
-            CALL    SETUP 
+            ;Welcome Screen
+;            LD      HL,INTMSG
+;            CALL    SCROLL
+
+            ;New game setup
+            CALL    SETUP
             
-            ; Game Loop
+            ;Game Loop
 GAME:
             CALL    MOVPLA     ;Move Player
             CALL    MOVBUL     ;Move Bullet
-            CALL    MOVUFO     ;Move UFO
 
             ; Delayed timed movement for invaders, ufo and ufo creation
             LD      A,(INVCNT)  ;Get invader counter
+            LD      B,A
             DEC     A
             JR      NZ,SKIPMV   ;Not Zero so don't move
             CALL    MOVINV      ;Move Invaders
             LD      A,INVSPD    ;Reset invader counter            
 SKIPMV:
             LD      (INVCNT),A  ;Save counter
+            LD      A,B
+            AND     UFOSPD      ;Move UFO at faster rate
+            CP      UFOSPD
+            JR      NZ,SKIPUM
+            CALL    MOVUFO      ;Move UFO
+SKIPUM: 
+            CALL    RANDOM      ;Get random number, Returns A
+            CP      UFOCRE
+            JR      NC,SKIPUC
+            LD      A,(UFOPOS) ; Active if any bit set
+            OR      A
+            JR      NZ,SKIPUC
+            LD      A,01H
+            LD      (UFOPOS),A 
 
+SKIPUC:
             CALL    UPDSCR     ;Update Screen
             CALL    UPDSCO     ;Update Score
             CALL    SCAN       ;Scan the 8x8 and Seven Segments
@@ -170,7 +191,7 @@ MP2:
             ; Key has been pressed
             LD      A,(KEYPRE)
             OR      A
-            JR      NZ,MP1 ; Just return if same
+            RET     NZ  ; Just return if same
             LD      A,0FFH
             LD      (KEYPRE),A
             ; Get Key
@@ -182,24 +203,24 @@ LEFT:
             JR      NZ, RIGHT
             LD      A,(PLAYER)
             RLCA    ; If Carry then don't move as its already left
-            JR      C,MP1
+            RET     C
             LD      (PLAYER),A
-            JR      MP1   ; Return
+            RET     ; Return
 RIGHT:
             CP      09H  ; Right
             JR      NZ, SHOOT
             LD      A,(PLAYER)
             RRCA    ; If Carry then don't move as its already right
-            JR      C,MP1
+            RET     C
             LD      (PLAYER),A
-            JR      MP1   ; Return
+            RET     ; Return
 SHOOT:
             CP      10H  ; "+"
-            JR      NZ,MP1
+            RET     NZ
             ;Ensure no bullet is active, BULLET or BULLET+1 should be 00
             LD      A,(BULLET)
             OR      A
-            JR      NZ,MP1
+            RET     NZ
             ;Create bullet at players position + 1 up
             LD      A,(PLAYER)
             LD      (BULLET),A ; X position
@@ -350,13 +371,14 @@ SETUP:
             LDIR 
             RET
 
+;Utility Routines..
+
 ; Multiplex the 8x8 Display and the Seven Segment LEDS
 SCAN:                
             LD      B,10H 
 S1:               
             PUSH    BC 
             LD      B,01H   ;Counter for 8x8
-            ;LD      C,40H   ;Counter for LED's
             LD      HL,SCREEN
             LD      DE,LEDSCR+5 
 S2:               
@@ -384,27 +406,118 @@ S4:         DJNZ    S4
             DJNZ    S1 
             RET      
 
-;Convert A to two display bytes for Seven Segment, Store Result in location
-;of BC
-SEGCON:
-            PUSH     AF
-            RLCA
-            RLCA
-            RLCA
-            RLCA
-            CALL     SC1
-            POP      AF
-SC1:
-            AND      0FH
-            LD       DE,SEGTBL
-            ADD      A,E
-            LD       E,A
-            LD       A,(DE)
-            LD       (BC),A
-            INC      BC
+;Sound Routine
+PLAYSD:
+            LD      C,20H
+            LD      L,31H
+            XOR     A
+PS1:
+            OUT     (01),A
+            LD      B,C
+PS2:        DJNZ    PS2
+            XOR     80H
+            DEC     L
+            JR      NZ,PS1
             RET
 
-; Screen Data
+;Random number generator.  A - Returns a number between 00 and FF
+RANDOM:
+            LD      A,R
+            LD      B,A
+            LD      A,(RANDNO)
+            XOR     B
+            ADD     A,A
+            XOR     B
+            LD      (RANDNO),A
+            RET
+
+;Convert A to two display bytes for Seven Segment, Store Result in location of BC
+SEGCON:
+            PUSH    AF
+            RLCA
+            RLCA
+            RLCA
+            RLCA
+            CALL    SC1
+            POP     AF
+SC1:
+            AND     0FH
+            LD      DE,SEGTBL
+            ADD     A,E
+            LD      E,A
+            LD      A,(DE)
+            LD      (BC),A
+            INC     BC
+            RET
+
+;8x8 Scroll routine to scroll data from right to left.  Data is referenced in HL
+;First Byte is number of columns to scroll followed by vertical byte display upwards
+;This routine includes the 8x8 multiplex
+SCROLL:
+            LD      A,(HL)    ;Column count
+            LD      C,A
+SL1:
+            LD      B,07H
+            LD      IX,SCREEN
+SL2:
+            LD      A,(IX+1)   ;Shift seven columns
+            LD      (IX+0),A
+            INC     IX
+            DJNZ    SL2
+            INC     HL
+            LD      A,(HL)
+            LD      (SCREEN+7),A
+            CALL    SCAN88
+            DEC     C
+            JR      NZ,SL1
+            RET
+
+;8x8 Flasher routine.  This displays data for the 8x8 similar to the scroll but shows
+;one page (8x8) at a time instead of sequentially scrolling.  Data is referenced in HL
+;First byte is the number of pages to show followed by vertical byte display upwards
+;Useful for animations using the 8x8
+FLASH:
+            LD      A,(HL)    ;Page count
+            LD      C,A
+F1:
+            PUSH    BC
+            INC     HL
+            LD      BC,0008H  
+            LD      DE,SCREEN 
+            LDIR              ;Copy Through to screen area
+            CALL    SCAN88
+            POP     BC
+            DEC     C
+            JR      NZ,F1
+            RET
+
+; Multiplex the 8x8 Display
+SCAN88:                
+            PUSH    HL 
+            LD      B,10H 
+S81:               
+            PUSH    BC
+            LD      B,01H   ;Counter for 8x8
+            LD      HL,SCREEN
+S82:               
+            LD      A,(HL) 
+            OUT     (06),A
+            LD      A,B 
+            OUT     (05),A
+            LD      B,40H 
+S83:        DJNZ    S83 
+            INC     HL
+            LD      B,A 
+            XOR     A 
+            OUT     (05),A 
+            RLC     B 
+            JR      NC,S82 
+            POP     BC 
+            DJNZ    S81
+            POP     HL 
+            RET      
+
+; Game Data
 
 ; Invaders are initially shown as
 ; . . . . . . . .
@@ -416,7 +529,7 @@ SC1:
 ; . . . . . . . .
 ; . . . . . . . .
 ; 
-INITIV:     DB       70H,70H,70H,70H,00H,00H,00H,00H 
+INITIV:     DB      70H,70H,70H,70H,00H,00H,00H,00H 
 
 ; Invaders rotated to the left for easy bit move
 ; . . . . . . . .
@@ -428,10 +541,32 @@ INITIV:     DB       70H,70H,70H,70H,00H,00H,00H,00H
 ; . O O O . . . .
 ; . O O O . . . .
 ; 
-INITIH:     DB       00H,0FH,0FH,0FH,00H,00H,00H,00H
+INITIH:     DB      00H,0FH,0FH,0FH,00H,00H,00H,00H
 
 ; 0-9 to Seven Segment Table
-SEGTBL:     DB       0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H,0EFH,2FH 
+SEGTBL:     DB      0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H,0EFH,2FH
+
+; Intro Message
+INTMSG:     DB      04AH,00H ;Size + Gap
+            DB      40H,40H,7FH,7FH,40H,40H,00H      ;T
+            DB      7FH,7FH,49H,49H,00H              ;E
+            DB      1CH,3EH,63H,41H,41H,00H          ;C
+            DB      00H,00H                          ;_
+            DB      41H,7FH,7FH,41H,00H              ;I
+            DB      7FH,7FH,18H,0CH,7FH,7FH,00H      ;N
+            DB      60H,38H,0EH,03H,0EH,38H,60H,00H  ;V
+            DB      03H,0EH,3CH,64H,3CH,0EH,03H,00H  ;A
+            DB      7FH,7FH,41H,22H,1CH,00H          ;D
+            DB      7FH,7FH,49H,49H,00H              ;E
+            DB      12H,3BH,6BH,6EH,24H,00H          ;S
+            DB      00H,00H,00H,00H,00H,00H,00H,00H  ;_
+
+; Game Over Message
+OVRMSG:     DB      04H ;Page count
+            DB      03H,06H,0AH,06H,0BBH,0A8H,88H,70H ;GA
+            DB      15H,15H,1FH,60H,80H,60H,80H,60H   ;ME
+            DB      0CH,02H,01H,02H,6CH,90H,90H,60H   ;OV
+            DB      06H,38H,28H,3EH,00H,88H,0A8H,0F8H ;ER
 
 
 
