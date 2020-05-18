@@ -185,7 +185,6 @@ MOVPLA:
             ; Store 0 for last key if no key pressed
             XOR     A
             LD      (KEYPRE),A
-MP1:
             RET
 MP2:
             ; Key has been pressed
@@ -234,15 +233,16 @@ MOVBUL:
             ;Check if bullet active
             LD      A,(BULLET+1) ;Y Pos bullet
             OR      A
-            JR      Z,MB1
+            RET     Z
             ;Shift it one bit to the left
             SLA     A
             LD      (BULLET+1),A
             OR      A
             JR      NZ,MB1
             LD      (BULLET),A  ;Clear X pos if no bullet
-            ;TODO: Check collision
+            RET
 MB1:
+            CALL    BULCOL      ;Active bullet, check collision.
             RET
 
 ; If UFO exists, move it one bit to the left.  Remove it if
@@ -251,7 +251,7 @@ MOVUFO:
             ;Check if ufo active
             LD      A,(UFOPOS) ; Active if any bit set
             OR      A
-            JR      Z,MU1
+            RET     Z
             ;Shift it one bit to the left
             SLA     A
             LD      (UFOPOS),A  ;If zero then automatically clears itself
@@ -276,7 +276,7 @@ MI1:
 MRIGHT:
             LD      A,(HL)
 MI2:
-            RLCA
+            RRCA
             JR      C,MDROP  ;At edge, drop down a line
             LD      (HL),A
             INC     HL
@@ -287,7 +287,7 @@ MI2:
 MLEFT:
             LD      A,(HL)
 MI3:
-            RRCA
+            RLCA
             JR      C,MDROP  ;At edge, drop down a line
             LD      (HL),A
             INC     HL
@@ -323,7 +323,7 @@ ROT1:
             LD      HL,INVADH 
             XOR     A 
 ROT2:               
-            RRC     (HL) 
+            RLC     (HL) 
             RLA      
             INC     HL 
             DJNZ    ROT2 
@@ -339,7 +339,7 @@ ADDSCO:
             ADD     A,(HL)
             DAA
             LD      (HL),A
-            RET     NC          ;No overflow
+            RET     NC          ;Exit if no overflow
             DEC     HL          ;Hundreds
             LD      A,00H
             ADC     A,(HL)
@@ -349,40 +349,76 @@ ADDSCO:
 
 ;Initialize the screen data
 SETUP: 
-; Copy Vertical Invaders
+            ; Copy Vertical Invaders
             LD      BC,0008H 
             LD      DE,INVADV 
             LD      HL,INITIV 
             LDIR
-; Copy Horizontal Invaders
+            ; Copy Horizontal Invaders
             LD      BC,0008H 
             LD      DE,INVADH 
             LD      HL,INITIH 
-            LDIR     
-; Fill Invaders Bombs with 0 x 8 times
+            LDIR
+            ; Fill Invaders Bombs with 0 x 8 times
             LD      HL,INVBOM
             LD      DE,INVBOM+1
             XOR     A
             LD      (HL),A
             LD      BC,07H
             LDIR
-; Fill Player position.  Start at ...0....
+            ; Fill Player position.  Start at ...0....
             LD      A,INITPL 
             LD      (PLAYER),A 
-; Fill Player initial lives
+            ; Fill Player initial lives
             LD      A,INITLV 
             LD      (PLAYLV),A 
-; Fill Invaders initial speed
+            ; Fill Invaders initial speed
             LD      A,INVSPD
             LD      (INVCNT),A 
-; Fill Bullet Pos., UFO Pos., Action Counter, Key Pressed
-; Invader Dir, Player's score to 0
+            ; Fill Bullet Pos., UFO Pos., Action Counter, Key Pressed
+            ; Invader Dir, Player's score to 0
             LD      HL,BULLET
             LD      DE,BULLET+1
             XOR     A
             LD      (HL),A
             LD      BC,06H
             LDIR 
+            RET
+
+;Bullet Collision.  If hits an invader or ufo then remove it and update score
+BULCOL:
+            LD     A,(BULLET+1)
+            BIT    7,A    ; Check UFO hit
+            JR     NZ,BUFO
+            ; Get Invader Column the bullet is on
+            LD     HL,INVADH-1
+B1:
+            INC    HL
+            RLCA
+            JR     NC,B1
+            LD     A,(BULLET)
+            AND    (HL)   ;Compare bullet and invaders
+            RET    Z      ;No hit
+            XOR    (HL)   ;Remove invader
+            LD     (HL),A ;Save
+            CALL   ROTCW  ;Update Vertical for instant display
+            XOR    A
+            LD     (BULLET),A   ;Remove Bullet
+            LD     (BULLET+1),A
+            LD     A,10H  ;10 Points
+            CALL   ADDSCO ;Add A to Score
+            RET
+BUFO:
+            ;If UFO and BULLET X are the same its a hit
+            LD     HL,BULLET
+            LD     A,(UFOPOS)
+            SUB    (HL)
+            RET    NZ
+            LD     (UFOPOS),A
+            LD     (BULLET),A   ;Remove Bullet
+            LD     (BULLET+1),A
+            LD     A,50H  ;50 Points
+            CALL   ADDSCO ;Add A to Score
             RET
 
 ;Utility Routines..
@@ -555,13 +591,13 @@ INITIV:     DB      70H,70H,70H,70H,00H,00H,00H,00H
 ; . O O O . . . .
 ; . O O O . . . .
 ; 
-INITIH:     DB      00H,0FH,0FH,0FH,00H,00H,00H,00H
+INITIH:     DB      00H,0F0H,0F0H,0F0H,00H,00H,00H,00H
 
 ; 0-9 to Seven Segment Table
 SEGTBL:     DB      0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H,0EFH,2FH
 
 ; Intro Message
-INTMSG:     DB      04AH,00H ;Size + Gap
+INTMSG:     DB      50H,00H ;Size + Gap
             DB      40H,40H,7FH,7FH,40H,40H,00H      ;T
             DB      7FH,7FH,49H,49H,00H              ;E
             DB      1CH,3EH,63H,41H,41H,00H          ;C
@@ -572,6 +608,7 @@ INTMSG:     DB      04AH,00H ;Size + Gap
             DB      03H,0EH,3CH,64H,3CH,0EH,03H,00H  ;A
             DB      7FH,7FH,41H,22H,1CH,00H          ;D
             DB      7FH,7FH,49H,49H,00H              ;E
+            DB      7FH,7FH,4CH,4AH,31H,00H          ;R
             DB      12H,3BH,6BH,6EH,24H,00H          ;S
             DB      00H,00H,00H,00H,00H,00H,00H,00H  ;_
 
