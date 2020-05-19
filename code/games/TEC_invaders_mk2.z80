@@ -43,10 +43,10 @@ PLAYLV:     EQU     0D28H ;Player current Lives                                 
 INVCNT:     EQU     0D29H ;Counter to action invader movement when it hits zero  (1-byte)
 LEDSCR:     EQU     0D2AH ;Score and lives segment data for LED display          (6-bytes)
 RANDNO:     EQU     0D30H ;Random 8-Bit Number. Set when RANDOM is called        (1-byte)
+INVSPD:     EQU     0D31H ;Current speed of invaders                             (1-byte)
 ;Contstants
 INITPL:     EQU     00010000B  ;Initial Player X position, bit set = ...0....
 INITLV:     EQU     03H        ;Initial Lives #3
-INVSPD:     EQU     12H        ;Initial Invaders movement speed
 UFOSPD:     EQU     00000011B  ;UFO movement speed
 UFOCRE:     EQU     06H        ;UFO creation rate
 
@@ -71,7 +71,7 @@ GAME:
             DEC     A
             JR      NZ,SKIPMV   ;Not Zero so don't move
             CALL    MOVINV      ;Move Invaders
-            LD      A,INVSPD    ;Reset invader counter            
+            LD      A,(INVSPD)  ;Reset invader counter            
 SKIPMV:
             LD      (INVCNT),A  ;Save counter
             LD      A,B
@@ -83,7 +83,7 @@ SKIPUM:
             CALL    RANDOM      ;Get random number, Returns A
             CP      UFOCRE
             JR      NC,SKIPUC
-            LD      A,(UFOPOS) ; Active if any bit set
+            LD      A,(UFOPOS)  ;Active if any bit set
             OR      A
             JR      NZ,SKIPUC
             LD      A,01H
@@ -220,10 +220,10 @@ SHOOT:
             LD      A,(BULLET)
             OR      A
             RET     NZ
-            ;Create bullet at players position + 1 up
+            ;Create bullet at players position
             LD      A,(PLAYER)
             LD      (BULLET),A ; X position
-            LD      A,02H  ;Second bit from bottom
+            LD      A,01H  ;First bit from bottom
             LD      (BULLET+1),A
             RET
 
@@ -373,8 +373,9 @@ SETUP:
             LD      A,INITLV 
             LD      (PLAYLV),A 
             ; Fill Invaders initial speed
-            LD      A,INVSPD
+            LD      A,(ININSP)
             LD      (INVCNT),A 
+            LD      (INVSPD),A 
             ; Fill Bullet Pos., UFO Pos., Action Counter, Key Pressed
             ; Invader Dir, Player's score to 0
             LD      HL,BULLET
@@ -386,6 +387,7 @@ SETUP:
             RET
 
 ;Bullet Collision.  If hits an invader or ufo then remove it and update score
+;Increase invader speed if an invader gets hit.
 BULCOL:
             LD     A,(BULLET+1)
             BIT    7,A    ; Check UFO hit
@@ -402,6 +404,8 @@ B1:
             XOR    (HL)   ;Remove invader
             LD     (HL),A ;Save
             CALL   ROTCW  ;Update Vertical for instant display
+            LD     HL,INVSPD
+            DEC    (HL)   ;Move Invaders a bit faster
             XOR    A
             LD     (BULLET),A   ;Remove Bullet
             LD     (BULLET+1),A
@@ -414,7 +418,7 @@ BUFO:
             LD     A,(UFOPOS)
             SUB    (HL)
             RET    NZ
-            LD     (UFOPOS),A
+            LD     (UFOPOS),A   ;A=0 if here
             LD     (BULLET),A   ;Remove Bullet
             LD     (BULLET+1),A
             LD     A,50H  ;50 Points
@@ -595,6 +599,9 @@ INITIH:     DB      00H,0F0H,0F0H,0F0H,00H,00H,00H,00H
 
 ; 0-9 to Seven Segment Table
 SEGTBL:     DB      0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H,0EFH,2FH
+
+; Initial Invader Speed.  Reduces at each invader hit
+ININSP:     DB      12H
 
 ; Intro Message
 INTMSG:     DB      50H,00H ;Size + Gap
