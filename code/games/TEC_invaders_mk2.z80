@@ -33,7 +33,7 @@ SCREEN:     EQU     0D00H ;Game Screen (Merge of INVADV,PLAYER,BULLET,UFOPOS and
 INVADV:     EQU     0D08H ;Invaders in vertical position for display             (8-bytes)
 INVADH:     EQU     0D10H ;Invaders in horizontal position for easy bit move     (8-bytes)
 INVBOM:     EQU     0D18H ;Invader Bomb position vertically.                     (8-bytes)
-PLAYER:     EQU     0D20H ;Position in byte IE: 00100000 (three from the right)  (1-byte)
+PLAYER:     EQU     0D20H ;Position in byte IE: 00010000 (three from the right)  (1-byte)
 BULLET:     EQU     0D21H ;Position of bullet X (Horizontal) and Y (Verticallly) (2-bytes)
 UFOPOS:     EQU     0D23H ;Position in byte IE: 00010000 (four from the right)   (1-byte)
 KEYPRE:     EQU     0D24H ;Key Pressed Flag, 00-False, FF-True                   (1-byte)
@@ -47,25 +47,36 @@ INVSPD:     EQU     0D31H ;Current speed of invaders                            
 ;Contstants
 INITPL:     EQU     00010000B  ;Initial Player X position, bit set = ...0....
 INITLV:     EQU     03H        ;Initial Lives #3
-UFOSPD:     EQU     00000011B  ;UFO movement speed
+UFOSPD:     EQU     00000011B  ;UFO movement speed, every 3 loops
 UFOCRE:     EQU     06H        ;UFO creation rate
+BOMCRE:     EQU     06H        ;Bomb creation rate
 
 
-            ORG     0900H 
+            ORG     1800H 
 START:               
             ;Welcome Screen
-;            LD      HL,INTMSG
-;            CALL    SCROLL
+            ;LD      HL,INTMSG
+            ;CALL    SCROLL
 
             ;New game setup
             CALL    SETUP
             
             ;Game Loop
 GAME:
+            CALL    RANDOM     ;Get random number, Store in RANDNO
             CALL    MOVPLA     ;Move Player
             CALL    MOVBUL     ;Move Bullet
 
-            ; Delayed timed movement for invaders, ufo and ufo creation
+            ; Delayed timed movement for invaders, bombs, ufo and ufo creation
+            ; Move Invaders
+            
+            ; Create Bombs
+            LD      A,(RANDNO)
+            CP      BOMCRE
+            JR      NC,SKIPBM
+            CALL    CREBOM
+SKIPBM:
+            ; Move Invaders
             LD      A,(INVCNT)  ;Get invader counter
             LD      B,A
             DEC     A
@@ -74,22 +85,26 @@ GAME:
             LD      A,(INVSPD)  ;Reset invader counter            
 SKIPMV:
             LD      (INVCNT),A  ;Save counter
+            ; Move UFO
             LD      A,B
             AND     UFOSPD      ;Move UFO at faster rate
             CP      UFOSPD
             JR      NZ,SKIPUM
             CALL    MOVUFO      ;Move UFO
+            CALL    MOVBOM     ;Move Bomb
 SKIPUM: 
-            CALL    RANDOM      ;Get random number, Returns A
+            ; Create UFO
+            LD      A,(RANDNO)
             CP      UFOCRE
             JR      NC,SKIPUC
             LD      A,(UFOPOS)  ;Active if any bit set
             OR      A
             JR      NZ,SKIPUC
             LD      A,01H
-            LD      (UFOPOS),A 
+            LD      (UFOPOS),A  ;Create UFO
 
 SKIPUC:
+            ; Display Updates
             CALL    UPDSCR     ;Update Screen
             CALL    UPDSCO     ;Update Score
             CALL    SCAN       ;Scan the 8x8 and Seven Segments
@@ -106,6 +121,16 @@ UPDSCR:
             LDIR
 
             ;Place Bombs
+            LD      B,08H
+            LD      DE,SCREEN
+            LD      HL,INVBOM
+U1:
+            LD      A,(DE)
+            OR      (HL)      ;Add Bomb if any to vertical
+            LD      (DE),A    ;Update DE with Bomb
+            INC     DE
+            INC     HL
+            DJNZ    U1
 
             ;Place Bullet.  Move HL to X pos, then OR with vertical
             LD      A,(BULLET)
@@ -245,6 +270,27 @@ MB1:
             CALL    BULCOL      ;Active bullet, check collision.
             RET
 
+; If Bomb exists, move it downwards until it hits the player or
+; goes off the bottom of the screen
+MOVBOM:
+            ;For each column, move one bit to the left
+            LD      HL,INVBOM
+            LD      B,80H  ;Bomb/Player column
+MBM1:
+            LD      A,(HL)
+            OR      A
+            JR      Z,MBM2  ;No Bomb on this column, move to next
+            SRA     A       ;Move on bit to the right.
+            LD      (HL),A
+                                ;Active Bomb, check if hits player
+                                ;BOMCOL needs B=Bomb X position
+            CALL    BOMCOL      ;             A=Bomb Y position
+MBM2:
+            INC     HL
+            RRC     B
+            JR      NC,MBM1
+            RET
+
 ; If UFO exists, move it one bit to the left.  Remove it if
 ; goes off the left of the screen
 MOVUFO:
@@ -333,6 +379,12 @@ ROT2:
             DJNZ    ROT1 
             RET
 
+;Create a Bomb on an invader.  Ensure no bomb present on column first
+;Based off random number
+CREBOM:
+           RET
+           
+
 ;Add A to current score.  A = score to add
 ADDSCO:
             LD      HL,PLAYSC+1 ;Tens
@@ -345,6 +397,14 @@ ADDSCO:
             ADC     A,(HL)
             DAA
             LD      (HL),A
+            RET
+
+;Lose a life
+LOSELV:
+            LD       A,(PLAYLV)
+            DEC      A
+            LD       (PLAYLV),A
+            ; TODO do something to indicate life loss
             RET
 
 ;Initialize the screen data
@@ -423,6 +483,18 @@ BUFO:
             LD     (BULLET+1),A
             LD     A,50H  ;50 Points
             CALL   ADDSCO ;Add A to Score
+            RET
+
+;Bomb Collision. Inputs: Register A = Bomb Y, and B = Bomb X
+;If Bomb Y is set on bit 7, check that Bomb X = Player X. If so
+;Loose life
+BOMCOL:
+            DEC    A
+            RET    NZ  ;If A != 1 then bomb isn't on bottom
+            LD     A,(PLAYER)
+            CP     B
+            RET    NZ  ;If A != B then bomb isn't on player
+            CALL   LOSELV ;Loose a life
             RET
 
 ;Utility Routines..
@@ -545,10 +617,19 @@ F1:
             JR      NZ,F1
             RET
 
+CLRSCR:
+            LD      HL,SCREEN
+            LD      DE,SCREEN+1
+            XOR     A
+            LD      (HL),A
+            LD      BC,07H
+            LDIR
+            RET
+
 ; Multiplex the 8x8 Display
 SCAN88:                
             PUSH    HL 
-            LD      B,10H 
+            LD      B,15H 
 S81:               
             PUSH    BC
             LD      B,01H   ;Counter for 8x8
