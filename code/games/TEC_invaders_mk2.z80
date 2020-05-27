@@ -49,7 +49,7 @@ INITPL:     EQU     00010000B  ;Initial Player X position, bit set = ...0....
 INITLV:     EQU     03H        ;Initial Lives #3
 UFOSPD:     EQU     00000011B  ;UFO movement speed, every 3 loops
 UFOCRE:     EQU     06H        ;UFO creation rate
-BOMCRE:     EQU     06H        ;Bomb creation rate
+BOMCRE:     EQU     10H        ;Bomb creation rate
 
 
             ORG     1800H 
@@ -298,8 +298,7 @@ MOVUFO:
             LD      A,(UFOPOS) ; Active if any bit set
             OR      A
             RET     Z
-            ;Shift it one bit to the left
-            SLA     A
+            SLA     A   ;Shift it one bit to the left
             LD      (UFOPOS),A  ;If zero then automatically clears itself
 MU1:
             RET
@@ -380,10 +379,39 @@ ROT2:
             RET
 
 ;Create a Bomb on an invader.  Ensure no bomb present on column first
-;Based off random number
+;Find the lowest row, then Based off LSB of random number cycle through invaders
+;until random number is zero to select invader to drop the bomb from.
 CREBOM:
-           RET
-           
+            LD      HL,INVADH+8
+            LD      C,80H
+            XOR     A
+CB1:
+            RLC     C       ;Row Position
+            DEC     HL
+            OR      (HL)
+            JR      Z,CB1   ;Move HL to first row that isn't blank
+            LD      A,(RANDNO)
+            AND     0FH
+            LD      B,A     ;Store counter
+            LD      A,(HL)
+            LD      D,A
+CB2:
+            LD      A,0FFH
+
+CB3:
+            INC     A       ;Get matching invader bomb column to invader
+            CP      08H  
+            JR      Z,CB2   ;Loop column index around
+            RLC     D            
+            JR      NC,CB3  ;Find next invader
+            DJNZ    CB3     ;Keep going n random times
+            ; At this point, C is bomb Y, and D is bomb X (index)
+            LD      HL,INVBOM
+            ADD     A,L
+            LD      L,A    ;Bomb column
+            LD      A,C    ;Bomb row
+            LD      (HL),A ;Save bomb
+            RET
 
 ;Add A to current score.  A = score to add
 ADDSCO:
@@ -401,10 +429,10 @@ ADDSCO:
 
 ;Lose a life
 LOSELV:
-            LD       A,(PLAYLV)
-            DEC      A
-            LD       (PLAYLV),A
-            ; TODO do something to indicate life loss
+            LD      A,(PLAYLV)
+            DEC     A
+            LD      (PLAYLV),A
+            CALL    FLIPSC      ;Do something to indicate life loss
             RET
 
 ;Initialize the screen data
@@ -534,7 +562,7 @@ S4:         DJNZ    S4
 
 ;Sound Routine
 PLAYSD:
-            LD      C,20H
+            LD      C,40H
             LD      L,31H
             XOR     A
 PS1:
@@ -615,6 +643,29 @@ F1:
             POP     BC
             DEC     C
             JR      NZ,F1
+            RET
+
+;Animate 8x8 when player looses a life by inverting the screen 3 times
+FLIPSC:
+            PUSH    HL
+            PUSH    BC
+            LD      B,06H    ;Six loops or 3 flips
+FS1:            
+            LD      HL,SCREEN
+            PUSH    BC
+            LD      B,08H
+FS2:
+            LD      A,(HL)
+            CPL             ;Invert byte
+            LD      (HL),A
+            INC     HL
+            DJNZ    FS2
+            CALL    SCAN88
+            CALL    PLAYSD
+            POP     BC
+            DJNZ    FS1
+            POP     BC
+            POP     HL
             RET
 
 CLRSCR:
