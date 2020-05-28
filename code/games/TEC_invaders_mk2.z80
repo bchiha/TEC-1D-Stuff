@@ -66,6 +66,7 @@ GAME:
             CALL    RANDOM     ;Get random number, Store in RANDNO
             CALL    MOVPLA     ;Move Player
             CALL    MOVBUL     ;Move Bullet
+            CALL    CHKINV     ;Reset invaders if all invaders are dead
 
             ; Delayed timed movement for invaders, bombs, ufo and ufo creation
             ; Move Invaders
@@ -109,8 +110,12 @@ SKIPUC:
             CALL    UPDSCO     ;Update Score
             CALL    SCAN       ;Scan the 8x8 and Seven Segments
 
-            ;Loop to Start
-            JR      GAME
+            ;Check if lives = 0, then display game over and restart
+            LD      A,(PLAYLV)
+            OR      A
+            JR      NZ,GAME   ;Still alive then just goto the game loop
+            CALL    GAMEOV    ;Call game over routine
+            JR      START
 
 ;Update Screen by merging all displays
 UPDSCR:
@@ -355,8 +360,13 @@ MI4:
             LD      A,(INVDIR)
             XOR     01H
             LD      (INVDIR),A
-            ;TODO: bottom of screen End of game
-
+            ;Bottom of screen Lose life and reset invaders
+            LD      A,(INVADH+7)  ;Bottom row
+            OR      A
+            JR      Z,ROTCW
+            ;Lose Life
+            CALL    LOSELV
+            CALL    RSTINV
             ; Rotate Screen bytes 90 degress Clockwise.
             ; This allows Left to Right bit manipulation
 ROTCW:                
@@ -413,6 +423,20 @@ CB3:
             LD      (HL),A ;Save bomb
             RET
 
+;Do a check to see if any invaders are left.  If not then reset them for the next wave
+CHKINV:
+            LD      HL,INVADH
+            LD      B,08H
+            XOR     A
+CI1:
+            ADD     A,(HL)
+            INC     HL
+            DJNZ    CI1
+            OR      A     ;Check if no invader found
+            RET     NZ
+            CALL    RSTINV
+            RET
+
 ;Add A to current score.  A = score to add
 ADDSCO:
             LD      HL,PLAYSC+1 ;Tens
@@ -437,6 +461,26 @@ LOSELV:
 
 ;Initialize the screen data
 SETUP: 
+            ; Set up invader position and bombs
+            CALL    RSTINV
+            ; Fill Player position.  Start at ...0....
+            LD      A,INITPL 
+            LD      (PLAYER),A 
+            ; Fill Player initial lives
+            LD      A,INITLV 
+            LD      (PLAYLV),A 
+            ; Fill Bullet Pos., UFO Pos., Action Counter, Key Pressed
+            ; Invader Dir, Player's score to 0
+            LD      HL,BULLET
+            LD      DE,BULLET+1
+            XOR     A
+            LD      (HL),A
+            LD      BC,06H
+            LDIR 
+            RET
+
+;Reset invader to starting position and movement direction
+RSTINV:
             ; Copy Vertical Invaders
             LD      BC,0008H 
             LD      DE,INVADV 
@@ -454,24 +498,12 @@ SETUP:
             LD      (HL),A
             LD      BC,07H
             LDIR
-            ; Fill Player position.  Start at ...0....
-            LD      A,INITPL 
-            LD      (PLAYER),A 
-            ; Fill Player initial lives
-            LD      A,INITLV 
-            LD      (PLAYLV),A 
+            ; Invader direction
+            LD      (INVDIR),A
             ; Fill Invaders initial speed
             LD      A,(ININSP)
             LD      (INVCNT),A 
             LD      (INVSPD),A 
-            ; Fill Bullet Pos., UFO Pos., Action Counter, Key Pressed
-            ; Invader Dir, Player's score to 0
-            LD      HL,BULLET
-            LD      DE,BULLET+1
-            XOR     A
-            LD      (HL),A
-            LD      BC,06H
-            LDIR 
             RET
 
 ;Bullet Collision.  If hits an invader or ufo then remove it and update score
@@ -629,20 +661,35 @@ SL2:
 ;8x8 Flasher routine.  This displays data for the 8x8 similar to the scroll but shows
 ;one page (8x8) at a time instead of sequentially scrolling.  Data is referenced in HL
 ;First byte is the number of pages to show followed by vertical byte display upwards
-;Useful for animations using the 8x8
-FLASH:
+;Useful for animations using the 8x8.  This is used as a game over screen.  It loops
+;until any key is pressed
+GAMEOV:
+            LD      HL,OVRMSG
             LD      A,(HL)    ;Page count
+            INC     HL
             LD      C,A
 F1:
             PUSH    BC
-            INC     HL
-            LD      BC,0008H  
             LD      DE,SCREEN 
+            LD      BC,0008H  
             LDIR              ;Copy Through to screen area
+            LD      B,0BH
+F2:
+            PUSH    BC
             CALL    SCAN88
             POP     BC
+            DJNZ    F2
+            POP     BC
+
+            IN      A,(03)
+            BIT     6,A  ; Bit 6, If not set A=NZ
+            RET     Z
+
             DEC     C
-            JR      NZ,F1
+            JR      NZ,F1    ;Do next screen
+            JR      GAMEOV
+
+
             RET
 
 ;Animate 8x8 when player looses a life by inverting the screen 3 times
@@ -753,10 +800,10 @@ INTMSG:     DB      50H,00H ;Size + Gap
 
 ; Game Over Message
 OVRMSG:     DB      04H ;Page count
-            DB      03H,06H,0AH,06H,0BBH,0A8H,88H,70H ;GA
-            DB      15H,15H,1FH,60H,80H,60H,80H,60H   ;ME
-            DB      0CH,02H,01H,02H,6CH,90H,90H,60H   ;OV
-            DB      06H,38H,28H,3EH,00H,88H,0A8H,0F8H ;ER
+            DB      70H,88H,0A8H,0BBH,06H,0AH,06H,03H ;GA
+            DB      60H,80H,60H,80H,60H,1FH,15H,15H   ;ME
+            DB      60H,90H,90H,6CH,02H,01H,02H,0CH   ;OV
+            DB      0F8H,0A8H,88H,00H,3EH,28H,38H,06H ;ER
 
 
 
