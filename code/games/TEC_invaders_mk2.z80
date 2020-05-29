@@ -44,6 +44,7 @@ INVCNT:     EQU     0D29H ;Counter to action invader movement when it hits zero 
 LEDSCR:     EQU     0D2AH ;Score and lives segment data for LED display          (6-bytes)
 RANDNO:     EQU     0D30H ;Random 8-Bit Number. Set when RANDOM is called        (1-byte)
 INVSPD:     EQU     0D31H ;Current speed of invaders                             (1-byte)
+INVREM:     EQU     0D32H ;Number of remaining invaders                          (1-byte)
 ;Contstants
 INITPL:     EQU     00010000B  ;Initial Player X position, bit set = ...0....
 INITLV:     EQU     03H        ;Initial Lives #3
@@ -426,14 +427,8 @@ CB3:
 
 ;Do a check to see if any invaders are left.  If not then reset them for the next wave
 CHKINV:
-            LD      HL,INVADH
-            LD      B,08H
-            XOR     A
-CI1:
-            ADD     A,(HL)
-            INC     HL
-            DJNZ    CI1
-            OR      A     ;Check if no invader found
+            LD      A,(INVREM)
+            OR      A
             RET     NZ
             CALL    RSTINV
             RET
@@ -504,7 +499,10 @@ RSTINV:
             ; Fill Invaders initial speed
             LD      A,(ININSP)
             LD      (INVCNT),A 
-            LD      (INVSPD),A 
+            LD      (INVSPD),A
+            ; Reset Invader count
+            LD      A,(INITIC)
+            LD      (INVREM),A 
             RET
 
 ;Bullet Collision.  If hits an invader or ufo then remove it and update score
@@ -527,6 +525,8 @@ B1:
             CALL   ROTCW  ;Update Vertical for instant display
             LD     HL,INVSPD
             DEC    (HL)   ;Move Invaders a bit faster
+            LD     HL,INVREM
+            DEC    (HL)   ;Reduce Invader Count
             XOR    A
             LD     (BULLET),A   ;Remove Bullet
             LD     (BULLET+1),A
@@ -782,6 +782,9 @@ SEGTBL:     DB      0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H,0EFH,2FH
 
 ; Initial Invader Speed.  Reduces at each invader hit
 ININSP:     DB      12H
+
+; Initial Invader Count.  Currently 12
+INITIC:     DB      0CH
 
 ; Intro Message
 INTMSG:     DB      50H,00H ;Size + Gap
