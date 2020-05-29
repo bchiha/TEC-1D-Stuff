@@ -55,8 +55,9 @@ BOMCRE:     EQU     10H        ;Bomb creation rate
             ORG     1800H 
 START:               
             ;Welcome Screen
-            ;LD      HL,INTMSG
-            ;CALL    SCROLL
+            CALL    CLRSCR
+            LD      HL,INTMSG
+            CALL    SCROLL
 
             ;New game setup
             CALL    SETUP
@@ -799,11 +800,7 @@ INTMSG:     DB      50H,00H ;Size + Gap
             DB      00H,00H,00H,00H,00H,00H,00H,00H  ;_
 
 ; Game Over Message
-OVRMSG:     DB      04H ;Page count
-            DB      70H,88H,0A8H,0BBH,06H,0AH,06H,03H ;GA
-            DB      60H,80H,60H,80H,60H,1FH,15H,15H   ;ME
-            DB      60H,90H,90H,6CH,02H,01H,02H,0CH   ;OV
-            DB      0F8H,0A8H,88H,00H,3EH,28H,38H,06H ;ER
-
-
+OVRMSG:     DB      02H ;Page count
+            DB      67H,94H,0B4H,27H,00H,77H,0A5H,75H ;GAME
+            DB      67H,95H,95H,60H,00H,0E7H,14H,0E4H ;OVER
 
