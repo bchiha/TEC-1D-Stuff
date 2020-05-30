@@ -4,8 +4,8 @@
 ; Brian Chiha -- May 2020
 ; brian.chiha@gmail.com
 ; 
-; This is my version of the TEC invaders
-; --------------------------------------
+; This is my version of the TEC invaders that was originally writen by Cameron Sheppard
+; -------------------------------------------------------------------------------------
 ;
 ; Setup
 ; ----- 
@@ -24,7 +24,7 @@
 ; hitting an invader and 50 Points for the UFO on the top row.  Player has
 ; 3 lives and the game is over when all lives are lost.  You lose a life if
 ; the invaders land or you get hit by one of their bombs.  Invaders come
-; in waves and get faster every wave.
+; in waves and get faster with less invaders alive.
 ; 
 ; 
 
@@ -53,12 +53,11 @@ UFOCRE:     EQU     06H        ;UFO creation rate
 BOMCRE:     EQU     10H        ;Bomb creation rate
 
 
-            ORG     1800H 
+            ORG     0900H 
 START:               
             ;Welcome Screen
             CALL    CLRSCR
-            LD      HL,INTMSG
-            CALL    SCROLL
+            CALL    INTROM
 
             ;New game setup
             CALL    SETUP
@@ -593,20 +592,6 @@ S4:         DJNZ    S4
             DJNZ    S1 
             RET      
 
-;Sound Routine
-PLAYSD:
-            LD      C,40H
-            LD      L,31H
-            XOR     A
-PS1:
-            OUT     (01),A
-            LD      B,C
-PS2:        DJNZ    PS2
-            XOR     80H
-            DEC     L
-            JR      NZ,PS1
-            RET
-
 ;Random number generator.  A - Returns a number between 00 and FF
 RANDOM:
             LD      A,R
@@ -640,7 +625,8 @@ SC1:
 ;8x8 Scroll routine to scroll data from right to left.  Data is referenced in HL
 ;First Byte is number of columns to scroll followed by vertical byte display upwards
 ;This routine includes the 8x8 multiplex
-SCROLL:
+INTROM:
+            LD      HL,INTMSG
             LD      A,(HL)    ;Column count
             LD      C,A
 SL1:
@@ -681,19 +667,16 @@ F2:
             POP     BC
             DJNZ    F2
             POP     BC
-
             IN      A,(03)
             BIT     6,A  ; Bit 6, If not set A=NZ
             RET     Z
-
             DEC     C
             JR      NZ,F1    ;Do next screen
             JR      GAMEOV
-
-
             RET
 
-;Animate 8x8 when player looses a life by inverting the screen 3 times
+;Animate 8x8 when player looses a life by inverting the screen 3 times and playing
+;a sound
 FLIPSC:
             PUSH    HL
             PUSH    BC
@@ -709,7 +692,18 @@ FS2:
             INC     HL
             DJNZ    FS2
             CALL    SCAN88
-            CALL    PLAYSD
+                            
+            LD      C,40H    ;Sound Routine
+            LD      L,31H
+            XOR     A
+FS3:
+            OUT     (01),A
+            LD      B,C
+FS4:        DJNZ    FS4
+            XOR     80H
+            DEC     L
+            JR      NZ,FS3
+
             POP     BC
             DJNZ    FS1
             POP     BC
