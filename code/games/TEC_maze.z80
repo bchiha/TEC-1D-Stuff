@@ -1,0 +1,595 @@
+; TEC Maze Escape.
+;
+; By
+; Brian Chiha -- June 2020
+; brian.chiha@gmail.com
+; 
+; Escape from a Maze using the TEC 8x8 LED add-on
+; -----------------------------------------------
+;
+; Setup
+; ----- 
+;
+; To be run on the TEC-1D with either JMON or MON2.  For the keyboard to work
+; it requires EITHER a 4k7 (or 2k2) resistor between the NMI (pin 17 on Z-80)
+; and D6 (pin 10 on the Z-80) OR the DAT (LCD) expanstion board fitted to port 3.
+; The current TEC-1D boards have the JMON MOD resitor connection already there.
+; The 8x8 LED board is fitted to ports 5 and 6 with the port select strobe of the
+; left hand latch going to port 6.
+;
+; To Play
+; -------
+;
+; The aim is to move around the maze, and pick up all treasures. Once all are found,
+; get back to your starting spot.  To move use the following keys
+;
+;         6
+;     1 < O > 9
+;         4
+;
+; Your character is a 1x1 Steady LED.  Treasures are flashing (glistening!) 1x1 LED's.
+; The Seven Segments display your current location (Address) and the number of treasures
+; found (Data).  You must find all 20 treasures to win.  Just move over the treasure to
+; pick it up.
+;
+; The Maze has a total of 64 rooms on an 8x8 grid.  Rooms are represented vertically
+; with A-H and horizontally with 0-7.  Bottom left is 'A0'.  Treasures and initially 
+; player positions are randomly placed at the start of the game
+
+;Data locations
+SCREEN:     EQU     0D00H ;Game Screen                                           (8-bytes)
+ROTSCR:     EQU     0D08H ;Pre Screen area for rotation                          (8-bytes)
+PLAYRM:     EQU     0D10H ;Player current room byte1=vertical, byte2=horizontal  (2-bytes)
+PLAYSC:     EQU     0D12H ;Player current Treasure Count                         (1-byte)
+KEYPRE:     EQU     0D13H ;Key Pressed Flag, 00-False, FF-True                   (1-byte)
+PLAYER:     EQU     0D14H ;Position of player X (Byte 1) and Y (Byte 2)          (2-bytes)
+CURRRM:     EQU     0D16H ;Current room number 00-3F (64 rooms)                  (1-byte)
+STARTR:     EQU     0D17H ;Start room to signify end of game                     (1-byte)
+RANDNO:     EQU     0D18H ;Random 8-Bit Number. Set when RANDOM is called        (1-byte)
+
+LEDSCR:     EQU     0D1AH ;LED Display for Map Reference and treasure count      (6-bytes)
+
+;Contstants
+INITTR:     EQU     14H   ;Initial Treasure count = 20 Decimal
+
+            ORG     1800H 
+START:               
+            ;Welcome Screen
+            ;CALL    CLRSCR
+            ;CALL    INTROM
+
+            ;New game setup
+            CALL    SETUP
+
+GAME:
+
+            CALL    PLAYMV     ;Player movement
+            ; Display Updates
+            CALL    UPDSCR     ;Update Screen
+            CALL    UPDSCO     ;Update 7-Segments
+            CALL    SCAN       ;Scan the 8x8 and Seven Segments
+
+            JR      GAME
+
+;Player Movement.  This includes map movements, and collisions on walls.  Player
+;can move up (6), down (4), left (1) and right (9). When player moves off the screen
+;This method is a bit messy and could be optimised
+PLAYMV:
+            ; Test for key pressed with D6 set
+            IN      A,(03)
+            BIT     6,A  ; Bit 6, If not set A=NZ
+            JR      Z,MP2
+            ; Store 0 for last key if no key pressed
+            XOR     A
+            LD      (KEYPRE),A
+            RET
+MP2:
+            ; Key has been pressed
+            LD      A,(KEYPRE)
+            OR      A
+            RET     NZ  ; Just return if same
+            LD      A,0FFH
+            LD      (KEYPRE),A
+            ; Get Key
+            IN      A,(00)
+            AND     01FH ; Mask unwanted bits
+            ; Check for Valid Keys
+LEFT:
+            CP      01H  ; Left
+            JR      NZ, RIGHT
+            LD      A,(PLAYER)
+            RLCA
+            JR      C,MOVELT  ;On edge, update map
+            CALL    CHKCLX    ; Set A to 0 if collision
+            RET
+MOVELT:
+            LD      (PLAYER),A ;Save new X
+            LD      HL,CURRRM
+            DEC     (HL)
+            CALL    NWROOM
+            RET
+
+RIGHT:
+            CP      09H  ; Right
+            JR      NZ, UP
+            LD      A,(PLAYER)
+            RRCA
+            JR      C,MOVERT  ;On edge, update map
+            CALL    CHKCLX    ; Set A to 0 if collision
+            RET
+MOVERT:
+            LD      (PLAYER),A ;Save new X
+            LD      HL,CURRRM
+            INC     (HL)
+            CALL    NWROOM
+            RET
+UP:
+            CP      06H  ; Up
+            JR      NZ, DOWN
+            LD      A,(PLAYER+1)
+            RLCA
+            JR      C,MOVEUP  ;On edge, update map
+            CALL    CHKCLY    ;Set A to 0 if collision
+            RET
+MOVEUP:
+            LD      (PLAYER+1),A ;Save new Y
+            LD      A,(CURRRM)
+            SUB     08H
+            LD      (CURRRM),A
+            CALL    NWROOM
+            RET
+DOWN:
+            CP      04H  ; Down
+            RET     NZ
+            LD      A,(PLAYER+1)
+            RRCA
+            JR      C,MOVEDW  ;On edge, update map
+            CALL    CHKCLY    ;Set A to 0 if collision
+            RET
+MOVEDW:
+            LD      (PLAYER+1),A ;Save new Y
+            LD      A,(CURRRM)
+            ADD     A,08H
+            LD      (CURRRM),A
+            CALL    NWROOM
+            RET
+
+;Check that player doesn't collide with wall.  If so, just exit otherwise update
+;Player X position.  A is the new position to test
+CHKCLX:
+            ;TODO check collision and return if collide
+            OR      A
+            RET     Z
+            LD      (PLAYER),A ;Save new X
+            RET
+
+;Check that player doesn't collide with wall.  If so, just exit otherwise update
+;Player Y position.  A is the new position to test
+CHKCLY:
+            ;TODO check collision and return if collide
+            OR      A
+            RET     Z
+            LD      (PLAYER+1),A ;Save new X
+            RET
+
+;Go to a new room.  This finds the next room and rotates it to the correct direction
+NWROOM:
+			LD      HL,MAZERM
+			LD      A,(CURRRM)
+			ADD     A,L
+			LD      L,A      ;Index the currect room
+			LD      A,(HL)   ;Get Map
+            ;LSB is the room reference
+            ;MSB is the rotation
+            PUSH    AF
+            AND     0FH      ;Get Room to use LSB
+            LD      HL,ROOMLU
+            ADD     A,A      ;Double it for two byte indexing
+            ADD     A,L
+            LD      L,A      ;Index the room
+            LD      E,(HL)
+            INC     HL
+            LD      D,(HL)
+            EX      DE,HL
+            LD      BC,0008H ;Copy map data to rotation area
+            LD      DE,ROTSCR 
+            LDIR
+            POP     AF       ;Get rotation
+            RLCA
+            RLCA
+            RLCA
+            RLCA
+            AND     0FH
+            LD      B,A  ;Save rotation for rotation count if needed
+            OR      A    ;If no rotaion needed just copy to screen
+            JR      NZ,ROTCW
+            LD      BC,0008H ;Copy rotation area to screen
+            LD      HL,ROTSCR 
+            LD      DE,SCREEN 
+            LDIR
+            RET     ;Exit
+            ;Rotate map B times anti-clockwise and update screen at the same time
+ROTCW:                
+            PUSH    BC
+            LD      DE,SCREEN 
+            LD      B,08H 
+ROT1:               
+            PUSH    BC 
+            LD      B,08H 
+            LD      HL,ROTSCR 
+            XOR     A 
+ROT2:               
+            RLC     (HL) 
+            RRA      
+            INC     HL 
+            DJNZ    ROT2 
+            LD      (DE),A 
+            INC     DE 
+            POP     BC 
+            DJNZ    ROT1
+            LD      BC,0008H ;Copy new screen data to rotation area
+            LD      HL,SCREEN 
+            LDIR
+            POP     BC
+            DJNZ    ROTCW  ; Repeat for all rotations
+			RET
+
+;Randomly place treasure and initial room for player
+SETUP:
+            ; Initial Player Position
+            LD      A,08H   ;Around the middle of the screen
+            LD      (PLAYER),A
+            LD      (PLAYER+1),A
+            ; Starting Room
+            CALL    RANDOM  ;Find Random Starting Room
+            AND     3FH     ;0-63 rooms
+            LD      (CURRRM),A
+            LD      (STARTR),A  ;Save start room
+            ; Map Reference - Divide Start room by 8, result = A (Vert), remainder = B (Horiz)
+            LD      E,A     ;Current Room
+            LD      C,08H   ;Divisor
+            LD      B,08H   ;8 bit divide routine
+            XOR     A
+SU1: 
+            RL      E
+            RLA
+            SUB     C
+            JR      NC,SU2
+            ADD     A,C
+SU2:
+            DJNZ    SU1
+            LD      B,A
+            LD      A,E
+            RLA
+            CPL
+            LD      (PLAYRM),A
+            LD      A,B
+            LD      (PLAYRM+1),A
+            ; Treasure Placement
+            ;TODO
+
+            ; Default
+            LD      A,00H
+            LD      (KEYPRE),A
+            LD      (PLAYSC),A
+
+            CALL    NWROOM ;Draw first room
+
+            RET
+
+;Redraw screen with player movement
+UPDSCR:
+            ;Place Player. Move HL to X pos, then OR with vertical
+            
+            LD      A,(PLAYER) ; Get X pos
+            LD      HL,SCREEN
+U1:
+            RLCA           ;1 Bit is always present
+            JR      C,U2   ;Move HL to X position
+            INC     HL
+            JR      U1
+U2:
+            LD      A,(PLAYER+1)
+            LD      B,A
+            LD      A,(HL) 
+            OR      B      
+            LD      (HL),A ;Update HL with Y position
+
+            ;Place Treasure
+
+            RET
+
+;Update segement data
+;Update the LED's to display the LEDSCR buffer based off PLAYRM & PLAYSC
+UPDSCO:
+            LD      BC,LEDSCR  ;Location of screen buffer
+            LD      HL,PLAYRM  ;Player Position (2) and Treasures (1)
+            LD      A,(HL)
+            ADD     A,0AH      ;Index by 10 to get letters
+            CALL    SEGCON     ;Convert A to Segment Hex, Store in BC
+            INC     HL
+            LD      A,(HL)
+            CALL    SEGCON     ;Convert A to Segment Hex, Store in BC
+            INC     HL
+            LD      A,(HL)
+            CALL    SEGCON     ;Convert A to Segment Hex, Store in BC
+            RET
+
+;Utility Routines..
+
+; Multiplex the 8x8 Display and the Seven Segment LEDS
+SCAN:                
+            LD      B,10H 
+S1:               
+            PUSH    BC 
+            LD      B,01H   ;Counter for 8x8
+            LD      HL,SCREEN
+            LD      DE,LEDSCR+5 
+S2:               
+            LD      A,(HL) 
+            OUT     (06),A
+            LD      A,(DE)
+            OUT     (02),A 
+            LD      A,B 
+            OUT     (05),A
+            CP      80H     ;If port 80 (Speaker), Skip
+            JR      Z,S3 
+            OUT     (01),A 
+S3:
+            LD      B,40H 
+S4:         DJNZ    S4 
+            LD      B,A 
+            XOR     A 
+            OUT     (05),A 
+            OUT     (01),A
+            DEC     DE
+            INC     HL
+            RLC     B 
+            JR      NC,S2 
+            POP     BC 
+            DJNZ    S1 
+            RET      
+
+;Random number generator.  A - Returns a number between 00 and FF
+RANDOM:
+            LD      A,R
+            LD      B,A
+            LD      A,(RANDNO)
+            XOR     B
+            ADD     A,A
+            XOR     B
+            LD      (RANDNO),A
+            RET
+
+;Convert A to two display bytes for Seven Segment, Store Result in location of BC
+SEGCON:
+            PUSH    AF
+            RLCA
+            RLCA
+            RLCA
+            RLCA
+            CALL    SC1
+            POP     AF
+SC1:
+            AND     0FH
+            LD      DE,SEGTBL
+            ADD     A,E
+            LD      E,A
+            LD      A,(DE)
+            LD      (BC),A
+            INC     BC
+            RET
+
+;8x8 Scroll routine to scroll data from right to left.  Data is referenced in HL
+;First Byte is number of columns to scroll followed by vertical byte display upwards
+;This routine includes the 8x8 multiplex
+INTROM:
+            LD      HL,INTMSG
+            LD      A,(HL)    ;Column count
+            LD      C,A
+SL1:
+            LD      B,07H
+            LD      IX,SCREEN
+SL2:
+            LD      A,(IX+1)   ;Shift seven columns
+            LD      (IX+0),A
+            INC     IX
+            DJNZ    SL2
+            INC     HL
+            LD      A,(HL)
+            LD      (SCREEN+7),A
+            CALL    SCAN88
+            DEC     C
+            JR      NZ,SL1
+            RET
+
+;8x8 Flasher routine.  This displays data for the 8x8 similar to the scroll but shows
+;one page (8x8) at a time instead of sequentially scrolling.  Data is referenced in HL
+;First byte is the number of pages to show followed by vertical byte display upwards
+;Useful for animations using the 8x8.  This is used as a game over screen.  It loops
+;until any key is pressed
+GAMEOV:
+            LD      HL,OVRMSG
+            LD      A,(HL)    ;Page count
+            INC     HL
+            LD      C,A
+F1:
+            PUSH    BC
+            LD      DE,SCREEN 
+            LD      BC,0008H  
+            LDIR              ;Copy Through to screen area
+            LD      B,0BH
+F2:
+            PUSH    BC
+            CALL    SCAN88
+            POP     BC
+            DJNZ    F2
+            POP     BC
+            IN      A,(03)
+            BIT     6,A  ; Bit 6, If not set A=NZ
+            RET     Z
+            DEC     C
+            JR      NZ,F1    ;Do next screen
+            JR      GAMEOV
+            RET
+
+;Animate 8x8 when player looses a life by inverting the screen 3 times and playing
+;a sound
+FLIPSC:
+            PUSH    HL
+            PUSH    BC
+            LD      B,06H    ;Six loops or 3 flips
+FS1:            
+            LD      HL,SCREEN
+            PUSH    BC
+            LD      B,08H
+FS2:
+            LD      A,(HL)
+            CPL             ;Invert byte
+            LD      (HL),A
+            INC     HL
+            DJNZ    FS2
+            CALL    SCAN88
+                            
+            LD      C,40H    ;Sound Routine
+            LD      L,31H
+            XOR     A
+FS3:
+            OUT     (01),A
+            LD      B,C
+FS4:        DJNZ    FS4
+            XOR     80H
+            DEC     L
+            JR      NZ,FS3
+
+            POP     BC
+            DJNZ    FS1
+            POP     BC
+            POP     HL
+            RET
+
+CLRSCR:
+            LD      HL,SCREEN
+            LD      DE,SCREEN+1
+            XOR     A
+            LD      (HL),A
+            LD      BC,07H
+            LDIR
+            RET
+
+; Multiplex the 8x8 Display
+SCAN88:                
+            PUSH    HL 
+            LD      B,15H 
+S81:               
+            PUSH    BC
+            LD      B,01H   ;Counter for 8x8
+            LD      HL,SCREEN
+S82:               
+            LD      A,(HL) 
+            OUT     (06),A
+            LD      A,B 
+            OUT     (05),A
+            LD      B,40H 
+S83:        DJNZ    S83 
+            INC     HL
+            LD      B,A 
+            XOR     A 
+            OUT     (05),A 
+            RLC     B 
+            JR      NC,S82 
+            POP     BC 
+            DJNZ    S81
+            POP     HL 
+            RET      
+
+; Game Data
+
+; Five room squares are used.  A Cross, T junction, straight, Bend and Cul-de-sac.
+; In order to use these indifferent rotations the room reference byte is split into
+; two. The LSB is the room to use and the MSB is the rotation of it.  
+; The LSB for the rooms are
+;
+; Cross = 0
+; T junction = 1
+; Straight = 2
+; Bend = 3
+; Cul-de-sac = 4
+;
+; Maps are rotated 90 anti-clockwise with 0=no rotation, 1=90, 2=180 and 3=270
+; EG: a Bend at 180 degress is 23H
+;
+CROSSR:     DB      0C3H,0C3H,00H,00H,00H,00H,0C3H,0C3H      ;Cross (+)
+TJUNCR:     DB      0C3H,0C3H,0C0H,0C0H,0C0H,0C0H,0C3H,0C3H  ;T Junction (T) 
+STRGTR:     DB      0C3H,0C3H,0C3H,0C3H,0C3H,0C3H,0C3H,0C3H  ;Straight (=)
+BENDRM:     DB      0FFH,0FFH,03H,03H,03H,03H,0C3H,0C3H      ;Bend (L)
+CULDSR:     DB      0FFH,0FFH,0C3H,0C3H,0C3H,0C3H,0C3H,0C3H  ;Cul-De-Sac (C)
+
+; Room Lookup
+ROOMLU:     DW      CROSSR,TJUNCR,STRGTR,BENDRM,CULDSR
+; Map
+MAZERM:     DB      04H,01H,02H,02H,23H,33H,02H,24H
+            DB      33H,13H,33H,02H,13H,03H,02H,23H
+            DB      11H,23H,03H,24H,33H,02H,23H,12H
+            DB      14H,03H,02H,02H,00H,23H,11H,13H
+            DB      33H,24H,33H,23H,11H,31H,03H,23H
+            DB      03H,02H,31H,12H,12H,03H,23H,12H
+            DB      33H,24H,12H,03H,13H,04H,13H,12H
+            DB      03H,02H,21H,24H,04H,02H,02H,13H
+
+;SPOILER - This is the actual maze
+;             0   1   2   3   4   5   6   7
+;
+;           +---+---+---+---+---+---+---+---+
+;           |                   |           |
+;       A   |                   |           |
+;           +---+   +---+---+   +   +---+---+
+;           |       |           |           |
+;       B   |       |           |           |
+;           +   +---+   +---+---+---+---+   +
+;           |       |       |           |   |
+;       C   |       |       |           |   |
+;           +   +   +---+---+   +---+   +   +
+;           |   |                   |       |
+;       D   |   |                   |       |
+;           +---+---+---+---+   +   +   +---+
+;           |       |       |       |       |
+;       E   |       |       |       |       |
+;           +   +---+   +   +   +   +---+   +
+;           |           |   |   |       |   |
+;       F   |           |   |   |       |   |
+;           +---+---+   +   +   +---+   +   +
+;           |       |   |       |       |   |
+;       G   |       |   |       |       |   |
+;           +   +---+   +---+---+---+---+   +
+;           |               |               |
+;       H   |               |               |
+;           +---+---+---+---+---+---+---+---+
+
+; 0-H to Seven Segment Table
+SEGTBL:     DB      0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H
+            DB      0EFH,2FH,6FH,0E6H,0C3H,0ECH,0C7H,47H
+            DB      0E3H,6EH 
+
+; Intro Message
+INTMSG:     DB      50H,00H ;Size + Gap
+            DB      40H,40H,7FH,7FH,40H,40H,00H      ;T
+            DB      7FH,7FH,49H,49H,00H              ;E
+            DB      1CH,3EH,63H,41H,41H,00H          ;C
+            DB      00H,00H                          ;_
+            DB      41H,7FH,7FH,41H,00H              ;I
+            DB      7FH,7FH,18H,0CH,7FH,7FH,00H      ;N
+            DB      60H,38H,0EH,03H,0EH,38H,60H,00H  ;V
+            DB      03H,0EH,3CH,64H,3CH,0EH,03H,00H  ;A
+            DB      7FH,7FH,41H,22H,1CH,00H          ;D
+            DB      7FH,7FH,49H,49H,00H              ;E
+            DB      7FH,7FH,4CH,4AH,31H,00H          ;R
+            DB      12H,3BH,6BH,6EH,24H,00H          ;S
+            DB      00H,00H,00H,00H,00H,00H,00H,00H  ;_
+
+; Game Over Message
+OVRMSG:     DB      02H ;Page count
+            DB      67H,94H,0B4H,27H,00H,77H,0A5H,75H ;GAME
+            DB      67H,95H,95H,60H,00H,0E7H,14H,0E4H ;OVER
+
+
