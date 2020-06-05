@@ -39,18 +39,21 @@
 ;Data locations
 SCREEN:     EQU     0D00H ;Game Screen                                           (8-bytes)
 ROTSCR:     EQU     0D08H ;Pre Screen area for rotation                          (8-bytes)
-PLAYRM:     EQU     0D10H ;Player current room byte1=vertical, byte2=horizontal  (2-bytes)
-PLAYSC:     EQU     0D12H ;Player current Treasure Count                         (1-byte)
-KEYPRE:     EQU     0D13H ;Key Pressed Flag, 00-False, FF-True                   (1-byte)
-PLAYER:     EQU     0D14H ;Position of player X (Byte 1) and Y (Byte 2)          (2-bytes)
-CURRRM:     EQU     0D16H ;Current room number 00-3F (64 rooms)                  (1-byte)
-STARTR:     EQU     0D17H ;Start room to signify end of game                     (1-byte)
-RANDNO:     EQU     0D18H ;Random 8-Bit Number. Set when RANDOM is called        (1-byte)
+PLAYRM:     EQU     0D10H ;Player current room lnib=vertical, unib=horizontal    (1-byte)
+PLAYSC:     EQU     0D11H ;Player current Treasure Count                         (1-byte)
+KEYPRE:     EQU     0D12H ;Key Pressed Flag, 00-False, FF-True                   (1-byte)
+PLAYER:     EQU     0D13H ;Position of player X (Byte 1) and Y (Byte 2)          (2-bytes)
+CURRRM:     EQU     0D15H ;Current room number 00-3F (64 rooms)                  (1-byte)
+STARTR:     EQU     0D16H ;Start room to signify end of game                     (1-byte)
+RANDNO:     EQU     0D17H ;Random 8-Bit Number. Set when RANDOM is called        (1-byte)
+
 
 LEDSCR:     EQU     0D1AH ;LED Display for Map Reference and treasure count      (6-bytes)
 
 ;Contstants
 INITTR:     EQU     14H   ;Initial Treasure count = 20 Decimal
+
+;TODO fix player removal
 
             ORG     1800H 
 START:               
@@ -174,6 +177,7 @@ CHKCLY:
 
 ;Go to a new room.  This finds the next room and rotates it to the correct direction
 NWROOM:
+            CALL    UPDRCO   ;Update room coordinates
 			LD      HL,MAZERM
 			LD      A,(CURRRM)
 			ADD     A,L
@@ -187,10 +191,10 @@ NWROOM:
             ADD     A,A      ;Double it for two byte indexing
             ADD     A,L
             LD      L,A      ;Index the room
-            LD      E,(HL)
+            LD      A,(HL)
             INC     HL
-            LD      D,(HL)
-            EX      DE,HL
+            LD      H,(HL)
+            LD      L,A
             LD      BC,0008H ;Copy map data to rotation area
             LD      DE,ROTSCR 
             LDIR
@@ -245,26 +249,6 @@ SETUP:
             AND     3FH     ;0-63 rooms
             LD      (CURRRM),A
             LD      (STARTR),A  ;Save start room
-            ; Map Reference - Divide Start room by 8, result = A (Vert), remainder = B (Horiz)
-            LD      E,A     ;Current Room
-            LD      C,08H   ;Divisor
-            LD      B,08H   ;8 bit divide routine
-            XOR     A
-SU1: 
-            RL      E
-            RLA
-            SUB     C
-            JR      NC,SU2
-            ADD     A,C
-SU2:
-            DJNZ    SU1
-            LD      B,A
-            LD      A,E
-            RLA
-            CPL
-            LD      (PLAYRM),A
-            LD      A,B
-            LD      (PLAYRM+1),A
             ; Treasure Placement
             ;TODO
 
@@ -273,13 +257,13 @@ SU2:
             LD      (KEYPRE),A
             LD      (PLAYSC),A
 
-            CALL    NWROOM ;Draw first room
+            CALL    NWROOM ;Draw first room and update room coordinates
 
             RET
 
 ;Redraw screen with player movement
 UPDSCR:
-            ;Place Player. Move HL to X pos, then OR with vertical
+            ;Place Player. Move HL to X pos, then OR with Y pos
             
             LD      A,(PLAYER) ; Get X pos
             LD      HL,SCREEN
@@ -303,16 +287,45 @@ U2:
 ;Update the LED's to display the LEDSCR buffer based off PLAYRM & PLAYSC
 UPDSCO:
             LD      BC,LEDSCR  ;Location of screen buffer
-            LD      HL,PLAYRM  ;Player Position (2) and Treasures (1)
+            LD      HL,PLAYRM  ;Player Position (1) and Treasures (1)
+            XOR     A          ;Blank first two entries
+            LD      (BC),A
+            INC     BC
+            LD      (BC),A
+            INC     BC
             LD      A,(HL)
-            ADD     A,0AH      ;Index by 10 to get letters
             CALL    SEGCON     ;Convert A to Segment Hex, Store in BC
             INC     HL
             LD      A,(HL)
             CALL    SEGCON     ;Convert A to Segment Hex, Store in BC
-            INC     HL
-            LD      A,(HL)
-            CALL    SEGCON     ;Convert A to Segment Hex, Store in BC
+            RET
+
+;Update room coordinates.  Based on the current room
+;Divide Current room by 8, result = A (Vert), remainder = B (Horiz)
+UPDRCO:
+            LD      A,(CURRRM)
+            LD      E,A     ;Current Room
+            LD      C,08H   ;Divisor
+            LD      B,08H   ;8 bit divide routine
+            XOR     A
+SU1: 
+            RL      E
+            RLA
+            SUB     C
+            JR      NC,SU2
+            ADD     A,C
+SU2:
+            DJNZ    SU1
+            LD      B,A
+            LD      A,E
+            RLA
+            CPL
+            RLCA            ;Store AB into PLAYRM
+            RLCA
+            RLCA
+            RLCA
+            ADD     A,B
+            LD      (PLAYRM),A
             RET
 
 ;Utility Routines..
@@ -368,11 +381,25 @@ SEGCON:
             RLCA
             RLCA
             RLCA
-            CALL    SC1
-            POP     AF
+            ; Need to check if displaying a letter or number.  This only applys for the 
+            ; player room coordinates.  If HL = PLAYRM then and on upper nibble then add
+            ; 0A to the table index
+            LD      DE,PLAYRM
+            OR      A      ;Reset carry flag
+            SBC     HL,DE
+            ADD     HL,DE
+            JR      NZ,SC1
+            LD      DE,SEGTBL+0AH
+            JR      SC2
 SC1:
-            AND     0FH
             LD      DE,SEGTBL
+SC2:
+            CALL    SC3
+            POP     AF
+            LD      DE,SEGTBL
+SC3:
+
+            AND     0FH
             ADD     A,E
             LD      E,A
             LD      A,(DE)
@@ -538,33 +565,24 @@ MAZERM:     DB      04H,01H,02H,02H,23H,33H,02H,24H
             DB      03H,02H,21H,24H,04H,02H,02H,13H
 
 ;SPOILER - This is the actual maze
-;             0   1   2   3   4   5   6   7
-;
-;           +---+---+---+---+---+---+---+---+
-;           |                   |           |
-;       A   |                   |           |
-;           +---+   +---+---+   +   +---+---+
-;           |       |           |           |
-;       B   |       |           |           |
-;           +   +---+   +---+---+---+---+   +
-;           |       |       |           |   |
-;       C   |       |       |           |   |
-;           +   +   +---+---+   +---+   +   +
-;           |   |                   |       |
-;       D   |   |                   |       |
-;           +---+---+---+---+   +   +   +---+
-;           |       |       |       |       |
-;       E   |       |       |       |       |
-;           +   +---+   +   +   +   +---+   +
-;           |           |   |   |       |   |
-;       F   |           |   |   |       |   |
-;           +---+---+   +   +   +---+   +   +
-;           |       |   |       |       |   |
-;       G   |       |   |       |       |   |
-;           +   +---+   +---+---+---+---+   +
-;           |               |               |
-;       H   |               |               |
-;           +---+---+---+---+---+---+---+---+
+;            0 1 2 3 4 5 6 7
+;           +-+-+-+-+-+-+-+-+
+;       A   |         |     |
+;           +-+ +-+-+ + +-+-+
+;       B   |   |     |     |
+;           + +-+ +-+-+-+-+ +
+;       C   |   |   |     | |
+;           + + +-+-+ +-+ + +
+;       D   | |         |   |
+;           +-+-+-+-+ + + +-+
+;       E   |   |   |   |   |
+;           + +-+ + + + +-+ +
+;       F   |     | | |   | |
+;           +-+-+ + + +-+ + +
+;       G   |   | |   |   | |
+;           + +-+ +-+-+-+-+ +
+;       H   |       |       |
+;           +-+-+-+-+-+-+-+-+
 
 ; 0-H to Seven Segment Table
 SEGTBL:     DB      0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H
