@@ -53,13 +53,11 @@ LEDSCR:     EQU     0D1AH ;LED Display for Map Reference and treasure count     
 ;Contstants
 INITTR:     EQU     14H   ;Initial Treasure count = 20 Decimal
 
-;TODO fix player removal
-
             ORG     1800H 
 START:               
             ;Welcome Screen
-            ;CALL    CLRSCR
-            ;CALL    INTROM
+            CALL    CLRSCR
+            CALL    INTROM
 
             ;New game setup
             CALL    SETUP
@@ -76,17 +74,17 @@ GAME:
 
 ;Player Movement.  This includes map movements, and collisions on walls.  Player
 ;can move up (6), down (4), left (1) and right (9). When player moves off the screen
-;This method is a bit messy and could be optimised
+;A new map is drawn.  This method is a bit messy and could be optimised
 PLAYMV:
             ; Test for key pressed with D6 set
             IN      A,(03)
             BIT     6,A  ; Bit 6, If not set A=NZ
-            JR      Z,MP2
+            JR      Z,MP1
             ; Store 0 for last key if no key pressed
             XOR     A
             LD      (KEYPRE),A
             RET
-MP2:
+MP1:
             ; Key has been pressed
             LD      A,(KEYPRE)
             OR      A
@@ -96,84 +94,90 @@ MP2:
             ; Get Key
             IN      A,(00)
             AND     01FH ; Mask unwanted bits
+            LD      DE,(PLAYER)    ;Player position for checking
+            LD      HL,CURRRM
             ; Check for Valid Keys
 LEFT:
             CP      01H  ; Left
             JR      NZ, RIGHT
-            LD      A,(PLAYER)
+            LD      A,E     ;X pos
             RLCA
-            JR      C,MOVELT  ;On edge, update map
-            CALL    CHKCLX    ; Set A to 0 if collision
-            RET
-MOVELT:
-            LD      (PLAYER),A ;Save new X
-            LD      HL,CURRRM
-            DEC     (HL)
-            CALL    NWROOM
-            RET
-
+            JR      C,MOVELT ;Carry means move to new room and save new player position
+            LD      E,A
+            JR     CHKCOL   ;Check for collision
 RIGHT:
             CP      09H  ; Right
             JR      NZ, UP
-            LD      A,(PLAYER)
+            LD      A,E     ;X pos
             RRCA
-            JR      C,MOVERT  ;On edge, update map
-            CALL    CHKCLX    ; Set A to 0 if collision
-            RET
-MOVERT:
-            LD      (PLAYER),A ;Save new X
-            LD      HL,CURRRM
-            INC     (HL)
-            CALL    NWROOM
-            RET
+            JR      C,MOVERT ;Carry means move to new room and save new player position
+            LD      E,A
+            JR     CHKCOL   ;Check for collision
 UP:
             CP      06H  ; Up
             JR      NZ, DOWN
-            LD      A,(PLAYER+1)
+            LD      A,D     ;Y pos
             RLCA
-            JR      C,MOVEUP  ;On edge, update map
-            CALL    CHKCLY    ;Set A to 0 if collision
-            RET
-MOVEUP:
-            LD      (PLAYER+1),A ;Save new Y
-            LD      A,(CURRRM)
-            SUB     08H
-            LD      (CURRRM),A
-            CALL    NWROOM
-            RET
+            JR      C,MOVEUP ;Carry means move to new room and save new player position
+            LD      D,A
+            JR     CHKCOL   ;Check for collision
 DOWN:
             CP      04H  ; Down
             RET     NZ
-            LD      A,(PLAYER+1)
+            LD      A,D     ;Y pos
             RRCA
-            JR      C,MOVEDW  ;On edge, update map
-            CALL    CHKCLY    ;Set A to 0 if collision
-            RET
-MOVEDW:
-            LD      (PLAYER+1),A ;Save new Y
-            LD      A,(CURRRM)
+            JR      C,MOVEDN ;Carry means move to new room and save new player position
+            LD      D,A
+            JR     CHKCOL   ;Check for collision
+MOVELT:
+            LD      E,A
+            DEC     (HL)
+            JR      UPDROO
+MOVERT:
+            LD      E,A
+            INC     (HL)
+            JR      UPDROO
+MOVEUP:
+            LD      D,A
+            LD      A,(HL)
+            SUB     08H
+            LD      (HL),A
+            JR      UPDROO
+MOVEDN:
+            LD      D,A
+            LD      A,(HL)
             ADD     A,08H
-            LD      (CURRRM),A
+            LD      (HL),A
+UPDROO:
+            ;Update to a new room and save new player location
+            LD      (PLAYER),DE  ;Move player
             CALL    NWROOM
-            RET
+            RET      ;Exit from PLAYMV
 
-;Check that player doesn't collide with wall.  If so, just exit otherwise update
-;Player X position.  A is the new position to test
-CHKCLX:
-            ;TODO check collision and return if collide
-            OR      A
-            RET     Z
-            LD      (PLAYER),A ;Save new X
-            RET
-
-;Check that player doesn't collide with wall.  If so, just exit otherwise update
-;Player Y position.  A is the new position to test
-CHKCLY:
-            ;TODO check collision and return if collide
-            OR      A
-            RET     Z
-            LD      (PLAYER+1),A ;Save new X
-            RET
+;Check that player doesn't collide with wall.  IF so just exit and don't update player
+;position.  Else, Jump to UPDROO to wipe old player position and save new player position
+;DE = player position to test.  D = X, E = Y
+CHKCOL:
+            LD      HL,SCREEN
+            ;Find X  Pos on screen
+            LD      A,E
+MP2:
+            RLCA            ;1 Bit is always present
+            JR      C,MP3
+            INC     HL
+            JR      MP2
+MP3:
+            LD A,(HL)       ;Get X column
+            AND     D       ;See if Y is set
+            RET     NZ      ;Collision!! Exit from PLAYMV
+            ;Update screen to remove pevious player position and save new player position
+            LD      (PLAYER),DE  ;Move player
+            ;Copy Rotated Original room to Screen
+            LD      BC,0008H ;Copy rotation area to screen
+            LD      HL,ROTSCR 
+            LD      DE,SCREEN 
+            LDIR
+            RET      ;Exit from PLAYMV
 
 ;Go to a new room.  This finds the next room and rotates it to the correct direction
 NWROOM:
@@ -590,19 +594,15 @@ SEGTBL:     DB      0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H
             DB      0E3H,6EH 
 
 ; Intro Message
-INTMSG:     DB      50H,00H ;Size + Gap
+INTMSG:     DB      49H,00H ;Size + Gap
             DB      40H,40H,7FH,7FH,40H,40H,00H      ;T
             DB      7FH,7FH,49H,49H,00H              ;E
             DB      1CH,3EH,63H,41H,41H,00H          ;C
             DB      00H,00H                          ;_
-            DB      41H,7FH,7FH,41H,00H              ;I
-            DB      7FH,7FH,18H,0CH,7FH,7FH,00H      ;N
-            DB      60H,38H,0EH,03H,0EH,38H,60H,00H  ;V
+            DB      7FH,7FH,30H,18H,18H,30H,7FH,7FH,00H ;M
             DB      03H,0EH,3CH,64H,3CH,0EH,03H,00H  ;A
-            DB      7FH,7FH,41H,22H,1CH,00H          ;D
+            DB      63H,73H,6BH,67H,63H,00H          ;Z
             DB      7FH,7FH,49H,49H,00H              ;E
-            DB      7FH,7FH,4CH,4AH,31H,00H          ;R
-            DB      12H,3BH,6BH,6EH,24H,00H          ;S
             DB      00H,00H,00H,00H,00H,00H,00H,00H  ;_
 
 ; Game Over Message
