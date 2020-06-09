@@ -29,35 +29,33 @@
 ;
 ; Your character is a 1x1 Steady LED.  Treasures are flashing (glistening!) 1x1 LED's.
 ; The Seven Segments display your current location (Address) and the number of treasures
-; found (Data).  You must find all 20 treasures to win.  Just move over the treasure to
+; to collect (Data).  You must find all treasures to win.  Just move over the treasure to
 ; pick it up.
 ;
 ; The Maze has a total of 64 rooms on an 8x8 grid.  Rooms are represented vertically
-; with A-H and horizontally with 0-7.  Bottom left is 'A0'.  Treasures and initially 
-; player positions are randomly placed at the start of the game
+; with A-H and horizontally with 0-7.  Top left is 'A0'.  Treasures and initially 
+; player positions are randomly placed at the start of the game.  The number of treasure
+; to find is random for each game.
 
 ;Data locations
 SCREEN:     EQU     0D00H ;Game Screen                                           (8-bytes)
 ROTSCR:     EQU     0D08H ;Pre Screen area for rotation                          (8-bytes)
-PLAYRM:     EQU     0D10H ;Player current room lnib=vertical, unib=horizontal    (1-byte)
-PLAYSC:     EQU     0D11H ;Player current Treasure Count                         (1-byte)
-KEYPRE:     EQU     0D12H ;Key Pressed Flag, 00-False, FF-True                   (1-byte)
-PLAYER:     EQU     0D13H ;Position of player X (Byte 1) and Y (Byte 2)          (2-bytes)
-CURRRM:     EQU     0D15H ;Current room number 00-3F (64 rooms)                  (1-byte)
-STARTR:     EQU     0D16H ;Start room to signify end of game                     (1-byte)
-RANDNO:     EQU     0D17H ;Random 8-Bit Number. Set when RANDOM is called        (1-byte)
-
-
-LEDSCR:     EQU     0D1AH ;LED Display for Map Reference and treasure count      (6-bytes)
-
-;Contstants
-INITTR:     EQU     14H   ;Initial Treasure count = 20 Decimal
+TRESUR:     EQU     0D10H ;Treasure Location 1 byte per row                      (8-bytes)
+PLAYRM:     EQU     0D18H ;Player current room lnib=vertical, unib=horizontal    (1-byte)
+PLAYSC:     EQU     0D19H ;Player current Treasure Count                         (1-byte)
+PLAYER:     EQU     0D1AH ;Position of player X (Byte 1) and Y (Byte 2)          (2-bytes)
+CURRRM:     EQU     0D1CH ;Current room number 00-3F (64 rooms)                  (1-byte)
+STARTR:     EQU     0D1DH ;Start room to signify end of game                     (1-byte)
+RANDNO:     EQU     0D1EH ;Random number for more randomness                     (1-byte)
+KEYPRE:     EQU     0D1FH ;Key Pressed Flag, 00-False, FF-True                   (1-byte)
+LEDSCR:     EQU     0D20H ;LED Display for Map Reference and treasure count      (6-bytes)
+TRELOC:     EQU     0D26H ;Position of treasure X (Byte 1) and Y (Byte 2)        (2-bytes)
 
             ORG     1800H 
 START:               
             ;Welcome Screen
             CALL    CLRSCR
-            CALL    INTROM
+            ;CALL    INTROM
 
             ;New game setup
             CALL    SETUP
@@ -167,7 +165,7 @@ MP2:
             INC     HL
             JR      MP2
 MP3:
-            LD A,(HL)       ;Get X column
+            LD      A,(HL)  ;Get X column
             AND     D       ;See if Y is set
             RET     NZ      ;Collision!! Exit from PLAYMV
             ;Update screen to remove pevious player position and save new player position
@@ -182,6 +180,7 @@ MP3:
 ;Go to a new room.  This finds the next room and rotates it to the correct direction
 NWROOM:
             CALL    UPDRCO   ;Update room coordinates
+			CALL    CRETRE   ;Create Treasure if room has active treasure
 			LD      HL,MAZERM
 			LD      A,(CURRRM)
 			ADD     A,L
@@ -242,6 +241,70 @@ ROT2:
             DJNZ    ROTCW  ; Repeat for all rotations
 			RET
 
+;Create Treasure.  Using the bits set in TRESUR, see if room has treasure.  If so
+;Place it somewhere within the four squares of center of the room.  If no treasure in room
+;Clear out treasure location
+CRETRE:
+            ; Using PLAYRM (previously set), work out which row and column to check in TRESUR
+            ; To set if the bit is set for the room.
+            LD      HL,TRESUR  ;Find the correct row (X coordinate)
+            LD      DE,TRELOC  ;Treasure location X and Y if any
+            LD      A,(PLAYRM)
+            PUSH    AF
+            RLCA
+            RLCA
+            RLCA
+            RLCA            
+            AND     0FH       ;Get Y position
+            LD      B,A       ;Save Y in B
+            POP     AF
+            AND     0FH       ;Get X position
+CR1:
+            OR      A         ;Check for 0
+            JR      Z,CR2
+            DEC     A
+            INC     HL
+            JR      CR1
+CR2:
+            LD      A,(HL)    ;Now find if bit is set
+            LD      C,A
+            LD      A,B       ;Y position
+CR3:
+            OR      A         ;Check for 0
+            JR      Z,CR4
+            RRC     C
+            DEC     A
+            JR      CR3
+CR4:
+            BIT     0,C       ;Check if bit is set, if so, treausre is found
+            JR      Z,CR7     ;Not set
+            ; To set a random location, I use row random number, and mask out lower and upper
+            ; nibble with 3.  Then add 2 to it to get a number between 2-5 which are the 
+            ; center bits.
+            LD      A,(HL)    ;Row Bits
+            CALL    CR5
+            LD      A,(HL)    ;Row Bits
+            RLCA
+            RLCA
+            RLCA
+            RLCA              ;Fall through to call
+CR5:
+            AND     03H       ;Mask bottom 3 bits only
+            ADD     A,01H     ;Put in range of 2-5 (first bit already set)
+            LD      B,A
+            LD      A,01H     ;Set one bit
+CR6:
+            RLCA
+            DJNZ    CR6
+            LD      (DE),A
+            INC     DE
+            RET
+CR7:            
+            LD      (DE),A ;   A is 0 if here
+            INC     DE
+            LD      (DE),A ;
+            RET
+
 ;Randomly place treasure and initial room for player
 SETUP:
             ; Initial Player Position
@@ -253,13 +316,41 @@ SETUP:
             AND     3FH     ;0-63 rooms
             LD      (CURRRM),A
             LD      (STARTR),A  ;Save start room
-            ; Treasure Placement
-            ;TODO
+            ; Treasure Placement is done by placing a random number in eight rows
+            ; Each set bit on the row represents the column that the treasure is in.
+            ; Once the player enters a room with treasure it is placed somewhere in the
+            ; room.  If it get picked up, the bit is removed.
+            LD      C,08H   ;8 rows
+            LD      HL,TRESUR
+SUP1:
+            CALL    RANDOM
+            LD      (HL),A   ;Save random number to row
+            INC     HL
+            DEC     C
+            JR      NZ,SUP1
+            ; Add up treasures (bits in each row) and save into PLAYSC.  This code is a
+            ; bit ineffcient but it only gets called once at startup.
+            LD      DE,0008H   ;E=8 rows and D=0 total treasure 
+            LD      HL,TRESUR
+SUP2:
+            LD      A,(HL)
+            LD      B,08H    ;8 bits per byte
+SUP3:
+            RLCA
+            JR      NC,SUP4
+            INC     D
+SUP4:
+            DJNZ    SUP3
+            INC     HL
+            DEC     E
+            JR      NZ,SUP2
+            LD      A,D
+            CALL    HEX2BCD
+            LD      (PLAYSC),A
 
-            ; Default
+            ; Zero Default
             LD      A,00H
             LD      (KEYPRE),A
-            LD      (PLAYSC),A
 
             CALL    NWROOM ;Draw first room and update room coordinates
 
@@ -283,7 +374,24 @@ U2:
             OR      B      
             LD      (HL),A ;Update HL with Y position
 
-            ;Place Treasure
+            ;Place Treasure if any. Move HL to X pos, then OR with Y pos
+            
+            LD      A,(TRELOC) ; Get X pos
+            OR      A          ; If 0 no treasure
+            RET     Z
+            LD      HL,SCREEN
+U3:
+            RLCA           ;1 Bit is always present
+            JR      C,U4   ;Move HL to X position
+            INC     HL
+            JR      U3
+U4:
+            LD      A,(TRELOC+1)
+            LD      B,A
+            LD      A,(HL) 
+            OR      B      
+            LD      (HL),A ;Update HL with Y position
+
 
             RET
 
@@ -409,6 +517,20 @@ SC3:
             LD      A,(DE)
             LD      (BC),A
             INC     BC
+            RET
+
+;Hex to BCD converter.  Converts A in Hex to BCD equivilant.
+HEX2BCD:
+            PUSH    BC
+            LD      C,A
+            LD      B,08H
+            XOR     A
+H1:
+            SLA     C
+            ADC     A,A
+            DAA
+            DJNZ    H1
+            POP     BC
             RET
 
 ;8x8 Scroll routine to scroll data from right to left.  Data is referenced in HL
@@ -594,14 +716,14 @@ SEGTBL:     DB      0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H
             DB      0E3H,6EH 
 
 ; Intro Message
-INTMSG:     DB      49H,00H ;Size + Gap
+INTMSG:     DB      39H,00H ;Size + Gap
             DB      40H,40H,7FH,7FH,40H,40H,00H      ;T
             DB      7FH,7FH,49H,49H,00H              ;E
             DB      1CH,3EH,63H,41H,41H,00H          ;C
             DB      00H,00H                          ;_
             DB      7FH,7FH,30H,18H,18H,30H,7FH,7FH,00H ;M
             DB      03H,0EH,3CH,64H,3CH,0EH,03H,00H  ;A
-            DB      63H,73H,6BH,67H,63H,00H          ;Z
+            DB      63H,67H,6BH,73H,63H,00H          ;Z
             DB      7FH,7FH,49H,49H,00H              ;E
             DB      00H,00H,00H,00H,00H,00H,00H,00H  ;_
 
