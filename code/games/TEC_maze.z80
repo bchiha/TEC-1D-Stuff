@@ -68,7 +68,18 @@ GAME:
             CALL    UPDSCO     ;Update 7-Segments
             CALL    SCAN       ;Scan the 8x8 and Seven Segments
 
-            JR      GAME
+            ;Check if treausre count = 0 and player is in starting position
+            ;then display game over and restart
+            LD      A,(PLAYSC)
+            OR      A
+            JR      NZ,GAME   ;Still treasure remaining
+            LD      A,(STARTR)
+            LD      B,A
+            LD      A,(CURRRM)
+            SUB     B
+            JR      NZ,GAME   ;Not in starting room
+            CALL    GAMEOV    ;Call game over routine
+            JR      START
 
 ;Player Movement.  This includes map movements, and collisions on walls.  Player
 ;can move up (6), down (4), left (1) and right (9). When player moves off the screen
@@ -631,41 +642,6 @@ F2:
             JR      GAMEOV
             RET
 
-;Animate 8x8 when player looses a life by inverting the screen 3 times and playing
-;a sound
-FLIPSC:
-            PUSH    HL
-            PUSH    BC
-            LD      B,06H    ;Six loops or 3 flips
-FS1:            
-            LD      HL,SCREEN
-            PUSH    BC
-            LD      B,08H
-FS2:
-            LD      A,(HL)
-            CPL             ;Invert byte
-            LD      (HL),A
-            INC     HL
-            DJNZ    FS2
-            CALL    SCAN88
-                            
-            LD      C,40H    ;Sound Routine
-            LD      L,31H
-            XOR     A
-FS3:
-            OUT     (01),A
-            LD      B,C
-FS4:        DJNZ    FS4
-            XOR     80H
-            DEC     L
-            JR      NZ,FS3
-
-            POP     BC
-            DJNZ    FS1
-            POP     BC
-            POP     HL
-            RET
-
 CLRSCR:
             LD      HL,SCREEN
             LD      DE,SCREEN+1
@@ -688,7 +664,7 @@ S82:
             OUT     (06),A
             LD      A,B 
             OUT     (05),A
-            LD      B,40H 
+            LD      B,20H 
 S83:        DJNZ    S83 
             INC     HL
             LD      B,A 
@@ -774,7 +750,5 @@ INTMSG:     DB      39H,00H ;Size + Gap
 
 ; Game Over Message
 OVRMSG:     DB      02H ;Page count
-            DB      67H,94H,0B4H,27H,00H,77H,0A5H,75H ;GAME
-            DB      67H,95H,95H,60H,00H,0E7H,14H,0E4H ;OVER
-
-
+            DB      08H,08H,0EBH,0FCH,0EAH,09H,04H,00H  ;Boogie
+            DB      04H,09H,0EAH,0FCH,0EBH,08H,08H,00H  ;Woogie
