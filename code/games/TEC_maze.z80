@@ -167,8 +167,52 @@ MP2:
 MP3:
             LD      A,(HL)  ;Get X column
             AND     D       ;See if Y is set
-            RET     NZ      ;Collision!! Exit from PLAYMV
-            ;Update screen to remove pevious player position and save new player position
+            JR      Z,MP8      ;Collision!! If NZ
+			;If collision check if treasure, (ie player = treloc)
+			;then if so, remove treasure otherwise RET and don't update room
+			LD      HL,(TRELOC)
+            OR      A
+            SBC     HL,DE  ;Compare HL and DE, if the same then Zero flag is set
+            ADD     HL,DE
+            RET     NZ     ;Different so must be wall.
+            ; Remove Treasure BIT then fall through and update player location
+            LD      HL,TRESUR  ; Treasure Rows
+            LD      A,(PLAYRM) ; Current player room to find correct TRESUR
+            PUSH    AF
+            AND     0FH       ; Get X pos
+MP4:
+            OR      A         ;Check for 0
+            JR      Z,MP5
+            DEC     A
+            INC     HL        ;Move to correct row
+            JR      MP4
+MP5:
+            POP     AF
+            RLCA
+            RLCA
+            RLCA
+            RLCA            
+            AND     0FH       ;Get Y position
+            LD      B,01H     ;Set up bit to XOR with (HL)
+MP6:
+            OR      A         ;Check for 0
+            JR      Z,MP7
+            RLC     B
+            DEC     A
+            JR      MP6
+MP7:
+            LD      A,(HL)
+            XOR     B          ;Remove Y Bit from A
+            LD      (HL),A     ;Update HL with bit removed and fall through to update player pos
+            LD      HL,0000H
+            LD      (TRELOC),HL ;Remove Treasure in room
+            LD      A,(PLAYSC)
+            SUB     01H       ;Decrease treasure count
+            DAA
+            LD      (PLAYSC),A
+MP8:
+            ;No collision to move player to new position and update screen to
+            ;remove pevious player position 
             LD      (PLAYER),DE  ;Move player
             ;Copy Rotated Original room to Screen
             LD      BC,0008H ;Copy rotation area to screen
@@ -290,7 +334,7 @@ CR4:
             RLCA              ;Fall through to call
 CR5:
             AND     03H       ;Mask bottom 3 bits only
-            ADD     A,01H     ;Put in range of 2-5 (first bit already set)
+            ADD     A,02H     ;Put in range of 2-5
             LD      B,A
             LD      A,01H     ;Set one bit
 CR6:
@@ -375,6 +419,7 @@ U2:
             LD      (HL),A ;Update HL with Y position
 
             ;Place Treasure if any. Move HL to X pos, then OR with Y pos
+            ;TODO flashing
             
             LD      A,(TRELOC) ; Get X pos
             OR      A          ; If 0 no treasure
@@ -498,7 +543,7 @@ SEGCON:
             ; 0A to the table index
             LD      DE,PLAYRM
             OR      A      ;Reset carry flag
-            SBC     HL,DE
+            SBC     HL,DE  ;Compare HL and DE, if the same then Zero flag is set
             ADD     HL,DE
             JR      NZ,SC1
             LD      DE,SEGTBL+0AH
