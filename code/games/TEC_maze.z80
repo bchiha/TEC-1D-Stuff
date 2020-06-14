@@ -51,11 +51,11 @@ KEYPRE:     EQU     0D1FH ;Key Pressed Flag, 00-False, FF-True                  
 LEDSCR:     EQU     0D20H ;LED Display for Map Reference and treasure count      (6-bytes)
 TRELOC:     EQU     0D26H ;Position of treasure X (Byte 1) and Y (Byte 2)        (2-bytes)
 
-            ORG     1800H 
+            ORG     0900H 
 START:               
             ;Welcome Screen
             CALL    CLRSCR
-            ;CALL    INTROM
+            CALL    INTROM
 
             ;New game setup
             CALL    SETUP
@@ -430,7 +430,11 @@ U2:
             LD      (HL),A ;Update HL with Y position
 
             ;Place Treasure if any. Move HL to X pos, then OR with Y pos
-            ;TODO flashing
+            ;Treausre is only shown if RANDOM number > 80H (128 decimal)
+            ;This creates a glistening effect
+            CALL    RANDOM
+            SUB     20H
+            RET     NC    ;Dont print treasure if result is negative
             
             LD      A,(TRELOC) ; Get X pos
             OR      A          ; If 0 no treasure
