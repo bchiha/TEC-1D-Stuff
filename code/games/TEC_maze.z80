@@ -1,11 +1,11 @@
-; TEC Maze Escape.
+; TEC Maze Treasure Hunt.
 ;
 ; By
 ; Brian Chiha -- June 2020
 ; brian.chiha@gmail.com
 ; 
-; Escape from a Maze using the TEC 8x8 LED add-on
-; -----------------------------------------------
+; Glowing Orb Treasure Hunt
+; -------------------------
 ;
 ; Setup
 ; ----- 
@@ -20,21 +20,21 @@
 ; To Play
 ; -------
 ;
-; The aim is to move around the maze, and pick up all treasures. Once all are found,
+; The aim is to move around the maze, and pick up all glowing orbs. Once all are found,
 ; get back to your starting spot.  To move use the following keys
 ;
 ;         6
 ;     1 < O > 9
 ;         4
 ;
-; Your character is a 1x1 Steady LED.  Treasures are flashing (glistening!) 1x1 LED's.
+; Your character is a 1x1 Steady LED.  Orbs are flashing (glistening!) 1x1 LED's.
 ; The Seven Segments display your current location (Address) and the number of treasures
-; to collect (Data).  You must find all treasures to win.  Just move over the treasure to
-; pick it up.
+; to collect (Data).  You must find all orbs to win.  Just move over the orb to
+; pick it up but only when you can see it!
 ;
 ; The Maze has a total of 64 rooms on an 8x8 grid.  Rooms are represented vertically
-; with A-H and horizontally with 0-7.  Top left is 'A0'.  Treasures and initially 
-; player positions are randomly placed at the start of the game.  The number of treasure
+; with A-H and horizontally with 0-7.  Top left is 'A0'.  Orbs and initially 
+; player positions are randomly placed at the start of the game.  The number of orbs
 ; to find is random for each game.
 
 ;Data locations

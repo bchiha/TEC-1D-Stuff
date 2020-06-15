@@ -1,0 +1,24 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/speech/speech_code.z80
+0000			;SPEECH MODULE using the SP0256-AL2 speech chip. 
+0000			;Allophones tester. 
+0000			; 
+0000			;Put strobe of Speech board in Port 5, or whatever. 
+0000			;Load code and put data for SPO256-AL2 from 0910 onwards. 
+0000			;Use FF to terminate and repeat 
+0000			 
+0000			SPPORT:    EQU    05H 
+0000			           ORG    0900H  
+0900			START:                
+0900 21 10 09		           LD     HL,0910H 
+0903			S1: 
+0903 7e			           LD     A,(HL) 
+0904 fe ff		           CP     0FFH 
+0906 28 05		           JR     Z,END 
+0908 d3 05		           OUT    (SPPORT),A 
+090a 23			           INC    HL 
+090b 18 f6		           JR     S1 
+090d			END: 
+090d cf			           RST    08H 
+090e 18 f0		           JR     START 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/speech/speech_code.z80
+0910

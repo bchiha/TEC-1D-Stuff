@@ -1,0 +1,806 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/games/TEC_invaders_mk2.z80
+0000			; TEC Invaders Mark 2. 
+0000			; 
+0000			; By 
+0000			; Brian Chiha -- May 2020 
+0000			; brian.chiha@gmail.com 
+0000			;  
+0000			; This is my version of the TEC invaders that was originally writen by Cameron Sheppard 
+0000			; ------------------------------------------------------------------------------------- 
+0000			; 
+0000			; Setup 
+0000			; -----  
+0000			; 
+0000			; To be run on the TEC-1D with either JMON or MON2.  For the keyboard to work 
+0000			; it requires EITHER a 4k7 resistor between the NMI (pin 17 on Z-80) and D6 (pin 
+0000			; 10 on the Z-80) OR the DAT (LCD) expanstion board fitted to port 3.  The  
+0000			; current TEC-1D boards have the JMON MOD resitor connection already there. 
+0000			; The 8x8 LED board is fitted to ports 5 and 6 with the port select strobe of the 
+0000			; left hand latch going to port 6. 
+0000			; 
+0000			; To Play 
+0000			; ------- 
+0000			; 
+0000			; Use '1' to move Left, '9' to move right and '+' to shoot.  10 Points for  
+0000			; hitting an invader and 50 Points for the UFO on the top row.  Player has 
+0000			; 3 lives and the game is over when all lives are lost.  You lose a life if 
+0000			; the invaders land or you get hit by one of their bombs.  Invaders come 
+0000			; in waves and get faster with less invaders alive. 
+0000			;  
+0000			;  
+0000			 
+0000			;Data locations 
+0000			SCREEN:     EQU     0D00H ;Game Screen (Merge of INVADV,PLAYER,BULLET,UFOPOS and INVBOM) (8-bytes) 
+0000			INVADV:     EQU     0D08H ;Invaders in vertical position for display             (8-bytes) 
+0000			INVADH:     EQU     0D10H ;Invaders in horizontal position for easy bit move     (8-bytes) 
+0000			INVBOM:     EQU     0D18H ;Invader Bomb position vertically.                     (8-bytes) 
+0000			PLAYER:     EQU     0D20H ;Position in byte IE: 00010000 (three from the right)  (1-byte) 
+0000			BULLET:     EQU     0D21H ;Position of bullet X (Horizontal) and Y (Verticallly) (2-bytes) 
+0000			UFOPOS:     EQU     0D23H ;Position in byte IE: 00010000 (four from the right)   (1-byte) 
+0000			KEYPRE:     EQU     0D24H ;Key Pressed Flag, 00-False, FF-True                   (1-byte) 
+0000			INVDIR:     EQU     0D25H ;Direction of Invaders, 00=Right, 01=Left              (1-byte) 
+0000			PLAYSC:     EQU     0D26H ;Player current score                                  (2-bytes) 
+0000			PLAYLV:     EQU     0D28H ;Player current Lives                                  (1-byte) 
+0000			INVCNT:     EQU     0D29H ;Counter to action invader movement when it hits zero  (1-byte) 
+0000			LEDSCR:     EQU     0D2AH ;Score and lives segment data for LED display          (6-bytes) 
+0000			RANDNO:     EQU     0D30H ;Random 8-Bit Number. Set when RANDOM is called        (1-byte) 
+0000			INVSPD:     EQU     0D31H ;Current speed of invaders                             (1-byte) 
+0000			INVREM:     EQU     0D32H ;Number of remaining invaders                          (1-byte) 
+0000			;Contstants 
+0000			INITPL:     EQU     00010000B  ;Initial Player X position, bit set = ...0.... 
+0000			INITLV:     EQU     03H        ;Initial Lives #3 
+0000			UFOSPD:     EQU     00000011B  ;UFO movement speed, every 3 loops 
+0000			UFOCRE:     EQU     06H        ;UFO creation rate 
+0000			BOMCRE:     EQU     10H        ;Bomb creation rate 
+0000			 
+0000			 
+0000			            ORG     1800H  
+1800			START:                
+1800			            ;Welcome Screen 
+1800 cd 50 1b		            CALL    CLRSCR 
+1803 cd e3 1a		            CALL    INTROM 
+1806			 
+1806			            ;New game setup 
+1806 cd f4 19		            CALL    SETUP 
+1809			             
+1809			            ;Game Loop 
+1809			GAME: 
+1809 cd c2 1a		            CALL    RANDOM     ;Get random number, Store in RANDNO 
+180c cd cb 18		            CALL    MOVPLA     ;Move Player 
+180f cd 12 19		            CALL    MOVBUL     ;Move Bullet 
+1812 cd d2 19		            CALL    CHKINV     ;Reset invaders if all invaders are dead 
+1815			 
+1815			            ; Delayed timed movement for invaders, bombs, ufo and ufo creation 
+1815			            ; Move Invaders 
+1815			             
+1815			            ; Create Bombs 
+1815 3a 30 0d		            LD      A,(RANDNO) 
+1818 fe 10		            CP      BOMCRE 
+181a 30 03		            JR      NC,SKIPBM 
+181c cd a9 19		            CALL    CREBOM 
+181f			SKIPBM: 
+181f			            ; Move Invaders 
+181f 3a 29 0d		            LD      A,(INVCNT)  ;Get invader counter 
+1822 47			            LD      B,A 
+1823 3d			            DEC     A 
+1824 20 06		            JR      NZ,SKIPMV   ;Not Zero so don't move 
+1826 cd 47 19		            CALL    MOVINV      ;Move Invaders 
+1829 3a 31 0d		            LD      A,(INVSPD)  ;Reset invader counter             
+182c			SKIPMV: 
+182c 32 29 0d		            LD      (INVCNT),A  ;Save counter 
+182f			            ; Move UFO 
+182f 78			            LD      A,B 
+1830 e6 03		            AND     UFOSPD      ;Move UFO at faster rate 
+1832 fe 03		            CP      UFOSPD 
+1834 20 06		            JR      NZ,SKIPUM 
+1836 cd 3c 19		            CALL    MOVUFO      ;Move UFO 
+1839 cd 27 19		            CALL    MOVBOM     ;Move Bomb 
+183c			SKIPUM:  
+183c			            ; Create UFO 
+183c 3a 30 0d		            LD      A,(RANDNO) 
+183f fe 06		            CP      UFOCRE 
+1841 30 0b		            JR      NC,SKIPUC 
+1843 3a 23 0d		            LD      A,(UFOPOS)  ;Active if any bit set 
+1846 b7			            OR      A 
+1847 20 05		            JR      NZ,SKIPUC 
+1849 3e 01		            LD      A,01H 
+184b 32 23 0d		            LD      (UFOPOS),A  ;Create UFO 
+184e			 
+184e			SKIPUC: 
+184e			            ; Display Updates 
+184e cd 62 18		            CALL    UPDSCR     ;Update Screen 
+1851 cd b6 18		            CALL    UPDSCO     ;Update Score 
+1854 cd 94 1a		            CALL    SCAN       ;Scan the 8x8 and Seven Segments 
+1857			 
+1857			            ;Check if lives = 0, then display game over and restart 
+1857 3a 28 0d		            LD      A,(PLAYLV) 
+185a b7			            OR      A 
+185b 20 ac		            JR      NZ,GAME   ;Still alive then just goto the game loop 
+185d cd 04 1b		            CALL    GAMEOV    ;Call game over routine 
+1860 18 9e		            JR      START 
+1862			 
+1862			;Update Screen by merging all displays 
+1862			UPDSCR: 
+1862			            ;Place Invaders 
+1862 01 08 00		            LD      BC,0008H  
+1865 11 00 0d		            LD      DE,SCREEN  
+1868 21 08 0d		            LD      HL,INVADV 
+186b ed b0		            LDIR 
+186d			 
+186d			            ;Place Bombs 
+186d 06 08		            LD      B,08H 
+186f 11 00 0d		            LD      DE,SCREEN 
+1872 21 18 0d		            LD      HL,INVBOM 
+1875			U1: 
+1875 1a			            LD      A,(DE) 
+1876 b6			            OR      (HL)      ;Add Bomb if any to vertical 
+1877 12			            LD      (DE),A    ;Update DE with Bomb 
+1878 13			            INC     DE 
+1879 23			            INC     HL 
+187a 10 f9		            DJNZ    U1 
+187c			 
+187c			            ;Place Bullet.  Move HL to X pos, then OR with vertical 
+187c 3a 21 0d		            LD      A,(BULLET) 
+187f b7			            OR      A 
+1880 28 10		            JR      Z,U4   ;No bullet so ignore update 
+1882 11 00 0d		            LD      DE,SCREEN 
+1885			U2: 
+1885 07			            RLCA           ;Bit must be present 
+1886 38 03		            JR      C,U3   ;Move DE to X position 
+1888 13			            INC     DE 
+1889 18 fa		            JR      U2 
+188b			U3: 
+188b 3a 22 0d		            LD      A,(BULLET+1) 
+188e 47			            LD      B,A 
+188f 1a			            LD      A,(DE)  
+1890 b0			            OR      B       
+1891 12			            LD      (DE),A ;Update DE with Y position 
+1892			 
+1892			U4: 
+1892			            ;Place Player 
+1892 3a 20 0d		            LD      A,(PLAYER) 
+1895 11 00 0d		            LD      DE,SCREEN 
+1898			U5: 
+1898 07			            RLCA 
+1899 38 03		            JR      C,U6 
+189b 13			            INC     DE 
+189c 18 fa		            JR      U5 
+189e			U6: 
+189e 1a			            LD      A,(DE) 
+189f cb c7		            SET     0,A 
+18a1 12			            LD      (DE),A 
+18a2			 
+18a2			            ;Place UFO 
+18a2 3a 23 0d		            LD      A,(UFOPOS) 
+18a5 b7			            OR      A 
+18a6 28 0d		            JR      Z,U9 ;Doesn't exist to skip drawing it 
+18a8 11 00 0d		            LD      DE,SCREEN 
+18ab			U7: 
+18ab 07			            RLCA 
+18ac 38 03		            JR      C,U8 
+18ae 13			            INC     DE 
+18af 18 fa		            JR      U7 
+18b1			U8: 
+18b1 1a			            LD      A,(DE) 
+18b2 cb ff		            SET     7,A 
+18b4 12			            LD      (DE),A 
+18b5			U9: 
+18b5 c9			            RET 
+18b6			 
+18b6			;Update the LED's to display the LEDSCR buffer based off PLAYSC & PLAYLV 
+18b6			;Unfortunately I had to hard code this as AF,BC,HL and DE all get used... :( 
+18b6			UPDSCO: 
+18b6 01 2a 0d		            LD      BC,LEDSCR  ;Location of screen buffer 
+18b9 21 26 0d		            LD      HL,PLAYSC  ;Player Score (2) and Lives (1) 
+18bc 7e			            LD      A,(HL) 
+18bd cd cf 1a		            CALL    SEGCON     ;Convert A to Segment Hex, Store in BC 
+18c0 23			            INC     HL 
+18c1 7e			            LD      A,(HL) 
+18c2 cd cf 1a		            CALL    SEGCON     ;Convert A to Segment Hex, Store in BC 
+18c5 23			            INC     HL 
+18c6 7e			            LD      A,(HL) 
+18c7 cd cf 1a		            CALL    SEGCON     ;Convert A to Segment Hex, Store in BC 
+18ca c9			            RET 
+18cb			 
+18cb			 
+18cb			; Check for key pressed: Either  
+18cb			; "+" For Shoot 
+18cb			; "1" For Left and "9" for Right, 
+18cb			; Then Either create a bullet or move the player 
+18cb			; Need DAT board or 4K7 Resistor mod from NMI to D6 link  
+18cb			;  
+18cb			MOVPLA:     
+18cb			            ; Test for key pressed with D6 set 
+18cb db 03		            IN      A,(03) 
+18cd cb 77		            BIT     6,A  ; Bit 6, If not set A=NZ 
+18cf 28 05		            JR      Z,MP2 
+18d1			            ; Store 0 for last key if no key pressed 
+18d1 af			            XOR     A 
+18d2 32 24 0d		            LD      (KEYPRE),A 
+18d5 c9			            RET 
+18d6			MP2: 
+18d6			            ; Key has been pressed 
+18d6 3a 24 0d		            LD      A,(KEYPRE) 
+18d9 b7			            OR      A 
+18da c0			            RET     NZ  ; Just return if same 
+18db 3e ff		            LD      A,0FFH 
+18dd 32 24 0d		            LD      (KEYPRE),A 
+18e0			            ; Get Key 
+18e0 db 00		            IN      A,(00) 
+18e2 e6 1f		            AND     01FH ; Mask unwanted bits 
+18e4			            ; Check for Valid Keys 
+18e4			LEFT: 
+18e4 fe 01		            CP      01H  ; Left 
+18e6 20 09		            JR      NZ, RIGHT 
+18e8 3a 20 0d		            LD      A,(PLAYER) 
+18eb 07			            RLCA    ; If Carry then don't move as its already left 
+18ec d8			            RET     C 
+18ed 32 20 0d		            LD      (PLAYER),A 
+18f0 c9			            RET     ; Return 
+18f1			RIGHT: 
+18f1 fe 09		            CP      09H  ; Right 
+18f3 20 09		            JR      NZ, SHOOT 
+18f5 3a 20 0d		            LD      A,(PLAYER) 
+18f8 0f			            RRCA    ; If Carry then don't move as its already right 
+18f9 d8			            RET     C 
+18fa 32 20 0d		            LD      (PLAYER),A 
+18fd c9			            RET     ; Return 
+18fe			SHOOT: 
+18fe fe 10		            CP      10H  ; "+" 
+1900 c0			            RET     NZ 
+1901			            ;Ensure no bullet is active, BULLET or BULLET+1 should be 00 
+1901 3a 21 0d		            LD      A,(BULLET) 
+1904 b7			            OR      A 
+1905 c0			            RET     NZ 
+1906			            ;Create bullet at players position 
+1906 3a 20 0d		            LD      A,(PLAYER) 
+1909 32 21 0d		            LD      (BULLET),A ; X position 
+190c 3e 01		            LD      A,01H  ;First bit from bottom 
+190e 32 22 0d		            LD      (BULLET+1),A 
+1911 c9			            RET 
+1912			 
+1912			; If Bullet exists, move it upwards until it hits an invader or 
+1912			; goes off the top of the screen 
+1912			MOVBUL: 
+1912			            ;Check if bullet active 
+1912 3a 22 0d		            LD      A,(BULLET+1) ;Y Pos bullet 
+1915 b7			            OR      A 
+1916 c8			            RET     Z 
+1917			            ;Shift it one bit to the left 
+1917 cb 27		            SLA     A 
+1919 32 22 0d		            LD      (BULLET+1),A 
+191c b7			            OR      A 
+191d 20 04		            JR      NZ,MB1 
+191f 32 21 0d		            LD      (BULLET),A  ;Clear X pos if no bullet 
+1922 c9			            RET 
+1923			MB1: 
+1923 cd 45 1a		            CALL    BULCOL      ;Active bullet, check collision. 
+1926 c9			            RET 
+1927			 
+1927			; If Bomb exists, move it downwards until it hits the player or 
+1927			; goes off the bottom of the screen 
+1927			MOVBOM: 
+1927			            ;For each column, move one bit to the left 
+1927 21 18 0d		            LD      HL,INVBOM 
+192a 06 80		            LD      B,80H  ;Bomb/Player column 
+192c			MBM1: 
+192c 7e			            LD      A,(HL) 
+192d b7			            OR      A 
+192e 28 06		            JR      Z,MBM2  ;No Bomb on this column, move to next 
+1930 cb 2f		            SRA     A       ;Move on bit to the right. 
+1932 77			            LD      (HL),A 
+1933			                                ;Active Bomb, check if hits player 
+1933			                                ;BOMCOL needs B=Bomb X position 
+1933 cd 89 1a		            CALL    BOMCOL      ;             A=Bomb Y position 
+1936			MBM2: 
+1936 23			            INC     HL 
+1937 cb 08		            RRC     B 
+1939 30 f1		            JR      NC,MBM1 
+193b c9			            RET 
+193c			 
+193c			; If UFO exists, move it one bit to the left.  Remove it if 
+193c			; goes off the left of the screen 
+193c			MOVUFO: 
+193c			            ;Check if ufo active 
+193c 3a 23 0d		            LD      A,(UFOPOS) ; Active if any bit set 
+193f b7			            OR      A 
+1940 c8			            RET     Z 
+1941 cb 27		            SLA     A   ;Shift it one bit to the left 
+1943 32 23 0d		            LD      (UFOPOS),A  ;If zero then automatically clears itself 
+1946			MU1: 
+1946 c9			            RET 
+1947			 
+1947			; Move invaders from Right to Left and back.  When top invader line hits the end 
+1947			; Move invaders down a line.  The Horizontal page is moved then mapped to the 
+1947			; vertical for displaying. 
+1947			MOVINV: 
+1947			            ; Find top line 
+1947 21 0f 0d		            LD      HL,INVADH-1 
+194a			MI1: 
+194a 23			            INC     HL 
+194b 7e			            LD      A,(HL) 
+194c b7			            OR      A 
+194d 28 fb		            JR      Z,MI1 
+194f			            ; Find current direction and move if possible 
+194f 3a 25 0d		            LD      A,(INVDIR) 
+1952 b7			            OR      A 
+1953 20 0c		            JR      NZ,MLEFT 
+1955			MRIGHT: 
+1955 7e			            LD      A,(HL) 
+1956			MI2: 
+1956 0f			            RRCA 
+1957 38 14		            JR      C,MDROP  ;At edge, drop down a line 
+1959 77			            LD      (HL),A 
+195a 23			            INC     HL 
+195b 7e			            LD      A,(HL) 
+195c b7			            OR      A  ;If empty line end of shift 
+195d 28 32		            JR      Z,ROTCW 
+195f 18 f5		            JR      MI2 
+1961			MLEFT: 
+1961 7e			            LD      A,(HL) 
+1962			MI3: 
+1962 07			            RLCA 
+1963 38 08		            JR      C,MDROP  ;At edge, drop down a line 
+1965 77			            LD      (HL),A 
+1966 23			            INC     HL 
+1967 7e			            LD      A,(HL) 
+1968 b7			            OR      A  ;If empty line end of shift 
+1969 28 26		            JR      Z,ROTCW 
+196b 18 f5		            JR      MI3 
+196d			 
+196d			            ;Drop Invaders down a line. If hit bottom then end of game 
+196d			MDROP: 
+196d			            ;Rotate down on line 
+196d dd 21 16 0d	            LD      IX,INVADH+6 
+1971 06 07		            LD      B,07H 
+1973			MI4: 
+1973 dd 7e 00		            LD      A,(IX+0) 
+1976 dd 77 01		            LD      (IX+1),A 
+1979 dd 2b		            DEC     IX 
+197b 10 f6		            DJNZ    MI4  
+197d			            ;Change direction flag 
+197d 3a 25 0d		            LD      A,(INVDIR) 
+1980 ee 01		            XOR     01H 
+1982 32 25 0d		            LD      (INVDIR),A 
+1985			            ;Bottom of screen Lose life and reset invaders 
+1985 3a 17 0d		            LD      A,(INVADH+7)  ;Bottom row 
+1988 b7			            OR      A 
+1989 28 06		            JR      Z,ROTCW 
+198b			            ;Lose Life 
+198b cd e9 19		            CALL    LOSELV 
+198e cd 0f 1a		            CALL    RSTINV 
+1991			            ; Rotate Screen bytes 90 degress Clockwise. 
+1991			            ; This allows Left to Right bit manipulation 
+1991			ROTCW:                 
+1991 11 08 0d		            LD      DE,INVADV  
+1994 06 08		            LD      B,08H  
+1996			ROT1:                
+1996 c5			            PUSH    BC  
+1997 06 08		            LD      B,08H  
+1999 21 10 0d		            LD      HL,INVADH  
+199c af			            XOR     A  
+199d			ROT2:                
+199d cb 06		            RLC     (HL)  
+199f 17			            RLA       
+19a0 23			            INC     HL  
+19a1 10 fa		            DJNZ    ROT2  
+19a3 12			            LD      (DE),A  
+19a4 13			            INC     DE  
+19a5 c1			            POP     BC  
+19a6 10 ee		            DJNZ    ROT1  
+19a8 c9			            RET 
+19a9			 
+19a9			;Create a Bomb on an invader.  Ensure no bomb present on column first 
+19a9			;Find the lowest row, then Based off LSB of random number cycle through invaders 
+19a9			;until random number is zero to select invader to drop the bomb from. 
+19a9			CREBOM: 
+19a9 21 18 0d		            LD      HL,INVADH+8 
+19ac 0e 80		            LD      C,80H 
+19ae af			            XOR     A 
+19af			CB1: 
+19af cb 01		            RLC     C       ;Row Position 
+19b1 2b			            DEC     HL 
+19b2 b6			            OR      (HL) 
+19b3 28 fa		            JR      Z,CB1   ;Move HL to first row that isn't blank 
+19b5 3a 30 0d		            LD      A,(RANDNO) 
+19b8 e6 0f		            AND     0FH 
+19ba 47			            LD      B,A     ;Store counter 
+19bb 7e			            LD      A,(HL) 
+19bc 57			            LD      D,A 
+19bd			CB2: 
+19bd 3e ff		            LD      A,0FFH 
+19bf			 
+19bf			CB3: 
+19bf 3c			            INC     A       ;Get matching invader bomb column to invader 
+19c0 fe 08		            CP      08H   
+19c2 28 f9		            JR      Z,CB2   ;Loop column index around 
+19c4 cb 02		            RLC     D             
+19c6 30 f7		            JR      NC,CB3  ;Find next invader 
+19c8 10 f5		            DJNZ    CB3     ;Keep going n random times 
+19ca			            ; At this point, C is bomb Y, and D is bomb X (index) 
+19ca 21 18 0d		            LD      HL,INVBOM 
+19cd 85			            ADD     A,L 
+19ce 6f			            LD      L,A    ;Bomb column 
+19cf 79			            LD      A,C    ;Bomb row 
+19d0 77			            LD      (HL),A ;Save bomb 
+19d1 c9			            RET 
+19d2			 
+19d2			;Do a check to see if any invaders are left.  If not then reset them for the next wave 
+19d2			CHKINV: 
+19d2 3a 32 0d		            LD      A,(INVREM) 
+19d5 b7			            OR      A 
+19d6 c0			            RET     NZ 
+19d7 cd 0f 1a		            CALL    RSTINV 
+19da c9			            RET 
+19db			 
+19db			;Add A to current score.  A = score to add 
+19db			ADDSCO: 
+19db 21 27 0d		            LD      HL,PLAYSC+1 ;Tens 
+19de 86			            ADD     A,(HL) 
+19df 27			            DAA 
+19e0 77			            LD      (HL),A 
+19e1 d0			            RET     NC          ;Exit if no overflow 
+19e2 2b			            DEC     HL          ;Hundreds 
+19e3 3e 00		            LD      A,00H 
+19e5 8e			            ADC     A,(HL) 
+19e6 27			            DAA 
+19e7 77			            LD      (HL),A 
+19e8 c9			            RET 
+19e9			 
+19e9			;Lose a life 
+19e9			LOSELV: 
+19e9 3a 28 0d		            LD      A,(PLAYLV) 
+19ec 3d			            DEC     A 
+19ed 32 28 0d		            LD      (PLAYLV),A 
+19f0 cd 28 1b		            CALL    FLIPSC      ;Do something to indicate life loss 
+19f3 c9			            RET 
+19f4			 
+19f4			;Initialize the screen data 
+19f4			SETUP:  
+19f4			            ; Set up invader position and bombs 
+19f4 cd 0f 1a		            CALL    RSTINV 
+19f7			            ; Fill Player position.  Start at ...0.... 
+19f7 3e 10		            LD      A,INITPL  
+19f9 32 20 0d		            LD      (PLAYER),A  
+19fc			            ; Fill Player initial lives 
+19fc 3e 03		            LD      A,INITLV  
+19fe 32 28 0d		            LD      (PLAYLV),A  
+1a01			            ; Fill Bullet Pos., UFO Pos., Action Counter, Key Pressed 
+1a01			            ; Invader Dir, Player's score to 0 
+1a01 21 21 0d		            LD      HL,BULLET 
+1a04 11 22 0d		            LD      DE,BULLET+1 
+1a07 af			            XOR     A 
+1a08 77			            LD      (HL),A 
+1a09 01 06 00		            LD      BC,06H 
+1a0c ed b0		            LDIR  
+1a0e c9			            RET 
+1a0f			 
+1a0f			;Reset invader to starting position and movement direction 
+1a0f			RSTINV: 
+1a0f			            ; Copy Vertical Invaders 
+1a0f 01 08 00		            LD      BC,0008H  
+1a12 11 08 0d		            LD      DE,INVADV  
+1a15 21 7f 1b		            LD      HL,INITIV  
+1a18 ed b0		            LDIR 
+1a1a			            ; Copy Horizontal Invaders 
+1a1a 01 08 00		            LD      BC,0008H  
+1a1d 11 10 0d		            LD      DE,INVADH  
+1a20 21 87 1b		            LD      HL,INITIH  
+1a23 ed b0		            LDIR 
+1a25			            ; Fill Invaders Bombs with 0 x 8 times 
+1a25 21 18 0d		            LD      HL,INVBOM 
+1a28 11 19 0d		            LD      DE,INVBOM+1 
+1a2b af			            XOR     A 
+1a2c 77			            LD      (HL),A 
+1a2d 01 07 00		            LD      BC,07H 
+1a30 ed b0		            LDIR 
+1a32			            ; Invader direction 
+1a32 32 25 0d		            LD      (INVDIR),A 
+1a35			            ; Fill Invaders initial speed 
+1a35 3a 99 1b		            LD      A,(ININSP) 
+1a38 32 29 0d		            LD      (INVCNT),A  
+1a3b 32 31 0d		            LD      (INVSPD),A 
+1a3e			            ; Reset Invader count 
+1a3e 3a 9a 1b		            LD      A,(INITIC) 
+1a41 32 32 0d		            LD      (INVREM),A  
+1a44 c9			            RET 
+1a45			 
+1a45			;Bullet Collision.  If hits an invader or ufo then remove it and update score 
+1a45			;Increase invader speed if an invader gets hit. 
+1a45			BULCOL: 
+1a45 3a 22 0d		            LD     A,(BULLET+1) 
+1a48 cb 7f		            BIT    7,A    ; Check UFO hit 
+1a4a 20 26		            JR     NZ,BUFO 
+1a4c			            ; Get Invader Column the bullet is on 
+1a4c 21 0f 0d		            LD     HL,INVADH-1 
+1a4f			B1: 
+1a4f 23			            INC    HL 
+1a50 07			            RLCA 
+1a51 30 fc		            JR     NC,B1 
+1a53 3a 21 0d		            LD     A,(BULLET) 
+1a56 a6			            AND    (HL)   ;Compare bullet and invaders 
+1a57 c8			            RET    Z      ;No hit 
+1a58 ae			            XOR    (HL)   ;Remove invader 
+1a59 77			            LD     (HL),A ;Save 
+1a5a cd 91 19		            CALL   ROTCW  ;Update Vertical for instant display 
+1a5d 21 31 0d		            LD     HL,INVSPD 
+1a60 35			            DEC    (HL)   ;Move Invaders a bit faster 
+1a61 21 32 0d		            LD     HL,INVREM 
+1a64 35			            DEC    (HL)   ;Reduce Invader Count 
+1a65 af			            XOR    A 
+1a66 32 21 0d		            LD     (BULLET),A   ;Remove Bullet 
+1a69 32 22 0d		            LD     (BULLET+1),A 
+1a6c 3e 10		            LD     A,10H  ;10 Points 
+1a6e cd db 19		            CALL   ADDSCO ;Add A to Score 
+1a71 c9			            RET 
+1a72			BUFO: 
+1a72			            ;If UFO and BULLET X are the same its a hit 
+1a72 21 21 0d		            LD     HL,BULLET 
+1a75 3a 23 0d		            LD     A,(UFOPOS) 
+1a78 96			            SUB    (HL) 
+1a79 c0			            RET    NZ 
+1a7a 32 23 0d		            LD     (UFOPOS),A   ;A=0 if here 
+1a7d 32 21 0d		            LD     (BULLET),A   ;Remove Bullet 
+1a80 32 22 0d		            LD     (BULLET+1),A 
+1a83 3e 50		            LD     A,50H  ;50 Points 
+1a85 cd db 19		            CALL   ADDSCO ;Add A to Score 
+1a88 c9			            RET 
+1a89			 
+1a89			;Bomb Collision. Inputs: Register A = Bomb Y, and B = Bomb X 
+1a89			;If Bomb Y is set on bit 7, check that Bomb X = Player X. If so 
+1a89			;Loose life 
+1a89			BOMCOL: 
+1a89 3d			            DEC    A 
+1a8a c0			            RET    NZ  ;If A != 1 then bomb isn't on bottom 
+1a8b 3a 20 0d		            LD     A,(PLAYER) 
+1a8e b8			            CP     B 
+1a8f c0			            RET    NZ  ;If A != B then bomb isn't on player 
+1a90 cd e9 19		            CALL   LOSELV ;Loose a life 
+1a93 c9			            RET 
+1a94			 
+1a94			;Utility Routines.. 
+1a94			 
+1a94			; Multiplex the 8x8 Display and the Seven Segment LEDS 
+1a94			SCAN:                 
+1a94 06 10		            LD      B,10H  
+1a96			S1:                
+1a96 c5			            PUSH    BC  
+1a97 06 01		            LD      B,01H   ;Counter for 8x8 
+1a99 21 00 0d		            LD      HL,SCREEN 
+1a9c 11 2f 0d		            LD      DE,LEDSCR+5  
+1a9f			S2:                
+1a9f 7e			            LD      A,(HL)  
+1aa0 d3 06		            OUT     (06),A 
+1aa2 1a			            LD      A,(DE) 
+1aa3 d3 02		            OUT     (02),A  
+1aa5 78			            LD      A,B  
+1aa6 d3 05		            OUT     (05),A 
+1aa8 fe 80		            CP      80H     ;If port 80 (Speaker), Skip 
+1aaa 28 02		            JR      Z,S3  
+1aac d3 01		            OUT     (01),A  
+1aae			S3: 
+1aae 06 40		            LD      B,40H  
+1ab0 10 fe		S4:         DJNZ    S4  
+1ab2 47			            LD      B,A  
+1ab3 af			            XOR     A  
+1ab4 d3 05		            OUT     (05),A  
+1ab6 d3 01		            OUT     (01),A 
+1ab8 1b			            DEC     DE 
+1ab9 23			            INC     HL 
+1aba cb 00		            RLC     B  
+1abc 30 e1		            JR      NC,S2  
+1abe c1			            POP     BC  
+1abf 10 d5		            DJNZ    S1  
+1ac1 c9			            RET       
+1ac2			 
+1ac2			;Random number generator.  A - Returns a number between 00 and FF 
+1ac2			RANDOM: 
+1ac2 ed 5f		            LD      A,R 
+1ac4 47			            LD      B,A 
+1ac5 3a 30 0d		            LD      A,(RANDNO) 
+1ac8 a8			            XOR     B 
+1ac9 87			            ADD     A,A 
+1aca a8			            XOR     B 
+1acb 32 30 0d		            LD      (RANDNO),A 
+1ace c9			            RET 
+1acf			 
+1acf			;Convert A to two display bytes for Seven Segment, Store Result in location of BC 
+1acf			SEGCON: 
+1acf f5			            PUSH    AF 
+1ad0 07			            RLCA 
+1ad1 07			            RLCA 
+1ad2 07			            RLCA 
+1ad3 07			            RLCA 
+1ad4 cd d8 1a		            CALL    SC1 
+1ad7 f1			            POP     AF 
+1ad8			SC1: 
+1ad8 e6 0f		            AND     0FH 
+1ada 11 8f 1b		            LD      DE,SEGTBL 
+1add 83			            ADD     A,E 
+1ade 5f			            LD      E,A 
+1adf 1a			            LD      A,(DE) 
+1ae0 02			            LD      (BC),A 
+1ae1 03			            INC     BC 
+1ae2 c9			            RET 
+1ae3			 
+1ae3			;8x8 Scroll routine to scroll data from right to left.  Data is referenced in HL 
+1ae3			;First Byte is number of columns to scroll followed by vertical byte display upwards 
+1ae3			;This routine includes the 8x8 multiplex 
+1ae3			INTROM: 
+1ae3 21 9b 1b		            LD      HL,INTMSG 
+1ae6 7e			            LD      A,(HL)    ;Column count 
+1ae7 4f			            LD      C,A 
+1ae8			SL1: 
+1ae8 06 07		            LD      B,07H 
+1aea dd 21 00 0d	            LD      IX,SCREEN 
+1aee			SL2: 
+1aee dd 7e 01		            LD      A,(IX+1)   ;Shift seven columns 
+1af1 dd 77 00		            LD      (IX+0),A 
+1af4 dd 23		            INC     IX 
+1af6 10 f6		            DJNZ    SL2 
+1af8 23			            INC     HL 
+1af9 7e			            LD      A,(HL) 
+1afa 32 07 0d		            LD      (SCREEN+7),A 
+1afd cd 5e 1b		            CALL    SCAN88 
+1b00 0d			            DEC     C 
+1b01 20 e5		            JR      NZ,SL1 
+1b03 c9			            RET 
+1b04			 
+1b04			;8x8 Flasher routine.  This displays data for the 8x8 similar to the scroll but shows 
+1b04			;one page (8x8) at a time instead of sequentially scrolling.  Data is referenced in HL 
+1b04			;First byte is the number of pages to show followed by vertical byte display upwards 
+1b04			;Useful for animations using the 8x8.  This is used as a game over screen.  It loops 
+1b04			;until any key is pressed 
+1b04			GAMEOV: 
+1b04 21 ec 1b		            LD      HL,OVRMSG 
+1b07 7e			            LD      A,(HL)    ;Page count 
+1b08 23			            INC     HL 
+1b09 4f			            LD      C,A 
+1b0a			F1: 
+1b0a c5			            PUSH    BC 
+1b0b 11 00 0d		            LD      DE,SCREEN  
+1b0e 01 08 00		            LD      BC,0008H   
+1b11 ed b0		            LDIR              ;Copy Through to screen area 
+1b13 06 0b		            LD      B,0BH 
+1b15			F2: 
+1b15 c5			            PUSH    BC 
+1b16 cd 5e 1b		            CALL    SCAN88 
+1b19 c1			            POP     BC 
+1b1a 10 f9		            DJNZ    F2 
+1b1c c1			            POP     BC 
+1b1d db 03		            IN      A,(03) 
+1b1f cb 77		            BIT     6,A  ; Bit 6, If not set A=NZ 
+1b21 c8			            RET     Z 
+1b22 0d			            DEC     C 
+1b23 20 e5		            JR      NZ,F1    ;Do next screen 
+1b25 18 dd		            JR      GAMEOV 
+1b27 c9			            RET 
+1b28			 
+1b28			;Animate 8x8 when player looses a life by inverting the screen 3 times and playing 
+1b28			;a sound 
+1b28			FLIPSC: 
+1b28 e5			            PUSH    HL 
+1b29 c5			            PUSH    BC 
+1b2a 06 06		            LD      B,06H    ;Six loops or 3 flips 
+1b2c			FS1:             
+1b2c 21 00 0d		            LD      HL,SCREEN 
+1b2f c5			            PUSH    BC 
+1b30 06 08		            LD      B,08H 
+1b32			FS2: 
+1b32 7e			            LD      A,(HL) 
+1b33 2f			            CPL             ;Invert byte 
+1b34 77			            LD      (HL),A 
+1b35 23			            INC     HL 
+1b36 10 fa		            DJNZ    FS2 
+1b38 cd 5e 1b		            CALL    SCAN88 
+1b3b			                             
+1b3b 0e 40		            LD      C,40H    ;Sound Routine 
+1b3d 2e 31		            LD      L,31H 
+1b3f af			            XOR     A 
+1b40			FS3: 
+1b40 d3 01		            OUT     (01),A 
+1b42 41			            LD      B,C 
+1b43 10 fe		FS4:        DJNZ    FS4 
+1b45 ee 80		            XOR     80H 
+1b47 2d			            DEC     L 
+1b48 20 f6		            JR      NZ,FS3 
+1b4a			 
+1b4a c1			            POP     BC 
+1b4b 10 df		            DJNZ    FS1 
+1b4d c1			            POP     BC 
+1b4e e1			            POP     HL 
+1b4f c9			            RET 
+1b50			 
+1b50			CLRSCR: 
+1b50 21 00 0d		            LD      HL,SCREEN 
+1b53 11 01 0d		            LD      DE,SCREEN+1 
+1b56 af			            XOR     A 
+1b57 77			            LD      (HL),A 
+1b58 01 07 00		            LD      BC,07H 
+1b5b ed b0		            LDIR 
+1b5d c9			            RET 
+1b5e			 
+1b5e			; Multiplex the 8x8 Display 
+1b5e			SCAN88:                 
+1b5e e5			            PUSH    HL  
+1b5f 06 15		            LD      B,15H  
+1b61			S81:                
+1b61 c5			            PUSH    BC 
+1b62 06 01		            LD      B,01H   ;Counter for 8x8 
+1b64 21 00 0d		            LD      HL,SCREEN 
+1b67			S82:                
+1b67 7e			            LD      A,(HL)  
+1b68 d3 06		            OUT     (06),A 
+1b6a 78			            LD      A,B  
+1b6b d3 05		            OUT     (05),A 
+1b6d 06 40		            LD      B,40H  
+1b6f 10 fe		S83:        DJNZ    S83  
+1b71 23			            INC     HL 
+1b72 47			            LD      B,A  
+1b73 af			            XOR     A  
+1b74 d3 05		            OUT     (05),A  
+1b76 cb 00		            RLC     B  
+1b78 30 ed		            JR      NC,S82  
+1b7a c1			            POP     BC  
+1b7b 10 e4		            DJNZ    S81 
+1b7d e1			            POP     HL  
+1b7e c9			            RET       
+1b7f			 
+1b7f			; Game Data 
+1b7f			 
+1b7f			; Invaders are initially shown as 
+1b7f			; . . . . . . . . 
+1b7f			; O O O O . . . . 
+1b7f			; O O O O . . . . 
+1b7f			; O O O O . . . . 
+1b7f			; . . . . . . . . 
+1b7f			; . . . . . . . . 
+1b7f			; . . . . . . . . 
+1b7f			; . . . . . . . . 
+1b7f			;  
+1b7f 70 70 70 70 00 00 00 00	INITIV:     DB      70H,70H,70H,70H,00H,00H,00H,00H  
+1b87			 
+1b87			; Invaders rotated to the left for easy bit move 
+1b87			; . . . . . . . . 
+1b87			; . . . . . . . . 
+1b87			; . . . . . . . . 
+1b87			; . . . . . . . . 
+1b87			; . O O O . . . . 
+1b87			; . O O O . . . . 
+1b87			; . O O O . . . . 
+1b87			; . O O O . . . . 
+1b87			;  
+1b87 00 f0 f0 f0 00 00 00 00	INITIH:     DB      00H,0F0H,0F0H,0F0H,00H,00H,00H,00H 
+1b8f			 
+1b8f			; 0-9 to Seven Segment Table 
+1b8f eb 28 cd ad 2e a7 e7 29 ef 2f	SEGTBL:     DB      0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H,0EFH,2FH 
+1b99			 
+1b99			; Initial Invader Speed.  Reduces at each invader hit 
+1b99 12			ININSP:     DB      12H 
+1b9a			 
+1b9a			; Initial Invader Count.  Currently 12 
+1b9a 0c			INITIC:     DB      0CH 
+1b9b			 
+1b9b			; Intro Message 
+1b9b 50 00		INTMSG:     DB      50H,00H ;Size + Gap 
+1b9d 40 40 7f 7f 40 40 00	            DB      40H,40H,7FH,7FH,40H,40H,00H      ;T 
+1ba4 7f 7f 49 49 00	            DB      7FH,7FH,49H,49H,00H              ;E 
+1ba9 1c 3e 63 41 41 00	            DB      1CH,3EH,63H,41H,41H,00H          ;C 
+1baf 00 00		            DB      00H,00H                          ;_ 
+1bb1 41 7f 7f 41 00	            DB      41H,7FH,7FH,41H,00H              ;I 
+1bb6 7f 7f 18 0c 7f 7f 00	            DB      7FH,7FH,18H,0CH,7FH,7FH,00H      ;N 
+1bbd 60 38 0e 03 0e 38 60 00	            DB      60H,38H,0EH,03H,0EH,38H,60H,00H  ;V 
+1bc5 03 0e 3c 64 3c 0e 03 00	            DB      03H,0EH,3CH,64H,3CH,0EH,03H,00H  ;A 
+1bcd 7f 7f 41 22 1c 00	            DB      7FH,7FH,41H,22H,1CH,00H          ;D 
+1bd3 7f 7f 49 49 00	            DB      7FH,7FH,49H,49H,00H              ;E 
+1bd8 7f 7f 4c 4a 31 00	            DB      7FH,7FH,4CH,4AH,31H,00H          ;R 
+1bde 12 3b 6b 6e 24 00	            DB      12H,3BH,6BH,6EH,24H,00H          ;S 
+1be4 00 00 00 00 00 00 00 00	            DB      00H,00H,00H,00H,00H,00H,00H,00H  ;_ 
+1bec			 
+1bec			; Game Over Message 
+1bec 02			OVRMSG:     DB      02H ;Page count 
+1bed 67 94 b4 27 00 77 a5 75	            DB      67H,94H,0B4H,27H,00H,77H,0A5H,75H ;GAME 
+1bf5 67 95 95 60 00 e7 14 e4	            DB      67H,95H,95H,60H,00H,0E7H,14H,0E4H ;OVER 
+1bfd			 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/games/TEC_invaders_mk2.z80
+1bfd
