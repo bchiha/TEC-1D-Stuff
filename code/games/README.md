@@ -1,7 +1,7 @@
 # TEC Games
 
 ## General Setup
-To be run on the TEC-1D with either JMON or MON2.  For the keyboard to work it requires EITHER a 4k7 (or 2k2 or lower) resistor between the NMI (pin 17 on Z-80) and D6 (pin 10 on the Z-80) OR the DAT (LCD) expanstion board fitted to port 3.  The current TEC-1D boards have the JMON MOD resitor connection already there.
+To be run on the TEC-1D with any Monitor.  For the keyboard to work it requires EITHER a 4k7 (or 2k2 or lower) resistor between the NMI (pin 17 on Z-80) and D6 (pin 10 on the Z-80) OR the DAT (LCD) expanstion board fitted to port 3.  The current TEC-1D boards have the JMON MOD resitor connection already there.
 
 The 8x8 LED board is fitted to ports 5 and 6 with the port select strobe of the left hand latch going to port 6.
 
