@@ -67,7 +67,7 @@
 0a51 4f			            LD      C,A 
 0a52 af			SCAN:       XOR     A           ;Multiplex 
 0a53 d3 02		            OUT     (02),A 
-0a55 3e 04		            LD      A,04 
+0a55 3e 04		            LD      A,04H 
 0a57 d3 01		            OUT     (01),A 
 0a59 79			            LD      A,C 
 0a5a cd 85 0a		            CALL    BCDHEX 

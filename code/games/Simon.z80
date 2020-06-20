@@ -66,7 +66,7 @@ HEXBCD:
             LD      C,A
 SCAN:       XOR     A           ;Multiplex
             OUT     (02),A
-            LD      A,04
+            LD      A,04H
             OUT     (01),A
             LD      A,C
             CALL    BCDHEX
