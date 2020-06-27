@@ -1,0 +1,249 @@
+; Conway's Game of Life
+; ---------------------
+;
+; Written by Brian Chiha
+; brian.chiha@gmail.com  -- July 2020
+;
+; Game of Life is a cellular automation simulation.  Each cell evolves based on the number
+; of cells that surround it.  The basic cell rules are:
+;
+;    * Any live cell with two or three live neighbours survives.
+;    * Any dead cell with three live neighbours becomes a live cell.
+;    * All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+;
+; The simulation is written for the TEC using the 8x8 LED matrix.
+;
+; The 8x8 cells are structured using 8 bytes and 8 bits, where a set bit is a live cell EG:
+;  CURMAT:
+;  0x0D08      0 1 0 1 1 0 1 0  = 5A
+;  0x0D09      1 0 1 1 1 0 1 1  = BB
+;  0x0D0A      0 1 0 0 1 1 0 0  = 4C
+;  0x0D0B      1 1 1 0 0 0 1 0  = E2
+;  0x0D0C      0 1 0 1 1 0 1 0  = 5A
+;  0x0D0D      1 0 1 1 1 0 1 1  = BB
+;  0x0D0E      0 1 0 0 1 1 0 0  = 4C
+;  0x0D0F      1 1 1 0 0 0 1 0  = E2
+;
+; Cells are then printed vertically from left to right like so:
+;              0  1  0  1  0  1  0  1
+;              1  0  1  1  1  0  1  1
+;              0  1  0  1  0  1  0  1    
+;              1  1  0  0  1  1  0  0
+;              1  1  1  0  1  1  1  0
+;              0  0  1  0  0  0  1  0
+;              1  1  0  1  1  1  0  1
+;              0  1  0  0  0  1  0  0
+; SCREEN:      5A BB 4C E2 5A BB 4C E2
+
+
+SCREEN:     EQU     0D00H ;Game Screen                                           (8-bytes)
+UPBUFF:     EQU     0D08H ;Zero row for up checks                                (8-bytes)
+CURMAT:     EQU     0D10H ;Current Cell Matrix, 8 bytes x 8 bytes                (64-bytes)
+DNBUFF:     EQU     0D50H ;Zero row for down checks                              (8-bytes)
+NEXMAT:     EQU     0D58H ;Next Interation Cell Matrix, 8 bytes x 8 bytes        (64-bytes)
+RANDNO:     EQU     0D98H ;Random Number                                         (1-byte)
+CELLTO:     EQU     0D99H ;Current Cell total surrounding cells                  (1-byte)
+
+            ORG     1800H 
+START:               
+            ;Blank Buffs and Current Matrix
+            LD      HL,UPBUFF
+            LD      DE,UPBUFF+1
+            XOR     A
+            LD      (HL),A
+            LD      BC,NEXMAT-UPBUFF-1 
+            LDIR 
+
+            ;Fill Current Matrix with Random cells
+            CALL    RANFIL
+
+            ;Game Loop
+GAME:
+            CALL    MATSCR       ; Convert the Matrix to Screen
+            CALL    SCAN         ; Display the current Screen
+            
+            ;Update the matrix with Conway Rules
+            LD      IX,CURMAT
+            LD      HL,NEXMAT
+            LD      B,40H        ; 64 cells
+CELLS:
+            XOR     A            ; Cell Counter
+            ;Look up
+            ADD     A,(IX-08H)   ; Minus 8
+            ;Look down
+            ADD     A,(IX+08H)   ; Plus 8
+
+CHECKLT:    ;Check if on left edge
+            LD      C,A          ; Save A (Counter)
+            PUSH    IX
+            POP     DE
+            LD      A,E
+;            LD      A,IXL
+            AND     07H          ; On a wall
+            LD      A,C          ; Restore A (Counter)
+            JR      Z,CELLRT     ; On edge, skip left cells
+CELLLT:
+            ;Look upper left
+            ADD     A,(IX-09H)  ; Minus 9
+            ;Look left
+            ADD     A,(IX-01H)  ; Minus 1
+            ;Look lower left
+            ADD     A,(IX+07H)  ; Plus 7
+
+CHECKRT:    ;Check if on right edge
+            LD      C,A          ; Save A (Counter)
+            PUSH    IX
+            POP     DE
+            LD      A,E
+;            LD      A,IXL
+            AND     07H          ; On a wall
+            CP      07H
+            LD      A,C          ; Restore A (Counter)
+            JR      Z,EVAL       ; On edge, skip right cells
+CELLRT:
+            ;Look upper right
+            ADD     A,(IX-07H)  ; Minus 7
+            ;Look right
+            ADD     A,(IX+01H)  ; Plus 1
+            ;Look lower right
+            ADD     A,(IX+09H)  ; Plus 9
+
+EVAL:       ;Evaluate surrounding cell count to create or destroy current cell
+            LD      C,01H       ; Alive
+            CP      03H         ; Check if 3 cells around
+            JR      Z,STOREC
+            LD      C,00H       ; Dead
+            CP      02H         ; Check if 2 cells around
+            JR      NZ,STOREC
+            LD      A,(IX+0)    ; Current Cell
+            AND     01H         ; Keep it alive if already alive.
+            LD      C,A
+STOREC:
+            LD      A,C         ; C stores cell evaluation
+            LD      (HL),A      ; Update cell on Next Matric
+
+            INC     HL
+            INC     IX
+
+            DJNZ    CELLS
+
+            ;Move next matrix to current
+            LD      HL,NEXMAT
+            LD      DE,CURMAT
+            LD      BC,0040H
+            LDIR
+
+            JR      GAME
+
+;Convert Matrix to screen.  Convert each row to bits in byte.  Save to screen
+MATSCR:
+            LD      HL,CURMAT
+            LD      DE,SCREEN
+            LD      B,08H
+M1:
+            PUSH    BC
+            LD      BC,0800H
+M2:
+            LD      A,(HL)
+            ADD     A,C
+            RLCA
+            LD      C,A
+            INC     HL
+            DJNZ    M2
+            RRCA
+            LD      (DE),A
+            INC     E
+            POP     BC
+            DJNZ    M1
+            RET
+
+;Fill the Current Matrix with random cells (live or dead)
+RANFIL:
+            LD      HL,CURMAT
+            LD      B,40H    ;Eight rows of eight bytes
+RF1:
+            PUSH    BC
+            CALL    RANDOM
+            POP     BC
+            CP      80H      ;IF over 80, set as 0, else set at 1
+            LD      A,00H
+            ADC     A,A      ;Just add the carry flag
+            LD      (HL),A
+            INC     HL
+            DJNZ    RF1
+            RET
+
+;Random number generator.  A - Returns a number between 00 and FF
+RANDOM:
+            LD      A,R
+            LD      B,A
+            LD      A,(RANDNO)
+            XOR     B
+            ADD     A,A
+            XOR     B
+            LD      (RANDNO),A
+            RET
+
+; Multiplex the 8x8 Display
+SCAN:                
+            PUSH    HL 
+            LD      B,80H   ;Wait on Scan
+S81:               
+            PUSH    BC
+            LD      B,01H   ;Counter for 8x8
+            LD      HL,SCREEN
+S82:               
+            LD      A,(HL) 
+            OUT     (06),A
+            LD      A,B 
+            OUT     (05),A
+            LD      B,40H 
+S83:        DJNZ    S83 
+            INC     HL
+            LD      B,A 
+            XOR     A 
+            OUT     (05),A 
+            RLC     B 
+            JR      NC,S82 
+            POP     BC 
+            DJNZ    S81
+            POP     HL 
+            RET
+
+;NOTES
+;DATA layout. 9x10 layout, top bottom and left are 0's. x's are actual cell locations
+;     0 1 2 3 4 5 6 7
+;     ---------------
+;0  0 0 0 0 0 0 0 0 0
+;9 |0 x x x x x x x x
+;12|0 x x x x x x x x
+;1B|0 x x x x x x x x
+;24|0 x x x x x x x x
+;2D|0 x x X x x x x x
+;3F|0 x x x x x x x x
+;48|0 x x x x x x x x
+;51|0 x x x x x x x x
+;5A|0 0 0 0 0 0 0 0 0
+;63|0  <- add one more 0 at end
+;
+;Cells store 0 or 1, 1=live, 0=dead
+;Store one blank row above and below and to the left of the 3F table. set as 0 
+;If current cell is 22, 
+;    to get up and down 22-09 and 22+09
+;    to get left 22-01, 22-0A and 22+08
+;    to get right 22+01, 22-08 and 22+0A
+
+;0  1  2  3  4  5  6  7
+;8  9  A  B  C  D  E  F
+;10 11 12 13 14 15 16 17
+;18 19 1A 1B 1C 1D 1E 1F
+;20 21 22 23 24 25 26 27
+;28 29 2A 2B 2C 2D 2E 2F
+;30 31 32 33 34 35 36 37
+;38 39 3A 3B 3C 3D 3E 3F
+;
+;Game loop: Have a 0A to 59, every 8th interation skip one.  Once on a square, do rules above.  Add up live
+;cells, then once done, check with Conway rules save new cell in temp table.  Tmp table is just a 8x8, then
+;copy tmp table to screen and live table
+;
+;NOTE: Need GETCELL to index from 0 to 3F where 0-7 = top row, 8-F next and so on.
