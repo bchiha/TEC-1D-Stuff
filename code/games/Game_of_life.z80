@@ -13,27 +13,51 @@
 ;
 ; The simulation is written for the TEC using the 8x8 LED matrix.
 ;
-; The 8x8 cells are structured using 8 bytes and 8 bits, where a set bit is a live cell EG:
+; Setup
+; ----- 
+;
+; To be run on the TEC-1D with any Monitor.  For the keyboard to work
+; it requires EITHER a 4k7 resistor between the NMI (pin 17 on Z-80) and D6 (pin
+; 10 on the Z-80) OR the DAT (LCD) expanstion board fitted to port 3.  The 
+; current TEC-1D boards have the JMON MOD resitor connection already there.
+; The 8x8 LED board is fitted to ports 5 and 6 with the port select strobe of the
+; left hand latch going to port 6.
+;
+; To Use
+; ------
+;
+; Press 'GO' to start with a random cell placement.
+; Press '+' or '-' to cycle through pre defined cell placement.
+; Press the above keys at anytime to restart a simulation.
+;
+; Enjoy life taking on its own.....
+; 
+; The 8x8 cells are structured using 64 bytes, where each memory location is a live cell EG:
 ;  CURMAT:
-;  0x0D08      0 1 0 1 1 0 1 0  = 5A
-;  0x0D09      1 0 1 1 1 0 1 1  = BB
-;  0x0D0A      0 1 0 0 1 1 0 0  = 4C
-;  0x0D0B      1 1 1 0 0 0 1 0  = E2
-;  0x0D0C      0 1 0 1 1 0 1 0  = 5A
-;  0x0D0D      1 0 1 1 1 0 1 1  = BB
-;  0x0D0E      0 1 0 0 1 1 0 0  = 4C
-;  0x0D0F      1 1 1 0 0 0 1 0  = E2
+;  0x0D10      1 0 1 1 1 0 1 1  = BB
+;  0x0D18      0 1 0 0 1 1 0 0  = 4C
+;  0x0D20      1 1 1 0 0 0 1 0  = E2
+;  0x0D28      0 1 0 1 1 0 1 0  = 5A
+;  0x0D30      1 0 1 1 1 0 1 1  = BB
+;  0x0D38      0 1 0 0 1 1 0 0  = 4C
+;  0x0D40      1 1 1 0 0 0 1 0  = E2
+;  0x0D48      0 1 0 1 1 0 1 0  = 5A
 ;
 ; Cells are then printed vertically from left to right like so:
-;              0  1  0  1  0  1  0  1
-;              1  0  1  1  1  0  1  1
-;              0  1  0  1  0  1  0  1    
-;              1  1  0  0  1  1  0  0
-;              1  1  1  0  1  1  1  0
-;              0  0  1  0  0  0  1  0
+;              1  0  1  0  1  0  1  0
+;              0  1  1  1  0  1  1  1
+;              1  0  1  0  1  0  1  0    
+;              1  0  0  1  1  0  0  1
 ;              1  1  0  1  1  1  0  1
 ;              0  1  0  0  0  1  0  0
-; SCREEN:      5A BB 4C E2 5A BB 4C E2
+;              1  0  1  1  1  0  1  1
+;              1  0  0  0  1  0  0  0
+; SCREEN:      BB 4C E2 5A BB 4C E2 5A
+;
+; Development Notes:
+; To make adding up the surrounding cells easier, I put an upper and lower zero buffer on either end
+; of the matrix.  This handles up and down checks.  For side checks, I see if the current cell is 
+; on the left or right edge. If on the edge, I just ignore the cell. 
 
 
 SCREEN:     EQU     0D00H ;Game Screen                                           (8-bytes)
@@ -41,24 +65,25 @@ UPBUFF:     EQU     0D08H ;Zero row for up checks                               
 CURMAT:     EQU     0D10H ;Current Cell Matrix, 8 bytes x 8 bytes                (64-bytes)
 DNBUFF:     EQU     0D50H ;Zero row for down checks                              (8-bytes)
 NEXMAT:     EQU     0D58H ;Next Interation Cell Matrix, 8 bytes x 8 bytes        (64-bytes)
-RANDNO:     EQU     0D98H ;Random Number                                         (1-byte)
-CELLTO:     EQU     0D99H ;Current Cell total surrounding cells                  (1-byte)
+DATALC:     EQU     0A00H ;Data location for pre-defined examples                (160-bytes)
 
-            ORG     1800H 
+            ORG     0900H 
 START:               
-            ;Blank Buffs and Current Matrix
-            LD      HL,UPBUFF
-            LD      DE,UPBUFF+1
-            XOR     A
-            LD      (HL),A
-            LD      BC,NEXMAT-UPBUFF-1 
-            LDIR 
+            ;Copy Data to 0x0A00
+            LD      HL,DSPTBL
+            LD      DE,DATALC
+            LD      BC,0098H
+            LDIR
 
-            ;Fill Current Matrix with Random cells
+            ;Blank Buffs and Current Matrix
+            CALL    CLEAR
+
+            ;Fill Current Matrix with Random cells for first iteration
             CALL    RANFIL
 
             ;Game Loop
 GAME:
+            CALL    KEYHIT       ; Check if a Key was pressed and action it
             CALL    MATSCR       ; Convert the Matrix to Screen
             CALL    SCAN         ; Display the current Screen
             
@@ -135,6 +160,47 @@ STOREC:
 
             JR      GAME
 
+;Keyboard Check
+KEYHIT:
+            IN      A,(03)     ;Check if key is pressed
+            BIT     6,A
+            RET     NZ         ;No key pressed
+            IN      A,(00)     ;Get actual key
+            AND     1FH        ;Mask upper bits
+            LD      E,A
+            XOR     A          ;Clear flags
+            LD      A,E
+            OR      A          ;Check for zero (random option)
+            JR      NZ,PREDEF
+            CALL    RANFIL
+            RET
+PREDEF: 
+            DEC     A           ;Start at index 0
+            ADD     A,A         ;2 bytes index
+            ADD     A,A         ;4 bytes index
+            ADD     A,A         ;8 bytes index
+            LD      HL,DATALC   ;Display Table
+            LD      L,A         ;Index it
+            LD      DE,CURMAT   ;Current Matrix
+            ;Based on the load a pre-defined cells to the Matrix, Uses A for index
+            LD      B,08H
+L1:
+            LD      A,(HL)
+            PUSH    BC
+            LD      C,A
+            LD      B,08H
+L2:
+            XOR     A
+            RLC     C
+            ADC     A,A
+            LD      (DE),A
+            INC     DE
+            DJNZ    L2
+            INC     HL
+            POP     BC
+            DJNZ    L1
+            RET
+
 ;Convert Matrix to screen.  Convert each row to bits in byte.  Save to screen
 MATSCR:
             LD      HL,CURMAT
@@ -163,9 +229,16 @@ RANFIL:
             LD      B,40H    ;Eight rows of eight bytes
 RF1:
             PUSH    BC
-            CALL    RANDOM
+            LD      A,R      ;Random Number Generation
+            LD      B,A
+            RRCA             ;Multiply by 32
+            RRCA
+            RRCA
+            XOR     1FH
+            ADD     A,B
+            SBC     A,0FFH
             POP     BC
-            CP      80H      ;IF over 80, set as 0, else set at 1
+            RRCA             ;Check bit 0 if set then make live
             LD      A,00H
             ADC     A,A      ;Just add the carry flag
             LD      (HL),A
@@ -173,15 +246,15 @@ RF1:
             DJNZ    RF1
             RET
 
-;Random number generator.  A - Returns a number between 00 and FF
-RANDOM:
-            LD      A,R
-            LD      B,A
-            LD      A,(RANDNO)
-            XOR     B
-            ADD     A,A
-            XOR     B
-            LD      (RANDNO),A
+; Blank out Matrix
+CLEAR:
+            LD      HL,UPBUFF
+            LD      DE,UPBUFF+1
+            XOR     A
+            LD      (HL),A
+            LD      BC,NEXMAT-UPBUFF-1 
+            LDIR
+            LD      (CURMAT),A 
             RET
 
 ; Multiplex the 8x8 Display
@@ -210,40 +283,25 @@ S83:        DJNZ    S83
             POP     HL 
             RET
 
-;NOTES
-;DATA layout. 9x10 layout, top bottom and left are 0's. x's are actual cell locations
-;     0 1 2 3 4 5 6 7
-;     ---------------
-;0  0 0 0 0 0 0 0 0 0
-;9 |0 x x x x x x x x
-;12|0 x x x x x x x x
-;1B|0 x x x x x x x x
-;24|0 x x x x x x x x
-;2D|0 x x X x x x x x
-;3F|0 x x x x x x x x
-;48|0 x x x x x x x x
-;51|0 x x x x x x x x
-;5A|0 0 0 0 0 0 0 0 0
-;63|0  <- add one more 0 at end
-;
-;Cells store 0 or 1, 1=live, 0=dead
-;Store one blank row above and below and to the left of the 3F table. set as 0 
-;If current cell is 22, 
-;    to get up and down 22-09 and 22+09
-;    to get left 22-01, 22-0A and 22+08
-;    to get right 22+01, 22-08 and 22+0A
+; Dipslay Table.  16 Predefined shapes, stored as in 8 byte screen format
+;            ORG     0A00H    ;This address is important, lower byte must be 00
+DSPTBL:     DB      00H,0E7H,00H,00H,00H,00H,0E7H,00H    ;Blinkers
+            DB      00H,07H,0EH,00H,00H,70H,0E0H,00H     ;Toad
+            DB      0C0H,0C0H,0CH,0CH,30H,30H,03H,03H    ;Beacon
+            DB      00H,04H,04H,06H,00H,73H,15H,06H      ;Pulsar
+            DB      20H,0A0H,60H,00H,00H,00H,00H,00H     ;Glider
+            DB      00H,00H,78H,88H,08H,90H,00H,00H      ;Light Spaceship
+            DB      00H,00H,7CH,84H,04H,88H,20H,00H      ;Mid Spaceship
+            DB      00H,00H,7EH,82H,02H,84H,30H,00H      ;Large Spaceship
+            DB      40H,0A0H,44H,0AH,09H,46H,0A0H,60H    ;Still Life
+            DB      00H,00H,00H,30H,18H,10H,00H,00H      ;R-pentomino
+            DB      00H,00H,2AH,2CH,30H,02H,2EH,00H      ;Infinite
+            DB      00H,08H,18H,38H,18H,08H,00H,00H      ;Arrow
+            DB      00H,00H,00H,1CH,14H,1CH,00H,00H      ;Square
+            DB      00H,0A0H,20H,0A0H,00H,00H,00H,00H    ;Face to Pulsar
+            DB      00H,0C0H,0C0H,0FFH,0FFH,0C0H,0C0H,00H;T
+            DB      00H,00H,0FFH,0FFH,0DBH,0DBH,00H,00H  ;E
+            DB      00H,00H,1CH,3EH,63H,41H,41H,00H      ;C 
+            DB      00H,62H,95H,89H,0A1H,81H,42H,3CH     ;Pacman
+            DB      38H,44H,82H,41H,41H,82H,44H,38H      ;Heart
 
-;0  1  2  3  4  5  6  7
-;8  9  A  B  C  D  E  F
-;10 11 12 13 14 15 16 17
-;18 19 1A 1B 1C 1D 1E 1F
-;20 21 22 23 24 25 26 27
-;28 29 2A 2B 2C 2D 2E 2F
-;30 31 32 33 34 35 36 37
-;38 39 3A 3B 3C 3D 3E 3F
-;
-;Game loop: Have a 0A to 59, every 8th interation skip one.  Once on a square, do rules above.  Add up live
-;cells, then once done, check with Conway rules save new cell in temp table.  Tmp table is just a 8x8, then
-;copy tmp table to screen and live table
-;
-;NOTE: Need GETCELL to index from 0 to 3F where 0-7 = top row, 8-F next and so on.
