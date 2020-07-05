@@ -1,0 +1,125 @@
+; TEC Magazine Master ROM
+; -----------------------
+;
+; This ROM is a collection of almost all of the code written for the Talking
+; Electronics Computer.
+;
+; Compiled by Brian Chiha
+; July 2020
+;
+; To use:
+; -------
+; Requires JMON Monitor for the Menu Selection and to be placed at 0x1000 in RAM.  
+; Simply go to address 0x1000 and press 'GO'.  Then use '+' or '-' to select the 
+; program to run and hit 'GO'.  
+; To exit the programm press 'Shift-GO'.  This will exit the program and go back
+; to the main menu.
+;
+; ROM Contents:
+; -------------
+
+
+
+            ORG    1800H 
+START:
+            ; Copy Menu Data to JMON location
+            LD      HL,M_DATA ; Menu data
+            LD      DE,088DH ; Destination for menu/perimiter to use
+            LD      BC,000BH ; Number of bytes to copy
+            LDIR     ; Copy it
+ACTION:
+            JP      0041H ; Call the menu
+
+
+;Magazine Code
+;-------------
+
+;-----------------------------;
+;Segment Move - Issue 11 P 26 ;
+;-----------------------------;
+;Move a Seven Segment Display from Right to Left and loop around
+SEGMOV:               
+            LD      A,01H 
+            OUT     (02),A 
+SML1:               
+            OUT     (01),A 
+            CALL    DELAY_M 
+            RLCA     
+            JR      SML1 
+
+;---------------------------;
+;Quick Draw - Issue 11 P 13 ;
+;---------------------------;
+;Who can press the key faster, When the letter 'G' is shown, Player 1 uses the '+' key
+;and Player 2 uses the 'C' key. Press any button to reset
+QKDRAW:               
+            XOR     A 
+            OUT     (01),A
+            CALL    DELAY_FULL
+            LD      A,0E3H   ;G Letter
+            OUT     (02),A 
+            LD      A,08H 
+            OUT     (01),A 
+QKDL1:               
+            RST     08H      ;Wait and Get Input
+            CP      0CH      ;If C is pressed Jump Right
+            JR      Z,QKDRT
+            CP      10H      ;If + is pressed Jump Left
+            JR      Z,QKDLT   
+            JR      QKDL1 
+QKDRT:               
+            LD      A,01H    ;Right Segment
+            JR      QDEND 
+QKDLT:                
+            LD      A,20H    ;Left Segment
+QDEND:                 
+            OUT     (01),A 
+            LD      A,28H 
+            OUT     (02),A 
+            RST     08H      ;Wait and Get Input
+            JR      QKDRAW 
+
+
+;General Delay Routine, Mid Timer Delay
+DELAY_M:               
+            PUSH    BC 
+            LD      B,55H 
+D1:                  
+            LD      C,0FFH 
+D2:                  
+            DEC     C 
+            JR      NZ,D2 
+            DJNZ    D1
+            POP     BC 
+            RET
+
+;General Delay Routine, Full 16 byte Delay
+DELAY_FULL:
+            LD      DE,0000H 
+D3:               
+            DEC     DE 
+            LD      A,D 
+            OR      E 
+            JR      NZ,D3
+            RET 
+
+; Menu Command String
+M_DATA:
+            DB      0xFF,0xFF ; Blank
+            DB      0x00,0x01 ; First menu item and number of menu items, = 2
+            DW      MENU_JP_TBL ; Jump table for menu items
+            DW      MENU_AD_TBL ; Menu Address LED display table
+            DW      MENU_DA_TBL ; Menu Data LED display table
+            DB      0xC9 ; return (unused)
+
+MENU_JP_TBL:         ; Menu Jump table
+            JP      SEGMOV ; Jump to upload from TEC to USB
+            JP      QKDRAW ; Jump to download from USE to TEC
+
+MENU_AD_TBL:         ; Menu Display for ADDRESS LEDs
+            DB      0xA7,0xC7,0xE3,0x65 ; "SEGm"
+            DB      0x3F,0x67,0xEC,0x44 ; "QKdr"
+
+MENU_DA_TBL:         ; Menu Display for DATA LEDs
+            DB      0xEB,0xE0 ; "Ov"
+            DB      0x6F,0x26 ; "Aw"  
