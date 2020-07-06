@@ -11,8 +11,11 @@
 ; -------
 ; Requires JMON Monitor for the Menu Selection and to be placed at 0x1000 in RAM.  
 ; Simply go to address 0x1000 and press 'GO'.  Then use '+' or '-' to select the 
-; program to run and hit 'GO'.  
-; To exit the programm press 'Shift-GO'.  This will exit the program and go back
+; program to run and hit 'GO'. 
+;
+; For 8x8 LED programs, connect the 8x8 to ports 05 and 06. 
+;
+; To exit the programs press 'Shift-GO'.  This will exit the program and go back
 ; to the main menu.
 ;
 ; ROM Contents:
@@ -48,11 +51,209 @@ SML1:
             CALL    CHKSHIFT     
             JR      SML1 
 
+;------------------------------;
+;Segment Cycle - Issue 11 P 20 ;
+;------------------------------;
+;Cycle through all 255 positions of the seven segment display
+SEGCYC:               
+            LD      A,3FH     ;Use All Displays
+            OUT     (01),A
+            XOR     B         ;Zero B
+SEGC1:               
+            LD      A,B
+            OUT     (02),A    ;Output B
+            INC     B         ;Increase B
+            CALL    DELAY_Q
+            CALL    CHKSHIFT     
+            JR      SEGC1
+
+;------------------------------;
+;Segment Flash - Issue 11 P 28 ;
+;------------------------------;
+;Turn a Segment On and Off --- Flash it!
+SEGFLH:               
+            LD      A,0FFH 
+            OUT     (02),A    ;All Segments on
+SEGF1:
+            LD      A,01H 
+            OUT     (01),A    ;Activate Segment
+            CALL    DELAY_M
+            XOR     A
+            OUT     (01),A    ;Deactivate Segment
+            CALL    DELAY_M
+            CALL    CHKSHIFT
+            JR      SEGF1
+
+;------------------------------------;
+;Segment Move Around - Issue 11 P 29 ;
+;------------------------------------;
+;Move A Segment Around a Seven Segment Display in a Anticlockwise Direction
+SEGRND:               
+            LD      A,01H  ;Move from Right to Left
+            OUT     (02),A
+            LD      C,06H  
+            LD      A,01H 
+SEGR1:
+            OUT     (01),A
+            LD      B,A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+            LD      A,B
+            RLC     A
+            DEC     C
+            JR      NZ, SEGR1
+
+            LD      A,02H  ;Move Down
+            OUT     (02),A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+            LD      A,40H
+            OUT     (02),A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+
+            LD      A,80H  ;Move From Left to Right
+            OUT     (02),A
+            LD      C,06H  
+            LD      A,20H 
+SEGR2:
+            OUT     (01),A
+            LD      B,A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+            LD      A,B
+            RRC     A
+            DEC     C
+            JR      NZ, SEGR2
+            
+            LD      A,20H ;Move Up
+            OUT     (02),A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+            LD      A,08H
+            OUT     (02),A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+
+            JR      SEGRND
+
+;---------------------------------------;
+;Segment Back and Forth - Issue 11 P 28 ;
+;---------------------------------------;
+;Move A Segment From Right to Left and Back
+
+SEGBAF:               
+            LD      A,01H 
+            OUT     (02),A 
+SEGB1:               
+            OUT     (01),A 
+            CALL    DELAY_M 
+            RLCA
+            BIT     6,A       ;On Left Edge? 
+            CALL    CHKSHIFT
+            JR      Z,SEGB1
+SEGB2:
+            RRCA
+            OUT     (01),A
+            CALL    DELAY_M
+            BIT     0,A       ;On Right Edge?
+            JR      Z,SEGB2
+            CALL    CHKSHIFT
+            JR      SEGB1
+
+;-------------------------------;
+;8x8 LED Around - Issue 11 P 33 ;
+;-------------------------------;
+;Move an 8x8 LED around the perimeter of the display
+
+LEDRND:               
+            LD      A,01H   ;Bottom Left to Right
+            OUT     (06),A
+            LD      C,08H
+            LD      A,01H
+LEDR1:
+            OUT     (05),A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+            RLCA
+            DEC     C
+            JR      NZ,LEDR1
+
+            LD      A,80H  ;Right Bottom to Top
+            OUT     (05),A
+            LD      C,07H
+            LD      A,02H
+LEDR2:
+            OUT     (06),A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+            RLCA
+            DEC     C
+            JR      NZ,LEDR2
+
+            LD      A,80H ;Top Right to Left
+            OUT     (06),A
+            LD      C,07H
+            LD      A,40H
+LEDR3:
+            OUT     (05),A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+            RRCA
+            DEC     C
+            JR      NZ,LEDR3
+
+            LD      A,01H ;Left Top to Bottom
+            OUT     (05),A
+            LD      C,07H
+            LD      A,40H
+LEDR4:
+            OUT     (06),A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+            RRCA
+            DEC     C
+            JR      NZ,LEDR4
+
+            JR      LEDRND
+
+;---------------------------------------;
+;8x8 LED Back and Forth - Issue 11 P 33 ;
+;---------------------------------------;
+;Move an 8x8 LED from Left to Right and Increase in depth
+LEDBAF:
+            LD      H,01H
+LEDB1:               
+            LD      A,H 
+            OUT     (05),A
+            LD      C,08H
+            LD      A,01H
+LEDB2:
+            OUT     (06),A
+            CALL    DELAY_F
+            CALL    CHKSHIFT
+            RLCA
+            DEC     C
+            JR      NZ,LEDB2
+
+            LD      C,08H
+            LD      A,80H
+LEDB3: 
+            OUT     (06),A
+            CALL    DELAY_F
+            CALL    CHKSHIFT
+            RRCA
+            DEC     C
+            JR      NZ,LEDB3
+
+            INC     H
+            JR      LEDB1
+
 ;---------------------------;
 ;Quick Draw - Issue 11 P 13 ;
 ;---------------------------;
 ;Who can press the key faster, When the letter 'G' is shown, Player 1 uses the '+' key
-;and Player 2 uses the 'C' key. Press any button to reset
+;and Player 2 uses the 'C' key. Press any button to reset or Shift 'GO' to exit
 QKDRAW:               
             XOR     A 
             OUT     (01),A
@@ -81,19 +282,36 @@ QDEND:
             CALL    CHKSHIFT     
             JR      QKDRAW 
 
+;------------------;
+; Utility Routines ;
+;------------------;
+;The following are general utility routines that are used across all programs
 
+;General Delay Routine, Fast Timer Delay
+DELAY_F:               
+            PUSH    BC 
+            LD      B,10H
+            JR      DELAY
+;General Delay Routine, Quick Timer Delay
+DELAY_Q:               
+            PUSH    BC 
+            LD      B,20H
+            JR      DELAY
 ;General Delay Routine, Mid Timer Delay
 DELAY_M:               
             PUSH    BC 
             LD      B,55H 
-D1:                  
+            JR      DELAY
+
+;Delay Routine (Actual)
+DELAY: 
             LD      C,0FFH 
-D2:                  
+D1:                  
             DEC     C 
-            JR      NZ,D2 
-            DJNZ    D1
+            JR      NZ,D1 
+            DJNZ    DELAY
             POP     BC 
-            RET
+            RET       
 
 ;General Delay Routine, Full 16 byte Delay
 DELAY_FULL:
@@ -126,20 +344,38 @@ CHKS1:
 ;Menu Command String
 M_DATA:
             DB      0xFF,0xFF ; Blank
-            DB      0x00,0x01 ; First menu item and number of menu items, = 2
+            DB      0x00,0x07 ; First menu item and number of menu items, = 8
             DW      MENU_JP_TBL ; Jump table for menu items
             DW      MENU_AD_TBL ; Menu Address LED display table
             DW      MENU_DA_TBL ; Menu Data LED display table
             DB      0xC9 ; return (unused)
 
 MENU_JP_TBL:         ; Menu Jump table
-            JP      SEGMOV ; Jump to upload from TEC to USB
-            JP      QKDRAW ; Jump to download from USE to TEC
+            JP      SEGMOV ; Segment Move
+            JP      SEGCYC ; Segment Cycle
+            JP      SEGFLH ; Segment Flash
+            JP      SEGRND ; Segment Around
+            JP      SEGBAF ; Segment B & F
+            JP      LEDRND ; 8x8 LED Around
+            JP      LEDBAF ; 8x8 LED B & F
+            JP      QKDRAW ; Quick Draw
 
 MENU_AD_TBL:         ; Menu Display for ADDRESS LEDs
             DB      0xA7,0xC7,0xE3,0xA7 ; "SEGS"
+            DB      0xA7,0xC7,0xE3,0xC3 ; "SEGC"
+            DB      0xA7,0xC7,0xE3,0x47 ; "SEGF"
+            DB      0xA7,0xC7,0xE3,0x44 ; "SEGr"
+            DB      0xA7,0xC7,0xE3,0xE6 ; "SEGb"
+            DB      0xC2,0xC7,0xEC,0x44 ; "LEdr"
+            DB      0xC2,0xC7,0xEC,0xE6 ; "LEdb"
             DB      0x3F,0xEA,0xEC,0x44 ; "QUdr"
 
 MENU_DA_TBL:         ; Menu Display for DATA LEDs
             DB      0x47,0x46 ; "Ft"
-            DB      0x6F,0xE1 ; "Aw"  
+            DB      0xAE,0xC3 ; "yC"
+            DB      0xC2,0x6E ; "LH"
+            DB      0x6B,0xEC ; "nd"
+            DB      0x6F,0x47 ; "AF"
+            DB      0x6B,0xEC ; "nd"
+            DB      0x6F,0x47 ; "AF"
+            DB      0x6F,0xE1 ; "Aw"
