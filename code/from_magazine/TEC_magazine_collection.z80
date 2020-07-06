@@ -27,7 +27,7 @@ START:
             LD      DE,088DH ; Destination for menu/perimiter to use
             LD      BC,000BH ; Number of bytes to copy
             LDIR     ; Copy it
-ACTION:
+MENU:
             JP      0041H ; Call the menu
 
 
@@ -44,7 +44,8 @@ SEGMOV:
 SML1:               
             OUT     (01),A 
             CALL    DELAY_M 
-            RLCA     
+            RLCA
+            CALL    CHKSHIFT     
             JR      SML1 
 
 ;---------------------------;
@@ -77,6 +78,7 @@ QDEND:
             LD      A,28H 
             OUT     (02),A 
             RST     08H      ;Wait and Get Input
+            CALL    CHKSHIFT     
             JR      QKDRAW 
 
 
@@ -103,7 +105,25 @@ D3:
             JR      NZ,D3
             RET 
 
-; Menu Command String
+;Menu Return checks if a Shift 'Go' has been pressed.  If so then jump back to action
+CHKSHIFT:
+            PUSH    AF
+            IN      A,(03)   ;Check for key pressed
+            BIT     6,A
+            JR      NZ,CHKS1 ;Exit if no key pressed
+            IN      A,(00)   ;Get actual key
+            BIT     5,A      ;Has shift been pressed?
+            JR      NZ,CHKS1 ;Exit if shift not pressed
+            AND     1FH      ;Mask unwanted bits
+            CP      12H      ;"GO" pressed
+            JR      NZ,CHKS1       
+            POP     BC       ;Fake POP to remove PC as we aren't returning
+            JP      MENU     ;GOTO Menu
+CHKS1:
+            POP     AF
+            RET
+
+;Menu Command String
 M_DATA:
             DB      0xFF,0xFF ; Blank
             DB      0x00,0x01 ; First menu item and number of menu items, = 2
@@ -117,9 +137,9 @@ MENU_JP_TBL:         ; Menu Jump table
             JP      QKDRAW ; Jump to download from USE to TEC
 
 MENU_AD_TBL:         ; Menu Display for ADDRESS LEDs
-            DB      0xA7,0xC7,0xE3,0x65 ; "SEGm"
-            DB      0x3F,0x67,0xEC,0x44 ; "QKdr"
+            DB      0xA7,0xC7,0xE3,0xA7 ; "SEGS"
+            DB      0x3F,0xEA,0xEC,0x44 ; "QUdr"
 
 MENU_DA_TBL:         ; Menu Display for DATA LEDs
-            DB      0xEB,0xE0 ; "Ov"
-            DB      0x6F,0x26 ; "Aw"  
+            DB      0x47,0x46 ; "Ft"
+            DB      0x6F,0xE1 ; "Aw"  
