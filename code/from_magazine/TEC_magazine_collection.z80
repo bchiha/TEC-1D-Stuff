@@ -23,7 +23,7 @@
 
 
 
-            ORG    1800H 
+            ORG    1000H 
 START:
             ; Copy Menu Data to JMON location
             LD      HL,M_DATA ; Menu data
@@ -325,6 +325,80 @@ SECOND:                       ;Second Segment
 			CALL   CHKSHIFT
 			RET
 
+;------------------------;
+;The Box - Issue 14 P 14 ;
+;------------------------;
+;Seven Segment Box movement animation
+SEGBOX:
+            LD      IX,BOXTAB   ;Box Table Data
+            LD      D,1CH       ;Box Table Entry Count, Groups of 4
+            LD      B,00H       ;Full Delay on Screen
+BOX1:
+            LD      C,40H       ;Screen Muliplex Delay
+BOX2:
+            LD      A,(IX+0)    ;Display Data 1,2
+            OUT     (01),A
+            LD      A,(IX+1)
+            OUT     (02),A
+BOX3:       DJNZ    BOX3
+            XOR     A
+            OUT     (02),A      ;Clear Display
+            LD      A,(IX+2)    ;Display Data 3,4
+            OUT     (01),A
+            LD      A,(IX+3)
+            OUT     (02),A
+BOX4:       DJNZ    BOX4
+            CALL    CHKSHIFT
+            DEC     C
+            JR      NZ,BOX2     ;More data to display?
+            INC     IX
+            INC     IX
+            INC     IX
+            INC     IX          ;Move IX to next group of 4
+            DEC     D
+            JR      NZ,BOX1
+            JR      SEGBOX
+BOXTAB:     ;First Byte = Segment, Second Byte = LED's on Segment to light up
+			DB      01H,0E4H,01H,0E4H,01H,0E8H,01H,0E8H
+			DB      01H,0E4H,01H,0E4H,01H,0E2H,01H,0E2H
+			DB      01H,0E4H,01H,0E4H,01H,0E4H,01H,0E4H
+			DB      01H,0E2H,01H,0E2H,01H,0E4H,01H,0E4H
+			DB      01H,0E1H,01H,0E1H,01H,01H,02H,0E0H
+			DB      01H,04H,02H,0E0H,01H,80H,02H,0E0H
+			DB      01H,80H,04H,0A4H,01H,80H,08H,64H
+			DB      01H,80H,10H,0C4H,01H,80H,20H,0E0H
+			DB      02H,80H,20H,0E0H,04H,80H,20H,0E0H
+			DB      08H,80H,20H,0E0H,10H,04H,20H,0E0H
+			DB      20H,0E1H,20H,0E1H,20H,0E4H,20H,0E4H
+			DB      10H,0E4H,10H,0E4H,08H,0E4H,08H,0E4H
+			DB      04H,0E0H,08H,04H,02H,0E0H,08H,04H
+			DB      01H,0E0H,04H,04H,01H,0E0H,02H,04H
+
+;--------------------------;
+;Boomerang - Issue 14 P 14 ;
+;--------------------------;
+;Seven Segment Boomerang animation
+SEGBRG:
+            LD      HL,BRGTAB ;Table
+            LD      B,012H    ;Table Entries
+BRG1:
+            LD      A,(HL)
+            OUT     (01),A    ;First Entry Segment
+            INC     HL
+            LD      A,(HL)
+            OUT     (02),A    ;Second Entry LED's
+            INC     HL
+            CALL    DELAY_M
+            CALL    CHKSHIFT
+            DJNZ    BRG1
+            JR      SEGBRG
+BRGTAB:     ;First Byte = Segment, Second Byte = LED's on Segment to light up
+            DB      01H,09H,02H,03H,04H,06H,08H,0CH
+            DB      10H,09H,20H,03H,20H,0C0H,10H,0A0H
+            DB      08H,24H,04H,44H,02H,0C0H,01H,0A0H
+            DB      20H,6FH,10H,0EAH,08H,0A7H,04H,0A7H
+            DB      02H,28H,01H,0C7H
+
 ;-------------------------------;
 ;8x8 LED Around - Issue 11 P 33 ;
 ;-------------------------------;
@@ -427,6 +501,31 @@ LEDF11:
             INC     A        ;Add one (or set bit 0), This will fill A with bits
             JR      NZ,LEDF11
             JR      LEDFN1
+
+;-----------------------------------;
+;8x8 LED Fan Out #2 - Issue 12 P 26 ;
+;-----------------------------------;
+;Fan out the LEDs from bottom left to top right and through
+LEDFN2:
+            LD      A,01H    ;One LED
+LEDF21:               
+            OUT     (05),A   ;Output A
+            OUT     (06),A
+            RLCA             ;Shift A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+            INC     A        ;Add 1 to A
+            JR      NZ,LEDF21
+            LD      A,0FEH   ;Full Screen
+LEDF22:
+            OUT     (05),A   ;Output A
+            OUT     (06),A
+            RLCA             ;Shift A
+            CALL    DELAY_Q
+            CALL    CHKSHIFT
+            DEC     A        ;Sub 1 from A
+            JR      NZ,LEDF22
+            JR      LEDF21   ;Start Again
 
 ;-----------------------------------;
 ;8x8 LED Fan Out #3 - Issue 14 P 15 ;
@@ -574,31 +673,51 @@ LEDBB3:
             RLC     B        ;Move to next column
             JR      LEDBB1   ;Repeat
 
-;----------------------------------;
-;8x8 LED Multiplex - Issue 12 P 27 ;
-;----------------------------------;
-;LED Multiplex Example that shows how to display different LED's on at the same time
-;This is a more effecient version than in the magazine.  Using a lookup table with less
-;repetition
-LEDMPX:
-            LD      A,01H     ;First Column
-            LD      B,08H     ;Table Size
-            LD      HL,MPXDAT ;Table Ref
-LEDMP1:
-            OUT     (05),A
-            PUSH    AF
-            LD      A,(HL)    ;Load Table Entry
-            OUT     (06),A
-            CALL    DELAY_RF  ;Fastest Delay
-            CALL    CHKSHIFT     
+;------------------------;
+;8x8 Animation - B Chiha ;
+;------------------------;
+;This is my code to animate the 8x8 by swapping page data to the 8x8
+LEDANI:
+            LD      HL,ANIDAT
+            LD      A,(HL)    ;Page count
             INC     HL
-            POP     AF
-            RLC     A         ;Next Column
-            DEC     B         ;Next Data
-            JR      NZ,LEDMP1
-            JR      LEDMPX
-MPXDAT:
-            DB 00H,1FH,3FH,64H,64H,3FH,1FH,00H
+            LD      C,A
+ANI1:
+            PUSH    BC
+            LD      DE,SCREEN 
+            LD      BC,0008H  
+            LDIR              ;Copy HL Through to screen area
+            LD      B,80H    
+ANI2:
+            PUSH    HL        ;Multiplex the 8x8 
+ANI3:               
+            PUSH    BC
+            LD      B,01H   ;Counter for 8x8
+            LD      HL,SCREEN
+ANI4:               
+            LD      A,(HL)  ;Data
+            OUT     (06),A
+            LD      A,B     ;Column
+            OUT     (05),A
+            LD      B,20H 
+ANI5:       DJNZ    ANI5     ;Wait
+            CALL    CHKSHIFT
+            INC     HL
+            LD      B,A 
+            XOR     A       ;Clear Data
+            OUT     (05),A 
+            RLC     B       ;Next Column
+            JR      NC,ANI4 
+            POP     BC 
+            DJNZ    ANI3    ;Do it again
+            POP     HL 
+            POP     BC
+            DEC     C       ;Next Page
+            JR      NZ,ANI1    ;Do next screen
+            JR      LEDANI
+ANIDAT:     DB      02H ;Page count
+            DB      08H,08H,0EBH,0FCH,0EAH,09H,04H,00H  ;Boogie
+            DB      04H,09H,0EAH,0FCH,0EBH,08H,08H,00H  ;Woogie
 
 ;------------------------------;
 ;Aliens Attack - Issue 11 P 36 ;
@@ -696,6 +815,40 @@ FRQ4:
 			CALL   CHKSHIFT
             JR     NZ,FRQ3
             JR     FREQSP
+
+;-------------------------------------;
+;Space Invaders Sound - Issue 14 P 14 ;
+;-------------------------------------;
+;Play a shooting space sound when the key '4' is pressed
+SPCINV:
+            LD      H,0FFH
+            LD      B,01H
+SPC1:
+            INC     B
+            LD      A,80H   ;Toggle Speaker
+            OUT     (01),A
+            CALL    SPCDLY
+            XOR     A
+            OUT     (01),A
+            CALL    SPCDLY
+            RST     20H     ;Check key '4'
+            CP      04H
+            JR      Z,SPCINV  ;Start again if '4' pressed
+
+            DEC     H        ;Just decrease sound
+            JP      NZ,SPC1
+SPC2:
+            CALL    CHKSHIFT
+            RST     20H      ;If sound finished, wait for '4' to be pressed
+            CP      04H
+            JR      NZ,SPC2
+            JR      SPCINV
+SPCDLY:
+            LD      C,B
+SPC3:
+            DEC     C
+            JR      NZ,SPC3
+            RET
 
 ;---------------------------;
 ;Quick Draw - Issue 12 P 21 ;
@@ -1062,7 +1215,7 @@ HEX2SEG:    ;0-9 in seven segments
 ;Menu Command String
 M_DATA:
             DB      0xFF,0xFF ; Blank
-            DB      0x00,0x19 ; First menu item and number of menu items, = 26
+            DB      0x00,0x1D ; First menu item and number of menu items, = 30
             DW      MENU_JP_TBL ; Jump table for menu items
             DW      MENU_AD_TBL ; Menu Address LED display table
             DW      MENU_DA_TBL ; Menu Data LED display table
@@ -1080,21 +1233,25 @@ MENU_JP_TBL:        ; Menu Jump table
             JP      SEGKBD  ; Segment Keyboard Move
             JP      SEGKBR  ; Segment Keyboard Move with Run
             JP      SEGTWO  ; Segment display two
+            JP      SEGBOX  ; Segment Box animation
+            JP      SEGBRG  ; Segment Boomerang 
 
                     ; 8x8 LED Routines 
             JP      LEDRND  ; 8x8 LED Around
             JP      LEDBAF  ; 8x8 LED B & F
             JP      LEDFN1  ; 8x8 LED Fanout #1
+            JP      LEDFN2  ; 8x8 LED Fanout #2
             JP      LEDFN3  ; 8x8 LED Fanout #3
             JP      LEDMYS  ; 8x8 LED Mystery Effect
             JP      LEDKBD  ; 8x8 LED Keyboard Move
             JP      LEDBBL  ; 8x8 LED Ball Bounce
-            JP      LEDMPX  ; 8x8 LED Multiplex
+            JP      LEDANI  ; 8x8 LED Animation
 
                     ; Sound Routines
             JP      ETATTC  ; Aliens Attack Sound
             JP      OSCLAT  ; Oscilate the Speaker
             JP      FREQSP  ; Frequency Sweep
+            JP      SPCINV  ; Space Invaders
 
                     ; Other Routines
             JP      QKDRAW  ; Quick Draw
@@ -1115,21 +1272,25 @@ MENU_AD_TBL:        ; Menu Display for ADDRESS LEDs
             DB      0xA7,0xC7,0xE3,0x67 ; "SEGK"
             DB      0xA7,0xC7,0xE3,0x67 ; "SEGK"
             DB      0xA7,0xC7,0xE3,0xC6 ; "SEGt"
+            DB      0xA7,0xC7,0xE3,0xE6 ; "SEGb"
+            DB      0xA7,0xC7,0xE3,0xE6 ; "SEGb"
 
                     ; 8x8 LED Routines 
             DB      0xC2,0xC7,0xEC,0x44 ; "LEdr"
             DB      0xC2,0xC7,0xEC,0xE6 ; "LEdb"
             DB      0xC2,0xC7,0xEC,0x47 ; "LEdF"
             DB      0xC2,0xC7,0xEC,0x47 ; "LEdF"
+            DB      0xC2,0xC7,0xEC,0x47 ; "LEdF"
             DB      0xC2,0xC7,0xEC,0xC7 ; "LEdE"
             DB      0xC2,0xC7,0xEC,0x67 ; "LEdK"
             DB      0xC2,0xC7,0xEC,0xE6 ; "LEdb"
-            DB      0xC2,0xC7,0xEC,0x65 ; "LEdM"
+            DB      0xC2,0xC7,0xEC,0x6F ; "LEdA"
 
                     ; Sound Routines
             DB      0xC7,0xC6,0x6F,0xC6 ; "EtAt"
             DB      0xEB,0xA7,0xC3,0xC2 ; "OSCL"
             DB      0x47,0x44,0xC7,0x3F ; "FREq"
+            DB      0xA7,0x4F,0xC3,0x28 ; "SPCI"
 
                     ; Other Routines
             DB      0x3F,0xEA,0xEC,0x44 ; "qUdr"
@@ -1150,21 +1311,25 @@ MENU_DA_TBL:        ; Menu Display for DATA LEDs
             DB      0xE6,0xEC ; "bd"
             DB      0xE6,0x44 ; "br"
             DB      0xE1,0xEB ; "wO"
+            DB      0xEB,0x26 ; "OX"
+            DB      0x44,0xE3 ; "rX"
 
                     ; 8x8 LED Routines 
             DB      0x6B,0xEC ; "nd"
             DB      0x6F,0x47 ; "AF"
             DB      0x6B,0x28 ; "n1"
+            DB      0x6B,0xCD ; "n2"
             DB      0x6B,0xAD ; "n3"
             DB      0x47,0x47 ; "FF"
             DB      0xE6,0xEC ; "bd"
             DB      0xE6,0xC2 ; "bL"
-            DB      0x4F,0x26 ; "PX"
+            DB      0x6B,0x28 ; "nI"
 
                     ; Sound Routines 
             DB      0xC6,0xC3 ; "tC"
             DB      0x6F,0xC6 ; "At"
             DB      0xA7,0x4F ; "SP"
+            DB      0x6B,0xE0 ; "nv"
 
                     ; Other Routines 
             DB      0x6F,0xE1 ; "Aw"
@@ -1172,3 +1337,5 @@ MENU_DA_TBL:        ; Menu Display for DATA LEDs
             DB      0xC6,0x28 ; "t1"
             DB      0xC6,0xCD ; "t2"
             DB      0xC6,0xAD ; "t3"
+
+            DB      0xFF,0xFF,0xFF,0xFF   ;EOF Buffer to make 2K
