@@ -4,11 +4,21 @@
 0000			 
 0000			; Converted (and fixed) by Brian Chiha. Can only be used on MON1 
 0000			; 
+0000			; Notes from Issue #12 
+0000			; -------------------- 
+0000			; This is quite a long program and shows the length of listing required to achieve a degree 
+0000			; of realism. The game uses all of page 0800 and portions of 0900, 0A00, 0B00 and 0D00. 
+0000			; The main program is at 0800 (Should be called from 0803) with calls at the other pages. 
+0000			; The game consists of unusual- shaped aliens passing across the display. Each game consists 
+0000			; of 16 passes and you must shoot down the arrivals by pressing buttons 1, 2 or 3. To win 
+0000			; you must shoot down at least 11. 
+0000			; In the initial stages of the game, you must acquaint yourself with the connection betweeen 
+0000			; the spiroid shapes and buttons 1, 2, 3. After this you will be ready to launch an attack. 
 0000			 
 0000			            ORG     0800H  
 0800			START:                
 0800			            ;Set up Sound delay and segment reference 
-0800 ce 08		            DW      MESSAGES            ;Reserved for message 
+0800 00 00		            DW      0000H               ;Reserved for message 
 0802 00			            DB      00H                 ;Blank 
 0803 21 e6 09		            LD      HL,DELAY+3          ;Aliens Attach Sound Delay Ref 
 0806			SPEED:             

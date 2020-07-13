@@ -3,11 +3,21 @@
 
 ; Converted (and fixed) by Brian Chiha. Can only be used on MON1
 ;
+; Notes from Issue #12
+; --------------------
+; This is quite a long program and shows the length of listing required to achieve a degree
+; of realism. The game uses all of page 0800 and portions of 0900, 0A00, 0B00 and 0D00.
+; The main program is at 0800 (Should be called from 0803) with calls at the other pages.
+; The game consists of unusual- shaped aliens passing across the display. Each game consists
+; of 16 passes and you must shoot down the arrivals by pressing buttons 1, 2 or 3. To win
+; you must shoot down at least 11.
+; In the initial stages of the game, you must acquaint yourself with the connection betweeen
+; the spiroid shapes and buttons 1, 2, 3. After this you will be ready to launch an attack.
 
             ORG     0800H 
 START:               
             ;Set up Sound delay and segment reference
-            DW      MESSAGES            ;Reserved for message
+            DW      0000H               ;Reserved for message
             DB      00H                 ;Blank
             LD      HL,DELAY+3          ;Aliens Attach Sound Delay Ref
 SPEED:            
