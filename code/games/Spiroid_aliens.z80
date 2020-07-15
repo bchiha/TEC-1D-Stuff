@@ -21,22 +21,19 @@ START:
             DB      00H                 ;Blank
             LD      HL,DELAY+3          ;Aliens Attach Sound Delay Ref
 SPEED:            
-            LD      A,80H               ;Overwrite Sound Delay speed
-            LD      (HL),A
+            LD      (HL),80H            ;Overwrite Sound Delay speed
             INC     HL
             XOR     A
             LD      C,A
             LD      (HL),A
             LD      HL,SOUND_PLAY+3		;Aliens Attach Sound Play Ref
-            LD      A,20H				;Overwrite Sound Speed
-            LD      (HL),A
+            LD      (HL),20H            ;Overwrite Sound Speed
             INC     HL
             XOR     A
             LD      (HL),A
 
             LD      HL,SEGMENT+1        ;Seven Segment Reference
-            LD      A,01H               ;First Segment
-            LD      (HL),A
+            LD      (HL),01H            ;First Segment
             
             LD      B,10H               ;Number of Aliens Per round
             LD      D,00H               ;init Score
@@ -109,19 +106,18 @@ JUMP5:
             LD      C,00H               ;Reset Last alien hit
             CALL    ALIEN_MISS
 JUMP6:
-            LD      A,01H               ;Segment Back to 01
-            LD      (HL),A
+            LD      (HL),01H
             DJNZ    LOOP1               ;Get Next Alien in current round
             
             LD      HL,SPEED+1          ;Sound Speed
             LD      A,0BH
-            CP      D                   ;Is Score over 11?
+            CP      D                   ;Is Score over 11 then WIN!?
             JR      C,JUMP8
             LD      A,(HL)
             CP      0F0H                ;Is speed 0XF0
             JR      Z,JUMP7             ;Goto Update Message
             ADD     A,10H
-            LD      (HL),A              ;Add 10 to speed
+            LD      (HL),A              ;Add 10 to Score
 JUMP7:
             LD      HL,SOUND2			;Update Message Reference
             LD      (START),HL
@@ -133,11 +129,11 @@ JUMP7:
             CALL    DISPLAY_MSG         ;Display Message
             JR      JUMP10
 JUMP8:
-            LD      A,(HL)              ;Get current speed
+            LD      A,(HL)              ;Get current score
             CP      10H
             JR      Z,JUMP9
             SUB     10H
-            LD      (HL),A              ;Decrease Speed unless at 10
+            LD      (HL),A              ;Decrease Score unless at 10
 JUMP9:
             LD      HL,SOUND1			;Update Message Reference
             LD      (START),HL
@@ -178,14 +174,12 @@ ALIEN_HIT: ;0B00
             XOR     A
             LD      (HL),A
             DEC     HL
-            LD      A,20H
-            LD      (HL),A
+            LD      (HL),20H
             LD      HL,DELAY+4
             XOR     A
             LD      (HL),A
             DEC     HL
-            LD      A,24H
-            LD      (HL),A
+            LD      (HL),24H
             LD      HL,AH2+1
             LD      A,01H
             EXX
@@ -223,8 +217,7 @@ AH2:
             JR      AH0
 AH3:
             EXX
-            LD      A,01H
-            LD      (HL),A
+            LD      (HL),01H
             POP     HL
             LD      (SOUND_PLAY+3),HL
             POP     HL
@@ -247,15 +240,13 @@ ALIEN_MISS: ;0A00
             PUSH    HL
             LD      B,09H
             LD      HL,SOUND_PLAY+3
-            LD      A,05H
-            LD      (HL),A
+            LD      (HL),05H
             INC     HL
             XOR     A
             LD      (HL),A
             LD      HL,DELAY+3
 AM1:
-            LD      A,1FH
-            LD      (HL),A
+            LD      (HL),1FH
             INC     HL
             XOR     A
             LD      (HL),A
@@ -362,16 +353,4 @@ SP1:
 			POP     AF
 			RET
 
-EXTRA:      ;Doesn't get called I think
-            LD      A,R
-            CALL    03B5H
-            AND     03H
-            LD      E,A
-            XOR     A
-            CP      E
-            JR      Z,EXTRA
-            LD      A,E
-            CP      C
-            JR      Z,EXTRA
-            RET
 

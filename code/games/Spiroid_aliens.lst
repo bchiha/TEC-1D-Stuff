@@ -20,361 +20,340 @@
 0800			            ;Set up Sound delay and segment reference 
 0800 00 00		            DW      0000H               ;Reserved for message 
 0802 00			            DB      00H                 ;Blank 
-0803 21 e6 09		            LD      HL,DELAY+3          ;Aliens Attach Sound Delay Ref 
+0803 21 dd 09		            LD      HL,DELAY+3          ;Aliens Attach Sound Delay Ref 
 0806			SPEED:             
-0806 3e 80		            LD      A,80H               ;Overwrite Sound Delay speed 
-0808 77			            LD      (HL),A 
-0809 23			            INC     HL 
-080a af			            XOR     A 
-080b 4f			            LD      C,A 
-080c 77			            LD      (HL),A 
-080d 21 f3 09		            LD      HL,SOUND_PLAY+3		;Aliens Attach Sound Play Ref 
-0810 3e 20		            LD      A,20H				;Overwrite Sound Speed 
-0812 77			            LD      (HL),A 
-0813 23			            INC     HL 
-0814 af			            XOR     A 
-0815 77			            LD      (HL),A 
-0816			 
-0816 21 47 08		            LD      HL,SEGMENT+1        ;Seven Segment Reference 
-0819 3e 01		            LD      A,01H               ;First Segment 
-081b 77			            LD      (HL),A 
-081c			             
-081c 06 10		            LD      B,10H               ;Number of Aliens Per round 
-081e 16 00		            LD      D,00H               ;init Score 
-0820 fd 21 63 08	            LD      IY,KEYBOARD_COMP+1  ;Keyboard Compare Ref 
-0824			LOOP1:      ;Create Random Alien 
-0824 cd a7 09		            CALL    GEN_ALIEN           ;Generate Random Alien 
-0827			 
-0827 3a 63 08		            LD      A,(KEYBOARD_COMP+1) ;Keyboard Ref (Current Alien) 
-082a b9			            CP      C                   ;Compare with Last Alien Hit, if the same get new one 
-082b 28 f7		            JR      Z,LOOP1             ;keep rotating until first value != last alien hit 
-082d			 
-082d			            ;Select which character to display 
-082d 21 47 08		            LD      HL,SEGMENT+1        ;Seven Segment Reference 
-0830 00			            NOP 
-0831 fe 01		            CP      01H                 ;Is Alien #01 
-0833 28 08		            JR      Z,JUMP1 
-0835 fe 02		            CP      02H                 ;Is Alien #02 
-0837 28 08		            JR      Z,JUMP2 
-0839 3e 61		            LD      A,61H               ;Third Alien Symbol 
-083b 18 06		            JR      CONT1 
-083d			JUMP1: 
-083d 3e 0f		            LD      A,0FH               ;First Alien Symbol 
-083f 18 02		            JR      CONT1 
-0841			JUMP2: 
-0841 3e 26		            LD      A,26H               ;Second Alien Symbol 
-0843			CONT1: 
-0843 32 4b 08		            LD      (SYMBOL+1),A        ;Show Alien Character in Display 
-0846			            ;Output Alien to Segment and Display 
-0846			SEGMENT: 
-0846 3e 00		            LD      A,00H               ;Set remotely 
-0848 d3 01		            OUT     (01),A              ;Segment # 
-084a			SYMBOL: 
-084a 3e 00		            LD      A,00H               ;Set remotely 
-084c d3 02		            OUT     (02),A              ;Segment Display 
-084e cd e3 09		            CALL    DELAY         ; 
-0851 cd f0 09		            CALL    SOUND_PLAY 
-0854			 
-0854 af			            XOR     A 
-0855			 
-0855			;            RST     20H                 ;Get Keyboard Input 
-0855			;            CP      0FFH 
-0855			;            JR      NZ,JUMP3            ;If no key hit then set A=0 
-0855			;            LD      A,00H 
-0855			;JUMP3: 
-0855			;            AND     03H                 ;Check for keys 1,2, or 3 (or 0) 
-0855			 
-0855 db 00		            IN      A,(00H)             ;Get Keyboard Input 
-0857 5f			            LD      E,A  
-0858 3e 72		            LD      A,72H 
-085a bb			            CP      E                   ;See if input is 72H? Don't know why yet 
-085b 20 02		            JR      NZ,JUMP3 
-085d 1e 00		            LD      E,00H               ;Blank Key 
-085f			JUMP3: 
-085f 7b			            LD      A,E 
-0860 e6 03		            AND     03H                 ;Check for keys 1,2,or 3 
-0862			KEYBOARD_COMP: 
-0862 fe 00		            CP      00H                 ;Set remotely 
-0864 28 09		            JR      Z,JUMP4 
-0866 cb 26		            SLA     (HL)                ;Move Segment to display left one 
-0868 3e 40		            LD      A,40H          
-086a be			            CP      (HL)                ;Is segment off the screen? 
-086b 28 09		            JR      Z,JUMP5 
-086d 18 d7		            JR      SEGMENT             ;Jump Back to Segment display 
-086f			JUMP4: 
-086f 4f			            LD      C,A                 ;Alien Hit saved in C 
-0870 14			            INC     D                   ;Score? 
-0871 cd 03 09		            CALL    ALIEN_HIT 
-0874 18 05		            JR      JUMP6 
-0876			JUMP5: 
-0876 0e 00		            LD      C,00H               ;Reset Last alien hit 
-0878 cd 6e 09		            CALL    ALIEN_MISS 
-087b			JUMP6: 
-087b 3e 01		            LD      A,01H               ;Segment Back to 01 
-087d 77			            LD      (HL),A 
-087e 10 a4		            DJNZ    LOOP1               ;Get Next Alien in current round 
-0880			             
-0880 21 07 08		            LD      HL,SPEED+1          ;Sound Speed 
-0883 3e 0b		            LD      A,0BH 
-0885 ba			            CP      D                   ;Is Score over 11? 
-0886 38 1e		            JR      C,JUMP8 
-0888 7e			            LD      A,(HL) 
-0889 fe f0		            CP      0F0H                ;Is speed 0XF0 
-088b 28 03		            JR      Z,JUMP7             ;Goto Update Message 
-088d c6 10		            ADD     A,10H 
-088f 77			            LD      (HL),A              ;Add 10 to speed 
-0890			JUMP7: 
-0890 21 fc 08		            LD      HL,SOUND2			;Update Message Reference 
-0893 22 00 08		            LD      (START),HL 
-0896 e5			            PUSH    HL 
-0897 cd b0 01		            CALL    PLAY_SOUND          ;Play Tone 
-089a e1			            POP     HL 
-089b 21 ec 08		            LD      HL,MESSAGE2			;Update Message Reference 
-089e 22 00 08		            LD      (START),HL 
-08a1 cd 70 02		            CALL    DISPLAY_MSG         ;Display Message 
-08a4 18 1c		            JR      JUMP10 
-08a6			JUMP8: 
-08a6 7e			            LD      A,(HL)              ;Get current speed 
-08a7 fe 10		            CP      10H 
-08a9 28 03		            JR      Z,JUMP9 
-08ab d6 10		            SUB     10H 
-08ad 77			            LD      (HL),A              ;Decrease Speed unless at 10 
-08ae			JUMP9: 
-08ae 21 e2 08		            LD      HL,SOUND1			;Update Message Reference 
-08b1 22 00 08		            LD      (START),HL 
-08b4 e5			            PUSH    HL 
-08b5 cd b0 01		            CALL    PLAY_SOUND 
-08b8 e1			            POP     HL 
-08b9 21 ce 08		            LD      HL,MESSAGE1 
-08bc 22 00 08		            LD      (START),HL 
-08bf cd 70 02		            CALL    DISPLAY_MSG         ;Display Message 
-08c2			JUMP10: 
-08c2 3e 3f		            LD      A,3FH               ;All Segments on 
-08c4 d3 01		            OUT     (01),A 
-08c6 3e 8a		            LD      A,8AH 
-08c8 d3 02		            OUT     (02),A 
-08ca 76			            HALT 
-08cb c3 02 08		            JP      START+2 
-08ce			 
-08ce			MESSAGES: 
-08ce 00 01 0c 09 05 0d 12 00	MESSAGE1:   DB      00H,01H,0CH,09H,05H,0DH,12H,00H 
-08d6 04 05 12 13 11 0e 16 05	            DB      04H,05H,12H,13H,11H,0EH,16H,05H 
-08de 04 1a 00 1f	            DB      04H,1AH,00H,1FH 
-08e2 04 00 04 00 04 00 01 01	SOUND1:     DB      04H,00H,04H,00H,04H,00H,01H,01H 
-08ea 01 1f		            DB      01H,1FH 
-08ec 00 05 0d 04 00 0e 06 00	MESSAGE2:   DB      00H,05H,0DH,04H,00H,0EH,06H,00H 
-08f4 05 01 11 13 08 1a 00 1f	            DB      05H,01H,11H,13H,08H,1AH,00H,1FH 
-08fc 01 1a 01 1a 01 1a 1f	SOUND2:     DB      01H,1AH,01H,1AH,01H,1AH,1FH 
-0903			 
-0903			ALIEN_HIT: ;0B00 
-0903 f5			            PUSH    AF 
-0904 c5			            PUSH    BC 
-0905 d5			            PUSH    DE 
+0806 36 80		            LD      (HL),80H            ;Overwrite Sound Delay speed 
+0808 23			            INC     HL 
+0809 af			            XOR     A 
+080a 4f			            LD      C,A 
+080b 77			            LD      (HL),A 
+080c 21 ea 09		            LD      HL,SOUND_PLAY+3		;Aliens Attach Sound Play Ref 
+080f 36 20		            LD      (HL),20H            ;Overwrite Sound Speed 
+0811 23			            INC     HL 
+0812 af			            XOR     A 
+0813 77			            LD      (HL),A 
+0814			 
+0814 21 44 08		            LD      HL,SEGMENT+1        ;Seven Segment Reference 
+0817 36 01		            LD      (HL),01H            ;First Segment 
+0819			             
+0819 06 10		            LD      B,10H               ;Number of Aliens Per round 
+081b 16 00		            LD      D,00H               ;init Score 
+081d fd 21 60 08	            LD      IY,KEYBOARD_COMP+1  ;Keyboard Compare Ref 
+0821			LOOP1:      ;Create Random Alien 
+0821 cd 9e 09		            CALL    GEN_ALIEN           ;Generate Random Alien 
+0824			 
+0824 3a 60 08		            LD      A,(KEYBOARD_COMP+1) ;Keyboard Ref (Current Alien) 
+0827 b9			            CP      C                   ;Compare with Last Alien Hit, if the same get new one 
+0828 28 f7		            JR      Z,LOOP1             ;keep rotating until first value != last alien hit 
+082a			 
+082a			            ;Select which character to display 
+082a 21 44 08		            LD      HL,SEGMENT+1        ;Seven Segment Reference 
+082d 00			            NOP 
+082e fe 01		            CP      01H                 ;Is Alien #01 
+0830 28 08		            JR      Z,JUMP1 
+0832 fe 02		            CP      02H                 ;Is Alien #02 
+0834 28 08		            JR      Z,JUMP2 
+0836 3e 61		            LD      A,61H               ;Third Alien Symbol 
+0838 18 06		            JR      CONT1 
+083a			JUMP1: 
+083a 3e 0f		            LD      A,0FH               ;First Alien Symbol 
+083c 18 02		            JR      CONT1 
+083e			JUMP2: 
+083e 3e 26		            LD      A,26H               ;Second Alien Symbol 
+0840			CONT1: 
+0840 32 48 08		            LD      (SYMBOL+1),A        ;Show Alien Character in Display 
+0843			            ;Output Alien to Segment and Display 
+0843			SEGMENT: 
+0843 3e 00		            LD      A,00H               ;Set remotely 
+0845 d3 01		            OUT     (01),A              ;Segment # 
+0847			SYMBOL: 
+0847 3e 00		            LD      A,00H               ;Set remotely 
+0849 d3 02		            OUT     (02),A              ;Segment Display 
+084b cd da 09		            CALL    DELAY         ; 
+084e cd e7 09		            CALL    SOUND_PLAY 
+0851			 
+0851 af			            XOR     A 
+0852			 
+0852			;            RST     20H                 ;Get Keyboard Input 
+0852			;            CP      0FFH 
+0852			;            JR      NZ,JUMP3            ;If no key hit then set A=0 
+0852			;            LD      A,00H 
+0852			;JUMP3: 
+0852			;            AND     03H                 ;Check for keys 1,2, or 3 (or 0) 
+0852			 
+0852 db 00		            IN      A,(00H)             ;Get Keyboard Input 
+0854 5f			            LD      E,A  
+0855 3e 72		            LD      A,72H 
+0857 bb			            CP      E                   ;See if input is 72H? Don't know why yet 
+0858 20 02		            JR      NZ,JUMP3 
+085a 1e 00		            LD      E,00H               ;Blank Key 
+085c			JUMP3: 
+085c 7b			            LD      A,E 
+085d e6 03		            AND     03H                 ;Check for keys 1,2,or 3 
+085f			KEYBOARD_COMP: 
+085f fe 00		            CP      00H                 ;Set remotely 
+0861 28 09		            JR      Z,JUMP4 
+0863 cb 26		            SLA     (HL)                ;Move Segment to display left one 
+0865 3e 40		            LD      A,40H          
+0867 be			            CP      (HL)                ;Is segment off the screen? 
+0868 28 09		            JR      Z,JUMP5 
+086a 18 d7		            JR      SEGMENT             ;Jump Back to Segment display 
+086c			JUMP4: 
+086c 4f			            LD      C,A                 ;Alien Hit saved in C 
+086d 14			            INC     D                   ;Score? 
+086e cd ff 08		            CALL    ALIEN_HIT 
+0871 18 05		            JR      JUMP6 
+0873			JUMP5: 
+0873 0e 00		            LD      C,00H               ;Reset Last alien hit 
+0875 cd 67 09		            CALL    ALIEN_MISS 
+0878			JUMP6: 
+0878 36 01		            LD      (HL),01H 
+087a 10 a5		            DJNZ    LOOP1               ;Get Next Alien in current round 
+087c			             
+087c 21 07 08		            LD      HL,SPEED+1          ;Sound Speed 
+087f 3e 0b		            LD      A,0BH 
+0881 ba			            CP      D                   ;Is Score over 11 then WIN!? 
+0882 38 1e		            JR      C,JUMP8 
+0884 7e			            LD      A,(HL) 
+0885 fe f0		            CP      0F0H                ;Is speed 0XF0 
+0887 28 03		            JR      Z,JUMP7             ;Goto Update Message 
+0889 c6 10		            ADD     A,10H 
+088b 77			            LD      (HL),A              ;Add 10 to Score 
+088c			JUMP7: 
+088c 21 f8 08		            LD      HL,SOUND2			;Update Message Reference 
+088f 22 00 08		            LD      (START),HL 
+0892 e5			            PUSH    HL 
+0893 cd b0 01		            CALL    PLAY_SOUND          ;Play Tone 
+0896 e1			            POP     HL 
+0897 21 e8 08		            LD      HL,MESSAGE2			;Update Message Reference 
+089a 22 00 08		            LD      (START),HL 
+089d cd 70 02		            CALL    DISPLAY_MSG         ;Display Message 
+08a0 18 1c		            JR      JUMP10 
+08a2			JUMP8: 
+08a2 7e			            LD      A,(HL)              ;Get current score 
+08a3 fe 10		            CP      10H 
+08a5 28 03		            JR      Z,JUMP9 
+08a7 d6 10		            SUB     10H 
+08a9 77			            LD      (HL),A              ;Decrease Score unless at 10 
+08aa			JUMP9: 
+08aa 21 de 08		            LD      HL,SOUND1			;Update Message Reference 
+08ad 22 00 08		            LD      (START),HL 
+08b0 e5			            PUSH    HL 
+08b1 cd b0 01		            CALL    PLAY_SOUND 
+08b4 e1			            POP     HL 
+08b5 21 ca 08		            LD      HL,MESSAGE1 
+08b8 22 00 08		            LD      (START),HL 
+08bb cd 70 02		            CALL    DISPLAY_MSG         ;Display Message 
+08be			JUMP10: 
+08be 3e 3f		            LD      A,3FH               ;All Segments on 
+08c0 d3 01		            OUT     (01),A 
+08c2 3e 8a		            LD      A,8AH 
+08c4 d3 02		            OUT     (02),A 
+08c6 76			            HALT 
+08c7 c3 02 08		            JP      START+2 
+08ca			 
+08ca			MESSAGES: 
+08ca 00 01 0c 09 05 0d 12 00	MESSAGE1:   DB      00H,01H,0CH,09H,05H,0DH,12H,00H 
+08d2 04 05 12 13 11 0e 16 05	            DB      04H,05H,12H,13H,11H,0EH,16H,05H 
+08da 04 1a 00 1f	            DB      04H,1AH,00H,1FH 
+08de 04 00 04 00 04 00 01 01	SOUND1:     DB      04H,00H,04H,00H,04H,00H,01H,01H 
+08e6 01 1f		            DB      01H,1FH 
+08e8 00 05 0d 04 00 0e 06 00	MESSAGE2:   DB      00H,05H,0DH,04H,00H,0EH,06H,00H 
+08f0 05 01 11 13 08 1a 00 1f	            DB      05H,01H,11H,13H,08H,1AH,00H,1FH 
+08f8 01 1a 01 1a 01 1a 1f	SOUND2:     DB      01H,1AH,01H,1AH,01H,1AH,1FH 
+08ff			 
+08ff			ALIEN_HIT: ;0B00 
+08ff f5			            PUSH    AF 
+0900 c5			            PUSH    BC 
+0901 d5			            PUSH    DE 
+0902 e5			            PUSH    HL 
+0903 2a dd 09		            LD      HL,(DELAY+3) 
 0906 e5			            PUSH    HL 
-0907 2a e6 09		            LD      HL,(DELAY+3) 
+0907 2a ea 09		            LD      HL,(SOUND_PLAY+3) 
 090a e5			            PUSH    HL 
-090b 2a f3 09		            LD      HL,(SOUND_PLAY+3) 
-090e e5			            PUSH    HL 
-090f 21 f4 09		            LD      HL,SOUND_PLAY+4 
-0912 af			            XOR     A 
-0913 77			            LD      (HL),A 
-0914 2b			            DEC     HL 
-0915 3e 20		            LD      A,20H 
+090b 21 eb 09		            LD      HL,SOUND_PLAY+4 
+090e af			            XOR     A 
+090f 77			            LD      (HL),A 
+0910 2b			            DEC     HL 
+0911 36 20		            LD      (HL),20H 
+0913 21 de 09		            LD      HL,DELAY+4 
+0916 af			            XOR     A 
 0917 77			            LD      (HL),A 
-0918 21 e7 09		            LD      HL,DELAY+4 
-091b af			            XOR     A 
-091c 77			            LD      (HL),A 
-091d 2b			            DEC     HL 
-091e 3e 24		            LD      A,24H 
-0920 77			            LD      (HL),A 
-0921 21 35 09		            LD      HL,AH2+1 
-0924 3e 01		            LD      A,01H 
-0926 d9			            EXX 
-0927 11 e7 09		            LD      DE,DELAY+4 
-092a 0e 00		            LD      C,00H 
-092c			AH0: 
-092c 21 68 09		            LD      HL,AH_TABLE 
-092f 06 06		            LD      B,06H 
-0931			AH1: 
-0931 3e 01		            LD      A,01H 
-0933 12			            LD      (DE),A 
-0934			AH2: 
-0934 3e 01		            LD      A,01H 
-0936 d3 01		            OUT     (01),A 
-0938 7e			            LD      A,(HL) 
-0939 d3 02		            OUT     (02),A 
-093b cd e3 09		            CALL    DELAY 
-093e af			            XOR     A 
-093f 12			            LD      (DE),A 
-0940 cd f0 09		            CALL    SOUND_PLAY 
-0943 23			            INC     HL 
-0944 1b			            DEC     DE 
-0945 eb			            EX      DE,HL 
-0946 35			            DEC     (HL) 
-0947 eb			            EX      DE,HL 
-0948 13			            INC     DE 
-0949 10 e6		            DJNZ    AH1 
-094b d9			            EXX 
-094c cb 26		            SLA     (HL) 
-094e d9			            EXX 
-094f 0c			            INC     C 
-0950 3e 06		            LD      A,06H 
-0952 b9			            CP      C 
-0953 28 02		            JR      Z,AH3 
-0955 18 d5		            JR      AH0 
-0957			AH3: 
-0957 d9			            EXX 
-0958 3e 01		            LD      A,01H 
-095a 77			            LD      (HL),A 
-095b e1			            POP     HL 
-095c 22 f3 09		            LD      (SOUND_PLAY+3),HL 
-095f e1			            POP     HL 
-0960 22 e6 09		            LD      (DELAY+3),HL 
-0963 e1			            POP     HL 
-0964 d1			            POP     DE 
-0965 c1			            POP     BC 
-0966 f1			            POP     AF 
-0967 c9			            RET 
-0968			AH_TABLE: 
-0968 01 09 29 a9 e9 eb	            DB      01H,09H,29H,0A9H,0E9H,0EBH 
-096e			 
-096e			ALIEN_MISS: ;0A00 
-096e f5			            PUSH    AF 
-096f c5			            PUSH    BC 
-0970 e5			            PUSH    HL 
-0971 2a e6 09		            LD      HL,(DELAY+3) 
-0974 e5			            PUSH    HL 
-0975 2a f3 09		            LD      HL,(SOUND_PLAY+3) 
-0978 e5			            PUSH    HL 
-0979 06 09		            LD      B,09H 
-097b 21 f3 09		            LD      HL,SOUND_PLAY+3 
-097e 3e 05		            LD      A,05H 
-0980 77			            LD      (HL),A 
+0918 2b			            DEC     HL 
+0919 36 24		            LD      (HL),24H 
+091b 21 2f 09		            LD      HL,AH2+1 
+091e 3e 01		            LD      A,01H 
+0920 d9			            EXX 
+0921 11 de 09		            LD      DE,DELAY+4 
+0924 0e 00		            LD      C,00H 
+0926			AH0: 
+0926 21 61 09		            LD      HL,AH_TABLE 
+0929 06 06		            LD      B,06H 
+092b			AH1: 
+092b 3e 01		            LD      A,01H 
+092d 12			            LD      (DE),A 
+092e			AH2: 
+092e 3e 01		            LD      A,01H 
+0930 d3 01		            OUT     (01),A 
+0932 7e			            LD      A,(HL) 
+0933 d3 02		            OUT     (02),A 
+0935 cd da 09		            CALL    DELAY 
+0938 af			            XOR     A 
+0939 12			            LD      (DE),A 
+093a cd e7 09		            CALL    SOUND_PLAY 
+093d 23			            INC     HL 
+093e 1b			            DEC     DE 
+093f eb			            EX      DE,HL 
+0940 35			            DEC     (HL) 
+0941 eb			            EX      DE,HL 
+0942 13			            INC     DE 
+0943 10 e6		            DJNZ    AH1 
+0945 d9			            EXX 
+0946 cb 26		            SLA     (HL) 
+0948 d9			            EXX 
+0949 0c			            INC     C 
+094a 3e 06		            LD      A,06H 
+094c b9			            CP      C 
+094d 28 02		            JR      Z,AH3 
+094f 18 d5		            JR      AH0 
+0951			AH3: 
+0951 d9			            EXX 
+0952 36 01		            LD      (HL),01H 
+0954 e1			            POP     HL 
+0955 22 ea 09		            LD      (SOUND_PLAY+3),HL 
+0958 e1			            POP     HL 
+0959 22 dd 09		            LD      (DELAY+3),HL 
+095c e1			            POP     HL 
+095d d1			            POP     DE 
+095e c1			            POP     BC 
+095f f1			            POP     AF 
+0960 c9			            RET 
+0961			AH_TABLE: 
+0961 01 09 29 a9 e9 eb	            DB      01H,09H,29H,0A9H,0E9H,0EBH 
+0967			 
+0967			ALIEN_MISS: ;0A00 
+0967 f5			            PUSH    AF 
+0968 c5			            PUSH    BC 
+0969 e5			            PUSH    HL 
+096a 2a dd 09		            LD      HL,(DELAY+3) 
+096d e5			            PUSH    HL 
+096e 2a ea 09		            LD      HL,(SOUND_PLAY+3) 
+0971 e5			            PUSH    HL 
+0972 06 09		            LD      B,09H 
+0974 21 ea 09		            LD      HL,SOUND_PLAY+3 
+0977 36 05		            LD      (HL),05H 
+0979 23			            INC     HL 
+097a af			            XOR     A 
+097b 77			            LD      (HL),A 
+097c 21 dd 09		            LD      HL,DELAY+3 
+097f			AM1: 
+097f 36 1f		            LD      (HL),1FH 
 0981 23			            INC     HL 
 0982 af			            XOR     A 
 0983 77			            LD      (HL),A 
-0984 21 e6 09		            LD      HL,DELAY+3 
-0987			AM1: 
-0987 3e 1f		            LD      A,1FH 
-0989 77			            LD      (HL),A 
-098a 23			            INC     HL 
-098b af			            XOR     A 
-098c 77			            LD      (HL),A 
-098d 2b			            DEC     HL 
-098e			AM2:             
-098e cd f0 09		            CALL    SOUND_PLAY 
-0991 35			            DEC     (HL) 
-0992 3e 01		            LD      A,01H 
-0994 be			            CP      (HL) 
-0995 28 02		            JR      Z,AM3 
-0997 18 f5		            JR      AM2    
-0999			AM3: 
-0999 10 ec		            DJNZ    AM1 
-099b e1			            POP     HL 
-099c 22 f3 09		            LD      (SOUND_PLAY+3),HL 
-099f e1			            POP     HL 
-09a0 22 e6 09		            LD      (DELAY+3),HL 
-09a3 e1			            POP     HL 
-09a4 c1			            POP     BC 
-09a5 f1			            POP     AF 
-09a6 c9			            RET 
-09a7			 
-09a7			DISPLAY_MSG: EQU 0270H ;Need to get from MON1 
-09a7			;            CALL 0270H 
-09a7			;            RET 
-09a7			PLAY_SOUND: EQU 01B0H  ;Need to get from MON1 
-09a7			;            CALL 01B0H 
-09a7			;            RET 
-09a7			 
-09a7			 
-09a7			;Generate Random Alien by Rotating 3 lots of aliens and picking either first or last 
-09a7			;Place selected Alien in Keyboard Compare location 
-09a7			GEN_ALIEN: 
-09a7 e5			            PUSH    HL 
-09a8 c5			            PUSH    BC 
-09a9 21 ad 09		            LD      HL,GA1+1 
-09ac			GA1: 
-09ac 06 01		            LD      B,01H      ;Value changes in code via HL 
-09ae			GA2: 
-09ae ed 5f		            LD      A,R        ;Random number 
-09b0 10 fc		            DJNZ    GA2        ;Loop for more randomness 
-09b2 e6 08		            AND     08H        ;Take 4th bit 
-09b4 e5			            PUSH    HL 
-09b5 21 da 09		            LD      HL,CHAR_TABLE 
-09b8 85			            ADD     A,L        ;Index table 
-09b9 6f			            LD      L,A 
-09ba 5e			            LD      E,(HL)     ;Store char in E 
-09bb 21 da 09		            LD      HL,CHAR_TABLE 
-09be 06 08		            LD      B,08H 
-09c0 4e			            LD      C,(HL)     ;First Alien 
-09c1			GA3:             
-09c1 23			            INC     HL         ;Rotate Table to the left 
-09c2 7e			            LD      A,(HL) 
-09c3 2b			            DEC     HL 
-09c4 77			            LD      (HL),A 
-09c5 23			            INC     HL 
-09c6 10 f9		            DJNZ    GA3 
-09c8 71			            LD      (HL),C     ;Load first Alien in last spot 
-09c9 e1			            POP     HL 
-09ca 34			            INC     (HL) 
-09cb 3e 20		            LD      A,20H      ;If done 20H times 
-09cd be			            CP      (HL) 
-09ce 28 06		            JR      Z,GA5 
-09d0			GA4: 
-09d0 fd 73 00		            LD      (IY+00H),E ;Store next Char in Keyboard Compare 
-09d3 c1			            POP     BC 
-09d4 e1			            POP     HL 
-09d5 c9			            RET 
-09d6			GA5: 
-09d6 36 01		            LD      (HL),01H   ;Store 01 in HL 
-09d8 18 f6		            JR      GA4 
-09da			CHAR_TABLE: 
-09da 01 02 03 01 02 03 01 02 03	            DB      01H,02H,03H,01H,02H,03H,01H,02H,03H 
-09e3			 
-09e3			;Aliens Attack Sound Effect and delay 
-09e3			DELAY:      ;General Delay 
-09e3 f5			            PUSH    AF 
-09e4 d5			            PUSH    DE 
-09e5 11 20 00					LD      DE,0020H 
-09e8			SD1: 
-09e8 1b						DEC     DE 
-09e9 7a						LD      A,D 
-09ea b3						OR      E 
-09eb 20 fb					JR      NZ,SD1 
-09ed d1						POP     DE 
-09ee f1						POP     AF 
-09ef c9						RET 
-09f0			 
-09f0			SOUND_PLAY:  ;SOUND Play 
-09f0 f5						PUSH    AF 
-09f1 c5						PUSH    BC 
-09f2 01 aa 00					LD      BC,00AAH 
-09f5			SP1: 
-09f5 3e 80					LD      A,80H 
-09f7 d3 01					OUT     (01),A 
-09f9 af						XOR     A 
-09fa d3 01					OUT     (01),A 
-09fc cd e3 09					CALL    DELAY 
-09ff 0b						DEC     BC 
-0a00 78						LD      A,B 
-0a01 b1						OR      C 
-0a02 20 f1					JR      NZ,SP1 
-0a04 c1						POP     BC 
-0a05 f1						POP     AF 
-0a06 c9						RET 
-0a07			 
-0a07			EXTRA:      ;Doesn't get called I think 
-0a07 ed 5f		            LD      A,R 
-0a09 cd b5 03		            CALL    03B5H 
-0a0c e6 03		            AND     03H 
-0a0e 5f			            LD      E,A 
-0a0f af			            XOR     A 
-0a10 bb			            CP      E 
-0a11 28 f4		            JR      Z,EXTRA 
-0a13 7b			            LD      A,E 
-0a14 b9			            CP      C 
-0a15 28 f0		            JR      Z,EXTRA 
-0a17 c9			            RET 
-0a18			 
+0984 2b			            DEC     HL 
+0985			AM2:             
+0985 cd e7 09		            CALL    SOUND_PLAY 
+0988 35			            DEC     (HL) 
+0989 3e 01		            LD      A,01H 
+098b be			            CP      (HL) 
+098c 28 02		            JR      Z,AM3 
+098e 18 f5		            JR      AM2    
+0990			AM3: 
+0990 10 ed		            DJNZ    AM1 
+0992 e1			            POP     HL 
+0993 22 ea 09		            LD      (SOUND_PLAY+3),HL 
+0996 e1			            POP     HL 
+0997 22 dd 09		            LD      (DELAY+3),HL 
+099a e1			            POP     HL 
+099b c1			            POP     BC 
+099c f1			            POP     AF 
+099d c9			            RET 
+099e			 
+099e			DISPLAY_MSG: EQU 0270H ;Need to get from MON1 
+099e			;            CALL 0270H 
+099e			;            RET 
+099e			PLAY_SOUND: EQU 01B0H  ;Need to get from MON1 
+099e			;            CALL 01B0H 
+099e			;            RET 
+099e			 
+099e			 
+099e			;Generate Random Alien by Rotating 3 lots of aliens and picking either first or last 
+099e			;Place selected Alien in Keyboard Compare location 
+099e			GEN_ALIEN: 
+099e e5			            PUSH    HL 
+099f c5			            PUSH    BC 
+09a0 21 a4 09		            LD      HL,GA1+1 
+09a3			GA1: 
+09a3 06 01		            LD      B,01H      ;Value changes in code via HL 
+09a5			GA2: 
+09a5 ed 5f		            LD      A,R        ;Random number 
+09a7 10 fc		            DJNZ    GA2        ;Loop for more randomness 
+09a9 e6 08		            AND     08H        ;Take 4th bit 
+09ab e5			            PUSH    HL 
+09ac 21 d1 09		            LD      HL,CHAR_TABLE 
+09af 85			            ADD     A,L        ;Index table 
+09b0 6f			            LD      L,A 
+09b1 5e			            LD      E,(HL)     ;Store char in E 
+09b2 21 d1 09		            LD      HL,CHAR_TABLE 
+09b5 06 08		            LD      B,08H 
+09b7 4e			            LD      C,(HL)     ;First Alien 
+09b8			GA3:             
+09b8 23			            INC     HL         ;Rotate Table to the left 
+09b9 7e			            LD      A,(HL) 
+09ba 2b			            DEC     HL 
+09bb 77			            LD      (HL),A 
+09bc 23			            INC     HL 
+09bd 10 f9		            DJNZ    GA3 
+09bf 71			            LD      (HL),C     ;Load first Alien in last spot 
+09c0 e1			            POP     HL 
+09c1 34			            INC     (HL) 
+09c2 3e 20		            LD      A,20H      ;If done 20H times 
+09c4 be			            CP      (HL) 
+09c5 28 06		            JR      Z,GA5 
+09c7			GA4: 
+09c7 fd 73 00		            LD      (IY+00H),E ;Store next Char in Keyboard Compare 
+09ca c1			            POP     BC 
+09cb e1			            POP     HL 
+09cc c9			            RET 
+09cd			GA5: 
+09cd 36 01		            LD      (HL),01H   ;Store 01 in HL 
+09cf 18 f6		            JR      GA4 
+09d1			CHAR_TABLE: 
+09d1 01 02 03 01 02 03 01 02 03	            DB      01H,02H,03H,01H,02H,03H,01H,02H,03H 
+09da			 
+09da			;Aliens Attack Sound Effect and delay 
+09da			DELAY:      ;General Delay 
+09da f5			            PUSH    AF 
+09db d5			            PUSH    DE 
+09dc 11 20 00					LD      DE,0020H 
+09df			SD1: 
+09df 1b						DEC     DE 
+09e0 7a						LD      A,D 
+09e1 b3						OR      E 
+09e2 20 fb					JR      NZ,SD1 
+09e4 d1						POP     DE 
+09e5 f1						POP     AF 
+09e6 c9						RET 
+09e7			 
+09e7			SOUND_PLAY:  ;SOUND Play 
+09e7 f5						PUSH    AF 
+09e8 c5						PUSH    BC 
+09e9 01 aa 00					LD      BC,00AAH 
+09ec			SP1: 
+09ec 3e 80					LD      A,80H 
+09ee d3 01					OUT     (01),A 
+09f0 af						XOR     A 
+09f1 d3 01					OUT     (01),A 
+09f3 cd da 09					CALL    DELAY 
+09f6 0b						DEC     BC 
+09f7 78						LD      A,B 
+09f8 b1						OR      C 
+09f9 20 f1					JR      NZ,SP1 
+09fb c1						POP     BC 
+09fc f1						POP     AF 
+09fd c9						RET 
+09fe			 
+09fe			 
 # End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/games/Spiroid_aliens.z80
-0a18
+09fe
