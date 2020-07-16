@@ -290,18 +290,18 @@ DSPTBL:     DB      00H,0E7H,00H,00H,00H,00H,0E7H,00H    ;Blinkers
             DB      0C0H,0C0H,0CH,0CH,30H,30H,03H,03H    ;Beacon
             DB      00H,04H,04H,06H,00H,73H,15H,06H      ;Pulsar
             DB      20H,0A0H,60H,00H,00H,00H,00H,00H     ;Glider
-            DB      00H,00H,78H,88H,08H,90H,00H,00H      ;Light Spaceship
-            DB      00H,00H,7CH,84H,04H,88H,20H,00H      ;Mid Spaceship
-            DB      00H,00H,7EH,82H,02H,84H,30H,00H      ;Large Spaceship
-            DB      40H,0A0H,44H,0AH,09H,46H,0A0H,60H    ;Still Life
+            DB      08H,2AH,08H,6BH,08H,14H,08H,00H      ;Why Not
+            DB      10H,28H,58H,0A6H,65H,1AH,14H,08H     ;Boat
+            DB      0C0H,80H,50H,00H,14H,00H,05H,03H     ;Barbers Pole
+            DB      00H,08H,18H,00H,72H,15H,09H,06H      ;Drummer
             DB      00H,00H,00H,30H,18H,10H,00H,00H      ;R-pentomino
-            DB      00H,00H,2AH,2CH,30H,02H,2EH,00H      ;Infinite
+            DB      00H,00H,77H,08H,63H,08H,77H,00H      ;Carnival
             DB      00H,08H,18H,38H,18H,08H,00H,00H      ;Arrow
             DB      00H,00H,00H,1CH,14H,1CH,00H,00H      ;Square
             DB      00H,0A0H,20H,0A0H,00H,00H,00H,00H    ;Face to Pulsar
-            DB      00H,0C0H,0C0H,0FFH,0FFH,0C0H,0C0H,00H;T
-            DB      00H,00H,0FFH,0FFH,0DBH,0DBH,00H,00H  ;E
-            DB      00H,00H,1CH,3EH,63H,41H,41H,00H      ;C 
+            DB      03H,19H,36H,30H,30H,36H,19H,03H      ;Fumarole
+            DB      08H,28H,02H,0C0H,03H,40H,14H,10H     ;Phoenix 
             DB      00H,62H,95H,89H,0A1H,81H,42H,3CH     ;Pacman
+            DB      18H,24H,42H,81H,81H,42H,24H,18H      ;Octagon
             DB      38H,44H,82H,41H,41H,82H,44H,38H      ;Heart
 

@@ -291,19 +291,19 @@
 0a21 c0 c0 0c 0c 30 30 03 03	            DB      0C0H,0C0H,0CH,0CH,30H,30H,03H,03H    ;Beacon 
 0a29 00 04 04 06 00 73 15 06	            DB      00H,04H,04H,06H,00H,73H,15H,06H      ;Pulsar 
 0a31 20 a0 60 00 00 00 00 00	            DB      20H,0A0H,60H,00H,00H,00H,00H,00H     ;Glider 
-0a39 00 00 78 88 08 90 00 00	            DB      00H,00H,78H,88H,08H,90H,00H,00H      ;Light Spaceship 
-0a41 00 00 7c 84 04 88 20 00	            DB      00H,00H,7CH,84H,04H,88H,20H,00H      ;Mid Spaceship 
-0a49 00 00 7e 82 02 84 30 00	            DB      00H,00H,7EH,82H,02H,84H,30H,00H      ;Large Spaceship 
-0a51 40 a0 44 0a 09 46 a0 60	            DB      40H,0A0H,44H,0AH,09H,46H,0A0H,60H    ;Still Life 
+0a39 08 2a 08 6b 08 14 08 00	            DB      08H,2AH,08H,6BH,08H,14H,08H,00H      ;Why Not 
+0a41 10 28 58 a6 65 1a 14 08	            DB      10H,28H,58H,0A6H,65H,1AH,14H,08H     ;Boat 
+0a49 c0 80 50 00 14 00 05 03	            DB      0C0H,80H,50H,00H,14H,00H,05H,03H     ;Barbers Pole 
+0a51 00 08 18 00 72 15 09 06	            DB      00H,08H,18H,00H,72H,15H,09H,06H      ;Drummer 
 0a59 00 00 00 30 18 10 00 00	            DB      00H,00H,00H,30H,18H,10H,00H,00H      ;R-pentomino 
-0a61 00 00 2a 2c 30 02 2e 00	            DB      00H,00H,2AH,2CH,30H,02H,2EH,00H      ;Infinite 
+0a61 00 00 77 08 63 08 77 00	            DB      00H,00H,77H,08H,63H,08H,77H,00H      ;Carnival 
 0a69 00 08 18 38 18 08 00 00	            DB      00H,08H,18H,38H,18H,08H,00H,00H      ;Arrow 
 0a71 00 00 00 1c 14 1c 00 00	            DB      00H,00H,00H,1CH,14H,1CH,00H,00H      ;Square 
 0a79 00 a0 20 a0 00 00 00 00	            DB      00H,0A0H,20H,0A0H,00H,00H,00H,00H    ;Face to Pulsar 
-0a81 00 c0 c0 ff ff c0 c0 00	            DB      00H,0C0H,0C0H,0FFH,0FFH,0C0H,0C0H,00H;T 
-0a89 00 00 ff ff db db 00 00	            DB      00H,00H,0FFH,0FFH,0DBH,0DBH,00H,00H  ;E 
-0a91 00 00 1c 3e 63 41 41 00	            DB      00H,00H,1CH,3EH,63H,41H,41H,00H      ;C  
-0a99 00 62 95 89 a1 81 42 3c	            DB      00H,62H,95H,89H,0A1H,81H,42H,3CH     ;Pacman 
+0a81 03 19 36 30 30 36 19 03	            DB      03H,19H,36H,30H,30H,36H,19H,03H      ;Fumarole 
+0a89 08 28 02 c0 03 40 14 10	            DB      08H,28H,02H,0C0H,03H,40H,14H,10H     ;Phoenix  
+0a91 00 62 95 89 a1 81 42 3c	            DB      00H,62H,95H,89H,0A1H,81H,42H,3CH     ;Pacman 
+0a99 18 24 42 81 81 42 24 18	            DB      18H,24H,42H,81H,81H,42H,24H,18H      ;Octagon 
 0aa1 38 44 82 41 41 82 44 38	            DB      38H,44H,82H,41H,41H,82H,44H,38H      ;Heart 
 0aa9			 
 # End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/games/Game_of_life.z80
