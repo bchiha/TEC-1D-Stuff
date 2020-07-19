@@ -1,5 +1,5 @@
-// TEXT to SP0256a Allaphone converter by Brian Chiha
-//---------------------------------------------------
+// TEXT to SP0256a-AL2 Allophone converter by Brian Chiha
+//-------------------------------------------------------
 //
 // Designed to be used for the Talking Electroinc Computer Speech module add on
 //
@@ -7,13 +7,20 @@
 // to insert 0xFF (End of file for TEC running program).  Control-D to exit.
 // Note: Puctuation must be seperated with a space or don't use it at all.
 //
-// Output is given as Allophones and the SP0256a hex equivilant.  If a word
+// Output is given as Allophones and the SP0256a-AL2 hex equivilant.  If a word
 // can't be found '??' is outputed and a '.' represents a word gap.  A pause of 100ms is
 // automatically placed between words.
-// 
+//
+// To be used with the TEC Speech Module attached to Port 7.
+//
+// Options
+// -b 		Output Binary File which includes main program code
+// -w       Don't include main program in bianary file (used with -b)
+//
 // For binary output to directly load into the TEC. use -b as a command line option.
-// Binary files are created with the code to activate the Speech addon and when the 
-// data.  A new file is created after each Carriage Return.
+// Binary files are created with the code to activate the Speech Module and the speech 
+// data.  If you just want the allophones to be outputted use -w as well.  A new file is created
+// after each Carriage Return.  Binary file are to be loaded at address 0x900 on the TEC
 //
 // Files that are requried are:
 // text2allophone.c   - This Program
@@ -38,18 +45,36 @@ TXT> WW EH LL KK2 AX MM . TT2 UW2 . TT2 AO KK2 IH NG . IH LL EH KK2 TT2 RR1 AA
 040> 05 0B 0D 03 FF
 */
 
+/* For reference, here is the Test Program that is used to run the Speech Module taking in data
+   for the SP0256a-AL2 chip.  It is included in the binary output by default
+
+0900	21 10 09	LD HL,0910		;Location of allophone data
+0903	7E			LD A,(HL)		;Load A with the next allophone
+0904	FE FF 		CP 0xFF			;Compare A with 0xFF (EOF for data)
+0906	28 05       JR Z,090D       ;IF EOF then jump to address 090D
+0908    D3 07		OUT (07),A      ;Output A to port 7 on the TEC
+090A	23			INC HL          ;Index to the next allophone
+090B	18 F6       JR 0903         ;Jump back to 0903 to say the next allophone
+090D    76          HALT            ;Wait for key input as EOF has reached
+090E    18 F0       JR 0900         ;Jump back to start
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define SYMBOL_LEN 4
 #define MAX_SYMBOLS 84
 #define MAX_TREE_HEIGHT 20
-#define MAX_KEY_LENGTH 30
+#define MAX_KEY_LENGTH 35
 #define MAX_INPUT_SIZE 5000
 #define WHITESPACE " "
 
 #define ODD(x) ((x)/2*2 != (x))
+
+int test_code_z80[16] = {0x21,0x10,0x09,0x7E,0xFE,0xFF,0x28,0x05,0xD3,0x07,0x23,0x18,0xF6,0x76,0x18,0xF0};
 
 FILE *dictptr=NULL;   //file pointer to dictionary
 
@@ -242,16 +267,36 @@ Symdat **LoadSymbolTable(char filename[]) {
     return sd;
 }
 
-int main() {
-    FILE *fp=NULL;
+// Main entry point.  Takes in options args -b and -w
+int main(int argc, char *argv[]) {
+    FILE *fp=NULL,*fout=NULL;
     Symdat **sd;
     char *token;
     Node_type *dictionary, *target;
     List_type *curr_symbol;
     char input_text[MAX_INPUT_SIZE];
+    char bin_file_name[14];
     unsigned int input_hex[MAX_INPUT_SIZE];
     int sd_index,hex_index=0;
+    int opt;
+    int f_binary_file=0;
+    int f_without_header=0;
+    int file_count=0;
 
+    //parse options if any
+	while((opt = getopt(argc, argv, ":bw")) != -1) 
+	{ 
+		switch(opt) 
+		{ 
+			case 'b':
+				f_binary_file = 1;
+				break;
+			case 'w':
+				f_without_header = 1; 
+				break;
+		} 
+	} 
+	
     //load data files
     sd = LoadSymbolTable("cmu2sp0.symbols");
     dictionary = BuildCMUTree();
@@ -262,6 +307,15 @@ int main() {
     printf("Type in a sentence to convert...(EOF for FF, PP for 200ms Pause, C-d to exit)\n\n> ");
     
     while(fgets(input_text,MAX_INPUT_SIZE,stdin)) {
+    	//open file if binary output selected
+    	if (f_binary_file) {
+    		sprintf(bin_file_name,"speech%03d.bin",file_count++);
+    		fout = fopen(bin_file_name,"wb");
+    		if (!f_without_header)
+    			for (int address = 0; address < 16; address++)
+				    fprintf(fout,"%c",test_code_z80[address]);
+    	} 
+
 	    /* remove new line character*/
 	    char *newline = strchr(input_text, '\n');
 	    *newline = 0;
@@ -298,8 +352,13 @@ int main() {
 			if ((i % 8) == 0)
 				printf("\n%03X> ",i);
 			printf("%02X ",input_hex[i]);
+			if (f_binary_file)
+				fprintf(fout,"%c",input_hex[i]);
 		}
+		//reset indexes and close file
 		hex_index=0;
+		if (fout)
+			fclose(fout);
 		printf("\n\n> ");
 	}
     return 0;
