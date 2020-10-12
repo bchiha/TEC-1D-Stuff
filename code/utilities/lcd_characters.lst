@@ -1,0 +1,54 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/utilities/lcd_characters.z80
+0000			; LCD program to Cycle through all CGROM characters 
+0000			; Press any key to cycle. 
+0000			 
+0000			            ORG    0A00H 
+0a00			 
+0a00			;Port 4 on TEC is connected to LCD Enable 
+0a00			;A7 is connected to  Register select.  A7=0 for Instruction, A7=1 for Data 
+0a00			LCD_IR:     EQU    00000100B 
+0a00			LCD_DR:     EQU    10000100B ;A7 is Data Register 
+0a00			LCDOFF:     EQU    0821H 
+0a00			LCDRST:     EQU    08FFH 
+0a00			 
+0a00			START: 
+0a00			            ; JMON config 
+0a00 3e ff		            LD     A,0FFH 
+0a02 32 21 08		            LD     (LCDOFF),A       ;Disables LCD update from JMON 
+0a05 3e aa		            LD     A,0AAH 
+0a07 32 ff 08		            LD     (LCDRST),A       ;Disables hard reset and sets PC to 0x0A00 
+0a0a			 
+0a0a			            ; Reset Screen 
+0a0a f7			            RST     30H  
+0a0b 3e 01		            LD      A,01H  
+0a0d d3 04		            OUT     (LCD_IR),A  
+0a0f			 
+0a0f 11 80 00		            LD      DE,0080H 		;Counter 00-FF, Cursor pos 80/C0 
+0a12 0e 84		            LD      C,LCD_DR        ;Out port 
+0a14			 
+0a14			LOOP1: 
+0a14 f7			            RST     30H 
+0a15 7b			            LD      A,E 
+0a16 d3 04		            OUT     (LCD_IR),A  
+0a18			 
+0a18 cd 26 0a		            CALL    DISP_ROW 
+0a1b			 
+0a1b 7b			            LD      A,E 
+0a1c ee 40		            XOR     40H             ;Flip Bit for second line / first line 
+0a1e 5f			            LD      E,A 
+0a1f fe 80		            CP      80H 
+0a21 20 f1		            JR      NZ,LOOP1 
+0a23			 
+0a23 cf			            RST     08H  
+0a24 18 ee		            JR      LOOP1  
+0a26			 
+0a26			DISP_ROW: 
+0a26 06 10		            LD      B,10H			;Characters per line  
+0a28			NXTCHA:                
+0a28 f7			            RST     30H 
+0a29 ed 51		            OUT     (C),D  
+0a2b 14			            INC     D 
+0a2c 10 fa		            DJNZ    NXTCHA  
+0a2e c9			            RET 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/utilities/lcd_characters.z80
+0a2f

@@ -1,0 +1,89 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/utilities/lcd_scroll1.z80
+0000			; LCD program to Cycle through all CGROM characters 
+0000			; Press any key to cycle. 
+0000			 
+0000			            ORG    0A00H 
+0a00			 
+0a00			;Port 4 on TEC is connected to LCD Enable 
+0a00			;A7 is connected to  Register select.  A7=0 for Instruction, A7=1 for Data 
+0a00			LCD_IR:     EQU    00000100B 
+0a00			LCD_DR:     EQU    10000100B ;A7 is Data Register 
+0a00			LCDOFF:     EQU    0821H 
+0a00			LCDRST:     EQU    08FFH 
+0a00			 
+0a00			START: 
+0a00			            ; JMON config 
+0a00 3e ff		            LD     A,0FFH 
+0a02 32 21 08		            LD     (LCDOFF),A       ;Disables LCD update from JMON 
+0a05 3e aa		            LD     A,0AAH 
+0a07 32 ff 08		            LD     (LCDRST),A       ;Disables hard reset and sets PC to 0x0A00 
+0a0a			 
+0a0a			            ; Reset Screen 
+0a0a f7			            RST     30H  
+0a0b 3e 01		            LD      A,01H  
+0a0d d3 04		            OUT     (LCD_IR),A  
+0a0f			 
+0a0f			            ; Load DDRam 
+0a0f 16 30		            LD      D,30H 		;Counter 00-FF 
+0a11 0e 84		            LD      C,LCD_DR        ;Out port 
+0a13			 
+0a13 f7			            RST     30H 
+0a14 3e 80		            LD      A,80H			;Put curson on first line 
+0a16 d3 04		            OUT     (LCD_IR),A  
+0a18			 
+0a18 cd 58 0a		            CALL    DISP_ROW 
+0a1b			 
+0a1b f7			            RST     30H 
+0a1c 3e c0		            LD      A,0C0H			;Put curson on first line 
+0a1e d3 04		            OUT     (LCD_IR),A  
+0a20			 
+0a20 cd 58 0a		            CALL    DISP_ROW 
+0a23			 
+0a23			LOOP1: 
+0a23 cf			            RST     08H 
+0a24 fe 00		            CP      00H 
+0a26 20 07		            JR      NZ,SR 
+0a28			SL: 
+0a28 f7			            RST     30H 
+0a29 3e 18		            LD      A,18H     ;Scroll left 
+0a2b d3 04		            OUT     (LCD_IR),A 
+0a2d 18 f4		            JR      LOOP1 
+0a2f			SR: 
+0a2f fe 08		            CP      08H 
+0a31 20 07		            JR      NZ,SSL 
+0a33 f7			            RST     30H 
+0a34 3e 1c		            LD      A,1CH     ;Scroll right 
+0a36 d3 04		            OUT     (LCD_IR),A 
+0a38 18 e9		            JR      LOOP1 
+0a3a			SSL: 
+0a3a fe 01		            CP      01H 
+0a3c 20 0b		            JR      NZ,SSR 
+0a3e 06 10		            LD      B,10H 
+0a40			LP1: 
+0a40 f7			            RST     30H 
+0a41 3e 18		            LD      A,18H     ;Page Scroll left 
+0a43 d3 04		            OUT     (LCD_IR),A 
+0a45 10 f9		            DJNZ    LP1 
+0a47 18 da		            JR      LOOP1 
+0a49			SSR: 
+0a49 fe 09		            CP      09H 
+0a4b 20 d6		            JR      NZ,LOOP1 
+0a4d 06 10		            LD      B,10H 
+0a4f			LP2: 
+0a4f f7			            RST     30H 
+0a50 3e 1c		            LD      A,1CH     ;Page Scroll right 
+0a52 d3 04		            OUT     (LCD_IR),A 
+0a54 10 f9		            DJNZ    LP2 
+0a56 18 cb		            JR      LOOP1 
+0a58			 
+0a58			 
+0a58			DISP_ROW: 
+0a58 06 28		            LD      B,28H			;40 Characters per line  
+0a5a			NXTCHA:                
+0a5a f7			            RST     30H  
+0a5b ed 51		            OUT     (C),D  
+0a5d 14			            INC     D 
+0a5e 10 fa		            DJNZ    NXTCHA  
+0a60 c9			            RET 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/utilities/lcd_scroll1.z80
+0a61

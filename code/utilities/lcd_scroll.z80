@@ -1,0 +1,86 @@
+; LCD program to Cycle through all CGROM characters
+; Press any key to cycle.
+
+            ORG    0A00H
+
+;Port 4 on TEC is connected to LCD Enable
+;A7 is connected to  Register select.  A7=0 for Instruction, A7=1 for Data
+LCD_IR:     EQU    00000100B
+LCD_DR:     EQU    10000100B ;A7 is Data Register
+LCDOFF:     EQU    0821H
+LCDRST:     EQU    08FFH
+
+START:
+            ; JMON config
+            LD     A,0FFH
+            LD     (LCDOFF),A       ;Disables LCD update from JMON
+            LD     A,0AAH
+            LD     (LCDRST),A       ;Disables hard reset and sets PC to 0x0A00
+
+            ; Reset Screen
+            RST     30H 
+            LD      A,01H 
+            OUT     (LCD_IR),A 
+
+            ; Load DDRam
+            LD      D,30H 		;Counter 00-FF
+            LD      C,LCD_DR        ;Out port
+
+            RST     30H
+            LD      A,80H			;Put curson on first line
+            OUT     (LCD_IR),A 
+
+            CALL    DISP_ROW
+
+            RST     30H
+            LD      A,0C0H			;Put curson on first line
+            OUT     (LCD_IR),A 
+
+            CALL    DISP_ROW
+
+LOOP1:
+            RST     08H
+            CP      00H
+            JR      NZ,SR
+SL:
+            RST     30H
+            LD      A,18H     ;Scroll left
+            OUT     (LCD_IR),A
+            JR      LOOP1
+SR:
+            CP      08H
+            JR      NZ,SSL
+            RST     30H
+            LD      A,1CH     ;Scroll right
+            OUT     (LCD_IR),A
+            JR      LOOP1
+SSL:
+            CP      01H
+            JR      NZ,SSR
+            LD      B,10H
+LP1:
+            RST     30H
+            LD      A,18H     ;Page Scroll left
+            OUT     (LCD_IR),A
+            DJNZ    LP1
+            JR      LOOP1
+SSR:
+            CP      09H
+            JR      NZ,LOOP1
+            LD      B,10H
+LP2:
+            RST     30H
+            LD      A,1CH     ;Page Scroll right
+            OUT     (LCD_IR),A
+            DJNZ    LP2
+            JR      LOOP1
+
+
+DISP_ROW:
+            LD      B,28H			;40 Characters per line 
+NXTCHA:               
+            RST     30H 
+            OUT     (C),D 
+            INC     D
+            DJNZ    NXTCHA 
+            RET

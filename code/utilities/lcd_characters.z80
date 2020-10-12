@@ -1,0 +1,51 @@
+; LCD program to Cycle through all CGROM characters
+; Press any key to cycle.
+
+            ORG    0A00H
+
+;Port 4 on TEC is connected to LCD Enable
+;A7 is connected to  Register select.  A7=0 for Instruction, A7=1 for Data
+LCD_IR:     EQU    00000100B
+LCD_DR:     EQU    10000100B ;A7 is Data Register
+LCDOFF:     EQU    0821H
+LCDRST:     EQU    08FFH
+
+START:
+            ; JMON config
+            LD     A,0FFH
+            LD     (LCDOFF),A       ;Disables LCD update from JMON
+            LD     A,0AAH
+            LD     (LCDRST),A       ;Disables hard reset and sets PC to 0x0A00
+
+            ; Reset Screen
+            RST     30H 
+            LD      A,01H 
+            OUT     (LCD_IR),A 
+
+            LD      DE,0080H 		;Counter 00-FF, Cursor pos 80/C0
+            LD      C,LCD_DR        ;Out port
+
+LOOP1:
+            RST     30H
+            LD      A,E 			;Cursor start position
+            OUT     (LCD_IR),A 
+
+            CALL    DISP_ROW
+
+            LD      A,E
+            XOR     40H             ;Flip Bit for second line / first line
+            LD      E,A 			;Need to store in E as A gets clobbered big time!
+            CP      80H
+            JR      NZ,LOOP1
+
+            RST     08H 
+            JR      LOOP1 
+
+DISP_ROW:
+            LD      B,10H			;Characters per line 
+NXTCHA:               
+            RST     30H
+            OUT     (C),D 
+            INC     D
+            DJNZ    NXTCHA 
+            RET
