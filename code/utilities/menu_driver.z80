@@ -23,34 +23,40 @@ MENU_JP_TBL:        ; Menu Jump table
                     ; Seven Segment Routines 
             JP      2000H   ; TEC Invaders
             JP      2400H   ; TEC Maze
-            JP      2800H   ; TEC Magazine Code
+            JP      3600H   ; TEC Runner
             JP      3000H   ; Game Of Life
+            JP      2800H   ; TEC Magazine Code
             JP      31B0H   ; Magic Square
             JP      3300H   ; Simon
             JP      3410H   ; Segment Game
-            JP      3603H   ; Spiriod Aliens
             JP      34F0H   ; SIO Transfer
 
 MENU_AD_TBL:        ; Menu Display for ADDRESS LEDs
                     ; Seven Segment Routines 
             DB      0x28,0x6B,0xE0,0x6F ; "InvA"
             DB      0x65,0x6F,0xC9,0xC7 ; "mAzE"
-            DB      0xC6,0xC7,0xC3,0x65 ; "TECm"
+            DB      0x44,0xEA,0x6B,0x6B ; "runn"
             DB      0xE3,0x6F,0xC2,0x28 ; "GALI"
+            DB      0xC6,0xC7,0xC3,0x65 ; "TECm"
             DB      0x65,0x6F,0xE3,0x28 ; "mAGI"
             DB      0xA7,0x28,0x65,0xEB ; "SImO"
             DB      0xA7,0xC7,0xE3,0x6E ; "SEGH"
-            DB      0xA7,0x4F,0x28,0x44 ; "SPIr"
             DB      0xA7,0x28,0xEB,0xC6 ; "SIOt"
 
 MENU_DA_TBL:        ; Menu Display for DATA LEDs
                     ; Seven Segment Routines 
             DB      0xEC,0xC7 ; "dE"
             DB      0x85,0x04 ; "=-"
-            DB      0x6F,0xE3 ; "AG"
+            DB      0xC7,0x44 ; "Er"
             DB      0x47,0xC7 ; "FE"
+            DB      0x6F,0xE3 ; "AG"
             DB      0xC3,0xEB ; "CO"
             DB      0x6B,0x00 ; "n "
             DB      0x28,0xC6 ; "It"
-            DB      0xE4,0xEC ; "Od"
             DB      0x44,0x6B ; "rn"
+            NOP
+            NOP
+            NOP
+            NOP
+            NOP
+            NOP
