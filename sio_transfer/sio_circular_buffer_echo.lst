@@ -1,0 +1,300 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/sio_transfer/sio_circular_buffer_echo.z80
+0000			;SIO with Asynchronous Circular Buffer implementation 
+0000			; 
+0000			;By Brian Chiha - brian.chiha@gmail.com 
+0000			;Feb 2021 
+0000			; 
+0000			;This is a basic terminal echo implementation using a Circular Buffer 
+0000			;with serial data transmission using the Z80 SIO for the TEC computer. 
+0000			; 
+0000			;There are three parts to this program: 
+0000			;1. A Producer - This is data coming from the SIO from an external source. 
+0000			;2. A Consumer - This is the TEC that consumes data on a key press or automatically 
+0000			;3. A Background Task - This is the TEC waiting for a non empty buffer to start a transmit 
+0000			; 
+0000			;A Circular Buffer is a finite set of memory that has a pointer to the Head and a pointer 
+0000			;to the end off the buffer.  A producer will place data at the head of the buffer, and a 
+0000			;consumer will remove data at the tail of the buffer.  Once the head pointer reaches the 
+0000			;end of the finite buffer, it will wrap around to the start of the buffer.  Likewise for  
+0000			;the tail pointer.  If head pointer reaches the tail pointer, no more data is accepted and 
+0000			;the producer will wait until a free spot is available.  If the tail pointer reaches the  
+0000			;head pointer, the buffer is empty and the consumer waits.   
+0000			;An issue arises when the head and tail pointer are pointing to the same location.  Is 
+0000			;the buffer empty or full?  To determine this, the following logic is applied. 
+0000			;If the head pointer = tail pointer, then the buffer is empty. 
+0000			;If the head pointer + 1 = tail pointer, then the buffer is full. 
+0000			;A simple process of bit masking on the pointers will reset them to the start of the buffer 
+0000			;if they reach the end.  Pointer movement and buffer adding/taking is to be done while 
+0000			;interrupts are disabled to ensure no data will be corrupted by another interrupt. 
+0000			; 
+0000			;The producer with do the following: 
+0000			;  
+0000			; - Read the current value of the head pointer 
+0000			; - If the head pointer + 1 equals the tail pointer, the buffer is full and raise an error 
+0000			; - Otherwise, store the data in the head position and increase the head pointer 
+0000			; 
+0000			;The consumer will do the following: 
+0000			; - Read the current value of the tail pointer 
+0000			; - If the tail pointer equals the head pointer the buffer is empty and exit 
+0000			; - Otherwise, read the data in the tail position and increase the tail pointer 
+0000			 
+0000			;Note on keyboard and Monitor: 
+0000			;Since Interrupt mode 2 uses the interrrupt register 'I', any monitor that uses this register 
+0000			;to store the keyboard key pressed will not work with this program.  JMON is the only monitor 
+0000			;that will work as it doesn't use the interrupt register to store the keyboard key press. 
+0000			;Hardware wise, for the keyboard to work it requires EITHER a 4k7 resistor between the 
+0000			;NMI (pin 17 on Z-80) and D6 (pin 10 on the Z-80) OR the DAT (LCD) expanstion board fitted 
+0000			;to port 3.  The current TEC-1D boards have the JMON MOD resitor connection already there. 
+0000			 
+0000			;BUFFER CONFIGURATION 
+0000			CIRBUF:     EQU     0B00H  ;Location of circular buffer 
+0000			BUFFHD:     EQU     0D00H  ;Pointer to the Head of the Circular buffer                      (1-byte) 
+0000			BUFFTL:     EQU     0D01H  ;Pointer to the Tail of the Circular buffer                      (1-byte) 
+0000			;BUFFER SIZES, change to suit 
+0000			BUFF16:     EQU     0FH    ;16 bytes 
+0000			BUFF32:     EQU     1FH    ;32 bytes 
+0000			BUFF64:     EQU     3FH    ;64 bytes 
+0000			BUFF128:    EQU     7FH    ;128 bytes 
+0000			BUFF256:    EQU     0FFH   ;256 bytes 
+0000			BUFSIZ:     EQU     BUFF32 ;16 bytes (Change if required) 
+0000			 
+0000			;SIO TEC PORT CONFIGURATION 
+0000			;For my setup Port 7 on TEC is connected to CE, A5 is connected to Control/Data, 
+0000			;and A4 is connected to A/B.  This can be changed to your setup. 
+0000			;(Note, I skipped A3 because the DAT LCD screen uses it) 
+0000			SIO_DA:     EQU     07H    ;Port 7 & Data 'A' 
+0000			SIO_DB:     EQU     17H    ;Port 7 & Data 'B'  
+0000			SIO_CA:     EQU     27H    ;Port 7 & Control 'A' 
+0000			SIO_CB:     EQU     37H    ;Port 7 & Control 'B' 
+0000			 
+0000			;INTERRUPT VECTOR TABLE SETUP 
+0000			;The interrupt will call one of these service routines depending on the type of interrupt 
+0000			;There are 4 reasons the interrupt will occur: 
+0000			; 1. Transmit Buffer Empty - Indicating that data can be sent to the SIO 
+0000			; 2. External/Status Change - Indicating a change in the modem line or break condition 
+0000			; 3. Receive Character Available - Indicating that data has been sent to CPU 
+0000			; 4. Special Receive Condition - Indicates a buffer overrun or parity error condtion has occured 
+0000			; 
+0000			;Interrupt mode 2 (IM 2), requires a 16 bit table of addresses. The High byte of the  
+0000			;address is the value in the interrupt register 'I'.  The Low byte of the address is 
+0000			;placed on the data bus from the SIO when an interrupt is triggered. The follwing table 
+0000			;shows what bits are set on the data bus.  This is used to index the vector table: 
+0000			;Note: D0, D4-7 are set via Write Register 2 (Channel B on the sio).  this is set to 00H 
+0000			; 
+0000			; Channel   D3  D2  D1  Addr  Interrupt type 
+0000			; -------   --  --  --  ----  -------------- 
+0000			;    B       0   0   0   00H  Transmit Buffer Empty 
+0000			;    B       0   0   1   02H  External/Status Change 
+0000			;    B       0   1   0   04H  Receive Character Available 
+0000			;    B       0   1   1   06H  Special Receive Condition 
+0000			;    A       1   0   0   08H  Transmit Buffer Empty 
+0000			;    A       1   0   1   0AH  External/Status Change 
+0000			;    A       1   1   0   0CH  Receive Character Available 
+0000			;    A       1   1   1   0EH  Special Receive Condition 
+0000			; 
+0000			SIO_IV:     EQU     0E00H               ;Interrupt Vector Base 
+0000			SIO_WV:     EQU     SIO_IV+08H          ;Write Interrupt Vector 
+0000			SIO_EV:     EQU     SIO_IV+0AH          ;External Status Interrupt Vector 
+0000			SIO_RV:     EQU     SIO_IV+0CH          ;Read Interrupt Vector 
+0000			SIO_SV:     EQU     SIO_IV+0EH          ;Special Receive Interrupt Vector 
+0000			 
+0000			            ORG     0900H  
+0900			START: 
+0900			;Initialize interrupt system and SIO 
+0900 f3			            DI                          ;Disable interrupts 
+0901			                         
+0901			;Initialise interrupt vectors 
+0901 21 00 0e		            LD      HL,SIO_IV           ;Get Interupt high page number 
+0904 7c			            LD      A,H                 ;Save H in A 
+0905 ed 47		            LD      I,A                 ;Set interrupt vector high address (0B) 
+0907 ed 5e		            IM      2                   ;Interrupt Mode 2, Vector in table 
+0909			 
+0909			;Link interrupt vector address to handler routines 
+0909 21 34 09		            LD      HL,READ_HANDLE      ;Store Read Vector 
+090c 22 0c 0e		            LD      (SIO_RV),HL         ; 
+090f 21 58 09		            LD      HL,WRITE_HANDLE     ;Store Write Vector 
+0912 22 08 0e		            LD      (SIO_WV),HL         ; 
+0915 21 66 09		            LD      HL,EXTERNAL_HANDLE  ;Store External Status Vector 
+0918 22 0a 0e		            LD      (SIO_EV),HL         ; 
+091b 21 6f 09		            LD      HL,ERROR_HANDLE     ;Store Receive Error Vector 
+091e 22 0e 0e		            LD      (SIO_SV),HL         ; 
+0921			 
+0921			;Initialise the SIO 
+0921 cd 97 09		            CALL    INIT_SIO            ;Set up the SIO  
+0924			 
+0924			;Set Buffer Head and Tail pointers based of LSB of circular buffer 
+0924 21 00 0b		            LD      HL,CIRBUF           ;Load Circular buffer address 
+0927 7d			            LD      A,L                 ;Head/Tail = LSB of buffer 
+0928 32 00 0d		            LD      (BUFFHD),A          ;Save initial Head pointer 
+092b 32 01 0d		            LD      (BUFFTL),A          ;Save initial Tail pointer 
+092e			 
+092e fb			            EI                          ;Enable Interrrupts 
+092f			 
+092f			;Start Background task. This will loop continually until the SIO sends an interrupt. 
+092f			;Set it up to do what ever you want.  As this example 
+092f			;simply echos a character back to the terminal, a check for a non empty buffer 
+092f			;is performed.  And if non-empty, the character at the tail of the buffer is 
+092f			;sent back to the terminal.  This will then trigger the Transmit Buffer empty interrupt. 
+092f			;to repeast the transmit if more data is available to be sent. 
+092f			WAIT_LOOP: 
+092f cd 78 09		            CALL    DO_TRANSMIT         ;Check for non empty buffer and transmit 
+0932 18 fb		            JR      WAIT_LOOP 
+0934			 
+0934			;SIO Interrupt Handlers 
+0934			;---------------------- 
+0934			;These four routines handle the four interrupts that the SIO produces.  See above. 
+0934			;When an Intrrupt is triggered, the CPU automaticaly disables interrupts, ensuring 
+0934			;no other intrrupts occur when one is being handled.  Before exiting the routine, 
+0934			;interrupts are to be reenabled.  RETI (Return from interrupt) is the same as RET but 
+0934			;the SIO recognises this instruction indicating that the interrupt routined has ended. 
+0934			 
+0934			;Receive Character Available Interrupt handler 
+0934			READ_HANDLE: 
+0934 f5			            PUSH    AF                  ;Save AF 
+0935			;Check if buffer is full? 
+0935 3a 00 0d		            LD      A,(BUFFHD)          ;Get the HEAD pointer 
+0938 47			            LD      B,A                 ;Save in B 
+0939 3a 01 0d		            LD      A,(BUFFTL)          ;Get the TAIL pointer 
+093c 3d			            DEC     A                   ;Decrease it by one 
+093d e6 1f		            AND     BUFSIZ              ;Mask for wrap around 
+093f b8			            CP      B                   ;Is HEAD = TAIL - 1? 
+0940 20 04		            JR      NZ,READ_OKAY        ;Different so save to buffer 
+0942			;Buffer is full, read and lose data 
+0942 db 07		            IN      A,(SIO_DA)          ;Read overflow byte to clear interrupt 
+0944 18 0e		            JR      READ_EXIT           ;Exit Safely 
+0946			;Buffer in not full 
+0946			READ_OKAY:     
+0946 db 07		            IN      A,(SIO_DA)          ;Read data from SIO 
+0948 21 00 0b		            LD      HL,CIRBUF           ;Load Buffer in HL 
+094b 68			            LD      L,B                 ;Load Head Pointer to L to index the Circular Buffer 
+094c 77			            LD      (HL),A              ;Save Data at head of buffer 
+094d			 
+094d 7d			            LD      A,L                 ;Load Head Pointer to A 
+094e 3c			            INC     A                   ;Increase Head pointer by 1 
+094f e6 1f		            AND     BUFSIZ              ;Mask for wrap around 
+0951 32 00 0d		            LD      (BUFFHD),A          ;Save new head 
+0954			READ_EXIT:   
+0954 f1			            POP     AF                  ;Restore AF 
+0955 fb			            EI                          ;Reenable Interrupts 
+0956 ed 4d		            RETI                        ;Return from Interrupt 
+0958			       
+0958			;Transmit Buffer Empty Interrupt Handler, When a character is transmitted, this 
+0958			;interrupt will be called when the SIO clears its buffer.  It then checks for  
+0958			;more data to send.  If no more data is to be sent, to stop this interrupt from 
+0958			;being repeatingly triggered, a command to reset the Transmit interrupt is sent 
+0958			WRITE_HANDLE: 
+0958 f5			            PUSH    AF                  ;Save AF 
+0959 cd 78 09		            CALL    DO_TRANSMIT         ;Do the Transmit, Carry flag is set if buffer is empty 
+095c 30 04		            JR      NC,WRITE_EXIT       ;Data was tramitted, Exit Safely 
+095e			;Buffer is Empty, reset transmit interrupt 
+095e 3e 28		            LD      A,00101000B         ;Reset SIO Transmit Interrupt 
+0960 d3 27		            OUT     (SIO_CA),A          ;Write into WR0 
+0962			WRITE_EXIT: 
+0962 f1			            POP     AF                  ;Restore AF 
+0963 fb			            EI                          ;Reenable Interrupts 
+0964 ed 4d		            RETI                        ;Return from Interrupt 
+0966			 
+0966			;External Status/Change Interrupt Handler.  Not handled, Just reset the status interrupt 
+0966			EXTERNAL_HANDLE: 
+0966 f5			            PUSH    AF                  ;Save AF 
+0967 3e 10		            LD      A,00010000B         ;Reset Status Interrupt 
+0969 d3 27		            OUT     (SIO_CA),A          ;Write into WR0 
+096b f1			            POP     AF                  ;Restore AF 
+096c fb			            EI                          ;Reenable Interrupts 
+096d ed 4d		            RETI                        ;Return from Interrupt 
+096f			 
+096f			;Special Receive Interrupt Handler.  Not handled, Just reset the status interrupt 
+096f			ERROR_HANDLE: 
+096f f5			            PUSH    AF                  ;Save AF 
+0970 3e 30		            LD      A,00110000B         ;Reset Receive Error Interrupt 
+0972 d3 27		            OUT     (SIO_CA),A          ;Write into WR0 
+0974 f1			            POP     AF                  ;Restore AF 
+0975 fb			            EI                          ;Reenable Interrupts 
+0976 ed 4d		            RETI                        ;Return from Interrupt 
+0978			 
+0978			;Consume one byte if any to consume 
+0978			DO_TRANSMIT: 
+0978 f3			            DI                          ;Disable interrupts 
+0979			;Check if buffer is empty? 
+0979 3a 01 0d		            LD      A,(BUFFTL)          ;Get the TAIL pointer 
+097c 47			            LD      B,A                 ;Save in B 
+097d 3a 00 0d		            LD      A,(BUFFHD)          ;Get the HEAD pointer 
+0980 b8			            CP      B                   ;Does TAIL=HEAD? 
+0981 20 03		            JR      NZ,WRITE_OKAY       ;No, Transmit data at Tail 
+0983			;Buffer is Empty, set the carry flag and exit 
+0983 37			            SCF                         ;Set the Carry Flag 
+0984 fb			            EI                          ;Restore interrupts 
+0985 c9			            RET                         ;Exit 
+0986			;Buffer is not empty 
+0986			WRITE_OKAY: 
+0986 21 00 0b		            LD      HL,CIRBUF           ;Load Buffer in HL 
+0989 68			            LD      L,B                 ;Load Tail Pointer to L to index the Circular Buffer 
+098a 7e			            LD      A,(HL)              ;Get byte at Tail. 
+098b d3 07		            OUT     (SIO_DA),A          ;Transmit byte to SIO 
+098d			;Output has occured 
+098d 7d			            LD      A,L                 ;Load Tail Pointer to A 
+098e 3c			            INC     A                   ;Increase Tail pointer by 1 
+098f e6 1f		            AND     BUFSIZ              ;Mask for wrap around 
+0991 32 01 0d		            LD      (BUFFTL),A          ;Save new tail 
+0994 b7			            OR      A                   ;Reset Carry Flag 
+0995 fb			            EI                          ;Restore interrupts 
+0996 c9			            RET                         ;Exit 
+0997			 
+0997			;SIO Configuration Routines 
+0997			;-------------------------- 
+0997			 
+0997			INIT_SIO:             
+0997 21 a9 09		            LD      HL,CTLTBL           ;Setup data location 
+099a cd 9e 09		            CALL    IPORTS              ;Setup the SIO 
+099d c9			            RET                         ;Exit 
+099e			 
+099e			;Initialize the SIO, Requires 3 bits of information. Number of control bytes to send, 
+099e			;the port to send it to and the control data. 
+099e			IPORTS:               
+099e 7e			            LD      A,(HL)              ;Load Control Table (Bytes) 
+099f b7			            OR      A                   ;Test for zero, no more data to load 
+09a0 c8			            RET     Z                   ;Return if zero 
+09a1 47			            LD      B,A                 ;Save number of control bytes in B 
+09a2 23			            INC     HL                  ;Move to Port address 
+09a3 4e			            LD      C,(HL)              ;Load C with port address (for OTIR) 
+09a4 23			            INC     HL                  ;Move to control data 
+09a5			 
+09a5 ed b3		            OTIR                        ;Output HL data, B times, to port C 
+09a7 18 f5		            JR      IPORTS              ;Jump to the next port 
+09a9			 
+09a9			;Control Table data for SIO. Refer to Z80 SIO Technical Manual for more information 
+09a9			;on the bits set.   
+09a9			CTLTBL:               
+09a9			;Reset Channel A 
+09a9 01			            DB 01H                      ;1 Line 
+09aa 27			            DB SIO_CA                   ;A Port Command 
+09ab 18			            DB 00011000B                ;write into WR0: channel reset 
+09ac			             
+09ac			;Set Interrupt Vector and allow status to affect it. The WR2 allows the user to set 
+09ac			;the default base address of the vector table. Bits 1,2 and 3 are set based on the 
+09ac			;interrupt.  The other bits can be set here, Since my vector tables starts at 0B00, 
+09ac			;thie register can just be set to 0; 
+09ac 04			            DB 04H                      ;4 Lines 
+09ad 37			            DB SIO_CB                   ;B Port Command 
+09ae 02			            DB 00000010B                ;write into WR0: select WR2 
+09af 00			            DB 00000000B                ;write into WR2: set base interrupt vector for SIO (0B00) 
+09b0 01			            DB 00000001B                ;write into WR0: select WR1 
+09b1 04			            DB 00000100B                ;write into WR1: allow status to affect vector 
+09b2			             
+09b2			;Initialise Channel A 
+09b2 08			            DB 08H                      ;8 Lines 
+09b3 27			            DB SIO_CA                   ;A Port Command 
+09b4 14			            DB 00010100B                ;write into WR0: select WR4 / Reset Int 
+09b5 c4			            DB 11000100B                ;write into WR4: presc. 64x, 1 stop bit, no parity 
+09b6 03			            DB 00000011B                ;write into WR0: select WR3 
+09b7 c1			            DB 11000001B                ;write into WR3: 8 bits/RX char; auto enable OFF; RX enable 
+09b8 05			            DB 00000101B                ;write into WR0: select WR5 
+09b9 6a			            DB 01101010B                ;write into WR5: TX 8 bits, TX Enable, No RTS 
+09ba 01			            DB 00000001B                ;write into WR0: select WR1 
+09bb 1b			            DB 00011011B                ;write into WR1: Int on All RX (No Parity), TX Int, Ex Int 
+09bc			             
+09bc 00			            DB 00H                      ;End Initialisation Array 
+09bd			 
+09bd			 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/sio_transfer/sio_circular_buffer_echo.z80
+09bd

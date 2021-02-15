@@ -1,0 +1,435 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/sio_transfer/sio_circular_buffer_example.z80
+0000			;SIO with Asynchronous Circular Buffer implementation 
+0000			; 
+0000			;By Brian Chiha - brian.chiha@gmail.com 
+0000			;Feb 2021 
+0000			; 
+0000			;This is a Proof of work example to implement a Circular Buffer 
+0000			;with serial data transmission using the Z80 SIO for the TEC computer. 
+0000			; 
+0000			;There are three parts to this program: 
+0000			;1. A Producer - This is data coming from the SIO from an external source. 
+0000			;2. A Consumer - This is the TEC that consumes data on a key press or automatically 
+0000			;3. A Background Task - This is the TEC multiplexing the LED Display 
+0000			; 
+0000			;A Circular Buffer is a finite set of memory that has a pointer to the Head and a pointer 
+0000			;to the end off the buffer.  A producer will place data at the head of the buffer, and a 
+0000			;consumer will remove data at the tail of the buffer.  Once the head pointer reaches the 
+0000			;end of the finite buffer, it will wrap around to the start of the buffer.  Likewise for  
+0000			;the tail pointer.  If head pointer reaches the tail pointer, no more data is accepted and 
+0000			;the producer will wait until a free spot is available.  If the tail pointer reaches the  
+0000			;head pointer, the buffer is empty and the consumer waits.   
+0000			;An issue arises when the head and tail pointer are pointing to the same location.  Is 
+0000			;the buffer empty or full?  To determine this, the following logic is applied. 
+0000			;If the head pointer = tail pointer, then the buffer is empty. 
+0000			;If the head pointer + 1 = tail pointer, then the buffer is full. 
+0000			;A simple process of bit masking on the pointers will reset them to the start of the buffer 
+0000			;if they reach the end.  Pointer movement and buffer adding/taking is to be done while 
+0000			;interrupts are disabled to ensure no data will be corrupted by another interrupt. 
+0000			; 
+0000			;The producer with do the following: 
+0000			;  
+0000			; - Read the current value of the head pointer 
+0000			; - If the head pointer + 1 equals the tail pointer, the buffer is full and raise an error 
+0000			; - Otherwise, store the data in the head position and increase the head pointer 
+0000			; 
+0000			;The consumer will do the following: 
+0000			; - Read the current value of the tail pointer 
+0000			; - If the tail pointer equals the head pointer the buffer is empty and exit 
+0000			; - Otherwise, read the data in the tail position and increase the tail pointer 
+0000			 
+0000			;In order to visualize the circular buffer is working, LED will display the current size of the 
+0000			;buffer, the current byte that the consumer reads and buffer overflow or transmit status flag. 
+0000			;The producer will activate when data is received.  The consumer will activate on any key press 
+0000			;and will echo the data back to the terminal.  If the '+' key is pressed, the comsumer will  
+0000			;switch between Transmit on Key Press, or Transmit automatically if data is available. 
+0000			 
+0000			;Note on keyboard and Monitor: 
+0000			;Since Interrupt mode 2 uses the interrrupt register 'I', any monitor that uses this register 
+0000			;to store the keyboard key pressed will not work with this program.  JMON is the only monitor 
+0000			;that will work as it doesn't use the interrupt register to store the keyboard key press. 
+0000			;Hardware wise, for the keyboard to work it requires EITHER a 4k7 resistor between the 
+0000			;NMI (pin 17 on Z-80) and D6 (pin 10 on the Z-80) OR the DAT (LCD) expanstion board fitted 
+0000			;to port 3.  The current TEC-1D boards have the JMON MOD resitor connection already there. 
+0000			 
+0000			 
+0000			;DATA LOCATIONS 
+0000			LEDSCR:     EQU     0D00H ;Byte Recieved, Atomic Flag and Buffer size for LED display      (6-bytes) 
+0000			BUFFCT:     EQU     0D06H ;Number of bytes active in the buffer                            (1-byte) 
+0000			BUFFOF:     EQU     0D07H ;The state of the buffer okay (00), error (EE), auto (AA)        (1-byte) 
+0000			BYTERE:     EQU     0D08H ;Current byte received from SIO                                  (1-byte) 
+0000			AUTOTM:     EQU     0D09H ;Flag to automatically transmit to SIO, or by key press FF=auto  (1-byte) 
+0000			KEYPRE:     EQU     0D0AH ;Key Pressed Flag, 00-False, FF-True                             (1-byte) 
+0000			 
+0000			;BUFFER CONFIGURATION 
+0000			CIRBUF:     EQU     0B00H ;Location of circular buffer 
+0000			BUFFHD:     EQU     0D0BH ;Pointer to the Head of the Circular buffer                      (1-byte) 
+0000			BUFFTL:     EQU     0D0CH ;Pointer to the Tail of the Circular buffer                      (1-byte) 
+0000			;BUFFER SIZES, change to suit 
+0000			BUFF16:     EQU     0FH   ;16 bytes 
+0000			BUFF32:     EQU     1FH   ;32 bytes 
+0000			BUFF64:     EQU     3FH   ;64 bytes 
+0000			BUFF128:    EQU     7FH   ;128 bytes 
+0000			BUFF256:    EQU     0FFH  ;256 bytes 
+0000			BUFSIZ:     EQU     BUFF32  ;16 bytes (Change if required) 
+0000			 
+0000			;SIO TEC PORT CONFIGURATION 
+0000			;For my setup Port 7 on TEC is connected to CE, A5 is connected to Control/Data, 
+0000			;and A4 is connected to A/B.  This can be changed to your setup. 
+0000			;(Note, I skipped A3 because the DAT LCD screen uses it) 
+0000			SIO_DA:     EQU     07H   ;Port 7 & Data 'A' 
+0000			SIO_DB:     EQU     17H   ;Port 7 & Data 'B'  
+0000			SIO_CA:     EQU     27H   ;Port 7 & Control 'A' 
+0000			SIO_CB:     EQU     37H   ;Port 7 & Control 'B' 
+0000			 
+0000			;INTERRUPT VECTOR TABLE SETUP 
+0000			;The interrupt will call one of these service routines depending on the type of interrupt 
+0000			;There are 4 reasons the interrupt will occur: 
+0000			; 1. Transmit Buffer Empty - Indicating that data can be sent to the SIO 
+0000			; 2. External/Status Change - Indicating a change in the modem line or break condition 
+0000			; 3. Receive Character Available - Indicating that data has been sent to CPU 
+0000			; 4. Special Receive Condition - Indicates a buffer overrun or parity error condtion has occured 
+0000			; 
+0000			;Interrupt mode 2 (IM 2), requires a 16 bit table of addresses. The High byte of the  
+0000			;address is the value in the interrupt register 'I'.  The Low byte of the address is 
+0000			;placed on the data bus from the SIO when an interrupt is triggered. The follwing table 
+0000			;shows what bits are set on the data bus.  This is used to index the vector table: 
+0000			;Note: D0, D4-7 are set via Write Register 2 (Channel B on the sio).  this is set to 00H 
+0000			; 
+0000			; Channel   D3  D2  D1  Addr  Interrupt type 
+0000			; -------   --  --  --  ----  -------------- 
+0000			;    B       0   0   0   00H  Transmit Buffer Empty 
+0000			;    B       0   0   1   02H  External/Status Change 
+0000			;    B       0   1   0   04H  Receive Character Available 
+0000			;    B       0   1   1   06H  Special Receive Condition 
+0000			;    A       1   0   0   08H  Transmit Buffer Empty 
+0000			;    A       1   0   1   0AH  External/Status Change 
+0000			;    A       1   1   0   0CH  Receive Character Available 
+0000			;    A       1   1   1   0EH  Special Receive Condition 
+0000			; 
+0000			SIO_IV:     EQU     0E00H      ;Interrupt Vector Base 
+0000			SIO_WV:     EQU     SIO_IV+08H ;Write Interrupt Vector 
+0000			SIO_EV:     EQU     SIO_IV+0AH ;External Status Interrupt Vector 
+0000			SIO_RV:     EQU     SIO_IV+0CH ;Read Interrupt Vector 
+0000			SIO_SV:     EQU     SIO_IV+0EH ;Special Receive Interrupt Vector 
+0000			 
+0000			            ORG     0900H  
+0900			START: 
+0900			;Initialize interrupt system and SIO 
+0900 f3			            DI                          ;Disable interrupts 
+0901			                         
+0901			;Initialise interrupt vectors 
+0901 21 00 0e		            LD      HL,SIO_IV           ;Get Interupt high page number 
+0904 7c			            LD      A,H                 ;Save H in A 
+0905 ed 47		            LD      I,A                 ;Set interrupt vector high address (0B) 
+0907 ed 5e		            IM      2                   ;Interrupt Mode 2, Vector in table 
+0909			 
+0909			;Link interrupt vector address to handler routines 
+0909 21 4d 09		            LD      HL,READ_HANDLE      ;Store Read Vector 
+090c 22 0c 0e		            LD      (SIO_RV),HL         ; 
+090f 21 80 09		            LD      HL,WRITE_HANDLE     ;Store Write Vector 
+0912 22 08 0e		            LD      (SIO_WV),HL         ; 
+0915 21 94 09		            LD      HL,EXTERNAL_HANDLE  ;Store External Status Vector 
+0918 22 0a 0e		            LD      (SIO_EV),HL         ; 
+091b 21 9d 09		            LD      HL,ERROR_HANDLE     ;Store Receive Error Vector 
+091e 22 0e 0e		            LD      (SIO_SV),HL         ; 
+0921			 
+0921			;Initialise the SIO 
+0921 cd c9 09		            CALL    INIT_SIO            ;Set up the SIO  
+0924			 
+0924			;Initialise Screen and other data 
+0924 af			            XOR     A                   ;Reset A 
+0925 21 06 0d		            LD      HL,BUFFCT           ;Buffer count 
+0928 06 04		            LD      B,04H               ;Four Bytes to clear/set 
+092a			S1: 
+092a 77			            LD      (HL),A              ;Load 0 to HL 
+092b 23			            INC     HL                  ;Move to next address 
+092c 10 fc		            DJNZ    S1                  ;Do 3 times 
+092e			;Set Buffer Head and Tail pointers based of LSB of circular buffer 
+092e 21 00 0b		            LD      HL,CIRBUF           ;Load Circular buffer address 
+0931 7d			            LD      A,L                 ;Head/Tail = LSB of buffer 
+0932 32 0b 0d		            LD      (BUFFHD),A          ;Save initial Head pointer 
+0935 32 0c 0d		            LD      (BUFFTL),A          ;Save initial Tail pointer 
+0938			 
+0938 fb			            EI                          ;Enable Interrrupts 
+0939			 
+0939			;Start Background task of updating the screen buffer and multiplexing the LED's 
+0939			;This will loop continually until the SIO sends an interrupt. 
+0939			WAIT_LOOP: 
+0939 cd ef 09		            CALL    KEY_READ            ;Read the keyboard 
+093c cd 38 0a		            CALL    UPDATE_LED          ;Update the screen buffer 
+093f cd 1d 0a		            CALL    SCAN                ;Display the Screen Buffer 
+0942 3a 09 0d		            LD      A,(AUTOTM)          ;Check for automatic transmit 
+0945 b7			            OR      A                   ;Is it set? 
+0946 28 f1		            JR      Z,WAIT_LOOP         ;No, just repeat 
+0948 cd a6 09		            CALL    DO_TRANSMIT         ;Check for non empty buffer and transmit 
+094b 18 ec		            JR      WAIT_LOOP 
+094d			 
+094d			;SIO Interrupt Handlers 
+094d			;---------------------- 
+094d			;These four routines handle the four interrupts that the SIO produces.  See above. 
+094d			;When an Intrrupt is triggered, the CPU automaticaly disables interrupts, ensuring 
+094d			;no other intrrupts occur when one is being handled.  Before exiting the routine, 
+094d			;interrupts are to be reenabled.  RETI (Return from interrupt) is the same as RET but 
+094d			;the SIO recognises this instruction indicating that the interrupt routined has ended. 
+094d			 
+094d			;Receive Character Available Interrupt handler 
+094d			READ_HANDLE: 
+094d f5			            PUSH    AF                  ;Save AF 
+094e			;Check if buffer is full? 
+094e 3a 0b 0d		            LD      A,(BUFFHD)          ;Get the HEAD pointer 
+0951 47			            LD      B,A                 ;Save in B 
+0952 3a 0c 0d		            LD      A,(BUFFTL)          ;Get the TAIL pointer 
+0955 3d			            DEC     A                   ;Decrease it by one 
+0956 e6 1f		            AND     BUFSIZ              ;Mask for wrap around 
+0958 b8			            CP      B                   ;Is HEAD = TAIL - 1? 
+0959 20 0c		            JR      NZ,READ_OKAY        ;Different so save to buffer 
+095b			;Buffer is full 
+095b 3e ee		            LD      A,0EEH              ;Buffer is full 
+095d 32 07 0d		            LD      (BUFFOF),A          ;Put EE in BUFF overflow 
+0960 db 07		            IN      A,(SIO_DA)          ;Read overflow byte to clear interrupt 
+0962 32 08 0d		            LD      (BYTERE),A          ;Save data in input buffer 
+0965 18 15		            JR      READ_EXIT           ;Exit Safely 
+0967			;Buffer in not full 
+0967			READ_OKAY:     
+0967 db 07		            IN      A,(SIO_DA)          ;Read data from SIO 
+0969 32 08 0d		            LD      (BYTERE),A          ;Save data in input buffer 
+096c 21 00 0b		            LD      HL,CIRBUF           ;Load Buffer in HL 
+096f 68			            LD      L,B                 ;Load Head Pointer to L to index the Circular Buffer 
+0970 77			            LD      (HL),A              ;Save Data at head of buffer 
+0971			 
+0971 7d			            LD      A,L                 ;Load Head Pointer to A 
+0972 3c			            INC     A                   ;Increase Head pointer by 1 
+0973 e6 1f		            AND     BUFSIZ              ;Mask for wrap around 
+0975 32 0b 0d		            LD      (BUFFHD),A          ;Save new head 
+0978			 
+0978 21 06 0d		            LD      HL,BUFFCT           ;Load the current buffer count 
+097b 34			            INC     (HL)                ;Increase the buffer count by 1 
+097c			 
+097c			READ_EXIT:   
+097c f1			            POP     AF                  ;Restore AF 
+097d fb			            EI                          ;Reenable Interrupts 
+097e ed 4d		            RETI                        ;Return from Interrupt 
+0980			       
+0980			;Transmit Buffer Empty Interrupt Handler, When a character is transmitted, this 
+0980			;interrupt will be called when the SIO clears its buffer.  It then checks for  
+0980			;more data to send.  If no more data is to be sent, to stop this interrupt from 
+0980			;being repeatingly triggered, a command to reset the Transmit interrupt is sent 
+0980			WRITE_HANDLE: 
+0980 f5			            PUSH    AF                  ;Save AF 
+0981 3a 09 0d		            LD      A,(AUTOTM)          ;Check Automatic Transmit Flag 
+0984 b7			            OR      A                   ;If Zero then just dont transmit 
+0985 28 05		            JR      Z,TRANS_RESET       ;Reset transmit interrupt 
+0987 cd a6 09		            CALL    DO_TRANSMIT         ;Do the Transmit, Carry flag is set if buffer is empty 
+098a 30 04		            JR      NC,WRITE_EXIT       ;Data was tramitted, Exit Safely 
+098c			TRANS_RESET: 
+098c			;Buffer is Empty, reset transmit interrupt 
+098c 3e 28		            LD      A,00101000B         ;Reset SIO Transmit Interrupt 
+098e d3 27		            OUT     (SIO_CA),A          ;Write into WR0 
+0990			WRITE_EXIT: 
+0990 f1			            POP     AF                  ;Restore AF 
+0991 fb			            EI                          ;Reenable Interrupts 
+0992 ed 4d		            RETI                        ;Return from Interrupt 
+0994			 
+0994			;External Status/Change Interrupt Handler.  Not handled, Just reset the status interrupt 
+0994			EXTERNAL_HANDLE: 
+0994 f5			            PUSH    AF                  ;Save AF 
+0995 3e 10		            LD      A,00010000B         ;Reset Status Interrupt 
+0997 d3 27		            OUT     (SIO_CA),A          ;Write into WR0 
+0999 f1			            POP     AF                  ;Restore AF 
+099a fb			            EI                          ;Reenable Interrupts 
+099b ed 4d		            RETI                        ;Return from Interrupt 
+099d			 
+099d			;Special Receive Interrupt Handler.  Not handled, Just reset the status interrupt 
+099d			ERROR_HANDLE: 
+099d f5			            PUSH    AF                  ;Save AF 
+099e 3e 30		            LD      A,00110000B         ;Reset Receive Error Interrupt 
+09a0 d3 27		            OUT     (SIO_CA),A          ;Write into WR0 
+09a2 f1			            POP     AF                  ;Restore AF 
+09a3 fb			            EI                          ;Reenable Interrupts 
+09a4 ed 4d		            RETI                        ;Return from Interrupt 
+09a6			 
+09a6			;Consume one byte if any to consume 
+09a6			DO_TRANSMIT: 
+09a6 f3			            DI                          ;Disable interrupts 
+09a7			;Check if buffer is empty? 
+09a7 3a 0c 0d		            LD      A,(BUFFTL)          ;Get the TAIL pointer 
+09aa 47			            LD      B,A                 ;Save in B 
+09ab 3a 0b 0d		            LD      A,(BUFFHD)          ;Get the HEAD pointer 
+09ae b8			            CP      B                   ;Does TAIL=HEAD? 
+09af 20 03		            JR      NZ,WRITE_OKAY       ;No, Transmit data at Tail 
+09b1			;Buffer is Empty, set the carry flag and exit 
+09b1 37			            SCF                         ;Set the Carry Flag 
+09b2 fb			            EI                          ;Restore interrupts 
+09b3 c9			            RET                         ;Exit 
+09b4			;Buffer is not empty 
+09b4			WRITE_OKAY: 
+09b4 21 00 0b		            LD      HL,CIRBUF           ;Load Buffer in HL 
+09b7 68			            LD      L,B                 ;Load Tail Pointer to L to index the Circular Buffer 
+09b8 7e			            LD      A,(HL)              ;Get byte at Tail. 
+09b9 d3 07		            OUT     (SIO_DA),A          ;Transmit byte to SIO 
+09bb			;Output has occured 
+09bb 7d			            LD      A,L                 ;Load Tail Pointer to A 
+09bc 3c			            INC     A                   ;Increase Tail pointer by 1 
+09bd e6 1f		            AND     BUFSIZ              ;Mask for wrap around 
+09bf 32 0c 0d		            LD      (BUFFTL),A          ;Save new tail 
+09c2			 
+09c2 21 06 0d		            LD      HL,BUFFCT           ;Load the current buffer count 
+09c5 35			            DEC     (HL)                ;Decrease the buffer count by 1 
+09c6			 
+09c6 b7			            OR      A                   ;Reset Carry Flag 
+09c7 fb			            EI                          ;Restore interrupts 
+09c8 c9			            RET                         ;Exit 
+09c9			 
+09c9			;SIO Configuration Routines 
+09c9			;-------------------------- 
+09c9			 
+09c9			INIT_SIO:             
+09c9 21 db 09		            LD      HL,CTLTBL           ;Setup data location 
+09cc cd d0 09		            CALL    IPORTS              ;Setup the SIO 
+09cf c9			            RET                         ;Exit 
+09d0			 
+09d0			;Initialize the SIO, Requires 3 bits of information. Number of control bytes to send, 
+09d0			;the port to send it to and the control data. 
+09d0			IPORTS:               
+09d0 7e			            LD      A,(HL)              ;Load Control Table (Bytes) 
+09d1 b7			            OR      A                   ;Test for zero, no more data to load 
+09d2 c8			            RET     Z                   ;Return if zero 
+09d3 47			            LD      B,A                 ;Save number of control bytes in B 
+09d4 23			            INC     HL                  ;Move to Port address 
+09d5 4e			            LD      C,(HL)              ;Load C with port address (for OTIR) 
+09d6 23			            INC     HL                  ;Move to control data 
+09d7			 
+09d7 ed b3		            OTIR                        ;Output HL data, B times, to port C 
+09d9 18 f5		            JR      IPORTS              ;Jump to the next port 
+09db			 
+09db			;Control Table data for SIO. Refer to Z80 SIO Technical Manual for more information 
+09db			;on the bits set.   
+09db			CTLTBL:               
+09db			;Reset Channel A 
+09db 01			            DB 01H                      ;1 Line 
+09dc 27			            DB SIO_CA                   ;A Port Command 
+09dd 18			            DB 00011000B                ;write into WR0: channel reset 
+09de			             
+09de			;Set Interrupt Vector and allow status to affect it. The WR2 allows the user to set 
+09de			;the default base address of the vector table. Bits 1,2 and 3 are set based on the 
+09de			;interrupt.  The other bits can be set here, Since my vector tables starts at 0B00, 
+09de			;thie register can just be set to 0; 
+09de 04			            DB 04H                      ;4 Lines 
+09df 37			            DB SIO_CB                   ;B Port Command 
+09e0 02			            DB 00000010B                ;write into WR0: select WR2 
+09e1 00			            DB 00000000B                ;write into WR2: set base interrupt vector for SIO (0B00) 
+09e2 01			            DB 00000001B                ;write into WR0: select WR1 
+09e3 04			            DB 00000100B                ;write into WR1: allow status to affect vector 
+09e4			             
+09e4			;Initialise Channel A 
+09e4 08			            DB 08H                      ;8 Lines 
+09e5 27			            DB SIO_CA                   ;A Port Command 
+09e6 14			            DB 00010100B                ;write into WR0: select WR4 / Reset Int 
+09e7 c4			            DB 11000100B                ;write into WR4: presc. 64x, 1 stop bit, no parity 
+09e8 03			            DB 00000011B                ;write into WR0: select WR3 
+09e9 c1			            DB 11000001B                ;write into WR3: 8 bits/RX char; auto enable OFF; RX enable 
+09ea 05			            DB 00000101B                ;write into WR0: select WR5 
+09eb 6a			            DB 01101010B                ;write into WR5: TX 8 bits, TX Enable, No RTS 
+09ec 01			            DB 00000001B                ;write into WR0: select WR1 
+09ed 1b			            DB 00011011B                ;write into WR1: Int on All RX (No Parity), TX Int, Ex Int 
+09ee			             
+09ee 00			            DB 00H                      ;End Initialisation Array 
+09ef			 
+09ef			;Background Utilities 
+09ef			;-------------------- 
+09ef			 
+09ef			;Scan the Keyboard for input.  If anykey is pressed except for '+', transmit data from the 
+09ef			;circular buffer to the SIO if data is available.  If '+' is pressed, toggle the auto 
+09ef			;transmit flag. Must 
+09ef			KEY_READ: 
+09ef db 03		            IN      A,(03)              ;Check if key is pressed 
+09f1 cb 77		            BIT     6,A                 ;If bit 6 is set (D6) the key has been pressed 
+09f3 28 05		            JR      Z,K1                ;Key pressed, action it 
+09f5 af			            XOR     A                   ;Store 0 for last key if no key pressed 
+09f6 32 0a 0d		            LD      (KEYPRE),A          ; 
+09f9 c9			            RET                         ;Exit 
+09fa			K1: 
+09fa			;Key has been pressed 
+09fa 3a 0a 0d		            LD      A,(KEYPRE)          ;Check if it was the same 
+09fd b7			            OR      A                   ; 
+09fe c0			            RET     NZ                  ;Just return if same 
+09ff 3e ff		            LD      A,0FFH 
+0a01 32 0a 0d		            LD      (KEYPRE),A          ;Store FF in key press   
+0a04 db 00		            IN      A,(00)              ;Get actual key 
+0a06 e6 1f		            AND     1FH                 ;Mask upper bits 
+0a08			 
+0a08 fe 10		            CP      10H                 ;Has the '+' key been pressed? 
+0a0a c2 a6 09		            JP      NZ,DO_TRANSMIT      ;No, Jump to Transmit Byte routine and exit 
+0a0d			 
+0a0d			;+ Pressed, toggle the auto transmit flag 
+0a0d 3a 09 0d		            LD      A,(AUTOTM)          ;Get the Automatic transmit flag 
+0a10 2f			            CPL                         ;toggle it 
+0a11 32 09 0d		            LD      (AUTOTM),A          ;Store toggled value back 
+0a14 3a 07 0d		            LD      A,(BUFFOF)          ;Get the state of the Buffer 
+0a17 ee aa		            XOR     0AAH                ;Toggle it (00) or (AA)  
+0a19 32 07 0d		            LD      (BUFFOF),A          ;Store toggled value back 
+0a1c c9			            RET                         ;Exit 
+0a1d			 
+0a1d			;Multiplex the Display 
+0a1d			SCAN:                                   ;Multiplex the displays 
+0a1d 06 20		            LD      B,20H               ;Segment Reference 
+0a1f 21 00 0d		            LD      HL,LEDSCR           ;Set HL to Display Buffer 
+0a22			 
+0a22			SCAN_LOOP: 
+0a22 7e			            LD      A,(HL)              ;Get Segment Value at HL 
+0a23 d3 02		            OUT     (02),A              ;Set on Segment 
+0a25 78			            LD      A,B                 ;Get Segment reference 
+0a26 d3 01		            OUT     (01),A              ;Activate segment 
+0a28 06 80		            LD      B,80H               ;Segment delay 
+0a2a 10 fe		D_LOOP:     DJNZ    D_LOOP 
+0a2c 23			            INC     HL                  ;move to next location 
+0a2d 47			            LD      B,A                 ;Save Segment reference 
+0a2e af			            XOR     A                   ;Clear A 
+0a2f d3 01		            OUT     (01),A              ;Deactivate Segment 
+0a31 cb 08		            RRC     B                   ;Move Segment Reference on to the Right 
+0a33 30 ed		            JR      NC,SCAN_LOOP        ;If not passed the last segment, scan next segment 
+0a35 d3 02		            OUT     (02),A              ;Clear port 2 
+0a37 c9			            RET 
+0a38			 
+0a38			;Update the LEDSCR with Byte Received, Atomic Flag and Buffer size 
+0a38			UPDATE_LED: 
+0a38 01 00 0d		            LD      BC,LEDSCR           ;Location of screen buffer 
+0a3b 21 06 0d		            LD      HL,BUFFCT           ;Byte Recieved 
+0a3e 7e			            LD      A,(HL) 
+0a3f cd 4d 0a		            CALL    CON_A               ;Convert A to Segment Hex, Store in BC 
+0a42 23			            INC     HL 
+0a43 7e			            LD      A,(HL)              ;Atomic Flag 
+0a44 cd 4d 0a		            CALL    CON_A               ;Convert A to Segment Hex, Store in BC 
+0a47 23			            INC     HL 
+0a48 7e			            LD      A,(HL)              ;Buffer count 
+0a49 cd 4d 0a		            CALL    CON_A               ;Convert A to Segment Hex, Store in BC 
+0a4c c9			            RET 
+0a4d			 
+0a4d			;Convert A to two display bytes for Seven Segment, Store Result in location of BC 
+0a4d			CON_A: 
+0a4d f5			            PUSH    AF                  ;Save A to keep original value 
+0a4e 07			            RLCA                        ;Shift upper nibble to lower for masking 
+0a4f 07			            RLCA 
+0a50 07			            RLCA 
+0a51 07			            RLCA 
+0a52 cd 56 0a		            CALL    CON_NIBBLE          ;Convert Lower nibble to segment hex 
+0a55 f1			            POP     AF                  ;Restore A 
+0a56			 
+0a56			CON_NIBBLE: 
+0a56 e6 0f		            AND     0FH                 ;Only look at lower nibble for indexing 
+0a58 11 61 0a		            LD      DE,DISP_COD_TAB     ;Reference Segment convert table 
+0a5b 83			            ADD     A,E                 ;Index table with A 
+0a5c 5f			            LD      E,A                 ;Update DE with index 
+0a5d 1a			            LD      A,(DE)              ;Look up table 
+0a5e 02			            LD      (BC),A              ;Save it to display buffer 
+0a5f 03			            INC     BC                  ;Increment buffer location 
+0a60 c9			            RET 
+0a61			 
+0a61			;Hex to Seven Segment lookup table 
+0a61			DISP_COD_TAB: 
+0a61 eb 28 cd ad 2e a7 e7 29	            DB      0EBH,028H,0CDH,0ADH,02EH,0A7H,0E7H,029H 
+0a69 ef af 6f e6 c3 ec c7 47	            DB      0EFH,0AFH,06FH,0E6H,0C3H,0ECH,0C7H,047H 
+0a71			 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/sio_transfer/sio_circular_buffer_example.z80
+0a71
