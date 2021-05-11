@@ -55,7 +55,7 @@ BUFF32:     EQU     1FH    ;32 bytes
 BUFF64:     EQU     3FH    ;64 bytes
 BUFF128:    EQU     7FH    ;128 bytes
 BUFF256:    EQU     0FFH   ;256 bytes
-BUFSIZ:     EQU     BUFF32 ;16 bytes (Change if required)
+BUFSIZ:     EQU     BUFF32 ;32 bytes (Change if required)
 
 ;SIO TEC PORT CONFIGURATION
 ;For my setup Port 7 on TEC is connected to CE, A5 is connected to Control/Data,
