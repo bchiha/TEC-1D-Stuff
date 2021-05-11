@@ -1,0 +1,192 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/nim.z80
+0000			; NIM game for the Microcomp 
+0000			; -------------------------------- 
+0000			; 
+0000			; Original code written by John Hardy for the TEC-1; 
+0000			; Ported for the Microcomp. 
+0000			; Listing type in by Brian Chiha. (Modified to remove cheating!) 
+0000			; 
+0000			; You are playing against the computer in a battle of wits.  The computer has an  
+0000			; obvious advantage. 
+0000			; 
+0000			; There are 23 matches and you take turns in removing 1, 2, or 3 matches. The object 
+0000			; of the game is to make the computer take the last match.  At each turn you can only 
+0000			; take 1, 2, or 3. The computer lets you go first. The number of matches is displayed 
+0000			; on the display. When you press a button 'A', you take a match.  You can take up to 
+0000			; 3 matches.  When finished, press button 'B' and the computer will do its move.  When 
+0000			; the computer is playing, the screen will flicker.   
+0000			 
+0000			;Contstants 
+0000			BTN_A:      EQU     80H            ;Button 'A'  
+0000			BTN_B:      EQU     40H            ;Button 'B' 
+0000			INIT_MAT:   EQU     23H            ;Initial Match count 
+0000			PLAY_MAT:   EQU     03H            ;Maximum number of matches to pick up per round  
+0000			 
+0000			            ORG     0000H  
+0000			START:                
+0000			            ;Set up 
+0000 3e 23		            LD      A,INIT_MAT ;Load A with initical start value 
+0002 ed 47		            LD      I,A        ;Save A in the index register to store game count 
+0004 0e 00		            LD      C,00H      ;C is used to to determine the active player and button 
+0006 1e 03		            LD      E,PLAY_MAT ;Load E with max matches per player turn 
+0008			GAME: 
+0008			            ;Start of game loop             
+0008 16 20		            LD      D,20H      ;Load D with 32 for long thinking delay if computer plays 
+000a			ROUND: 
+000a			            ;Display Right Segment 
+000a 21 e2 00		            LD      HL,SEGTBL  ;Load HL with Segment Data Table 
+000d ed 57		            LD      A,I        ;Load A with current game value 
+000f e6 0f		            AND     0FH        ;Mask off upper nibble 
+0011 85			            ADD     A,L        ;Index L with A 
+0012 6f			           	LD      L,A        ;Index Segment table with A 
+0013 7e			           	LD      A,(HL)     ;Load Segment Value to A 
+0014 d3 02		           	OUT     (02),A     ;Output segment value to RH display 
+0016 06 10		           	LD      B,10H      ;Load B with short delay 
+0018 10 fe		LOOP1:      DJNZ    LOOP1      ;Delay 
+001a			             
+001a cb 59		            BIT     3,C		   ;Is Bit 3 set? 
+001c 28 07		            JR      Z,BUTCHK   ;No, Players turn 
+001e			          
+001e af			            XOR     A          ;Zero A 
+001f 06 30		            LD      B,30H      ;Load B with short delay 
+0021 10 fe		LOOP2:      DJNZ    LOOP2      ;Delay 
+0023 18 0c		           	JR      DISLEFT    ;Display Left Value 
+0025			BUTCHK: 
+0025			            ;Check if button pressed 
+0025 db 01		            IN      A,(01)     ;Read input latch 
+0027 fe 80		            CP      BTN_A      ;Has Button 'A' been pressed? 
+0029 28 30		            JR      Z,BUTTONA  ;Yes, handle Button A press 
+002b cb 81		            RES     0,C        ;Reset Bit 0 as button A not pressed 
+002d fe 40		            CP      BTN_B      ;Has Button 'B' been pressed? 
+002f 28 40		            JR      Z,BUTTONB  ;Yes, handle Button B press 
+0031			DISLEFT: 
+0031			            ;Display Left Segment 
+0031 ed 57		            LD      A,I	       ;Load A with current game value 
+0033 1f			            RRA                ;Swap upper 
+0034 1f			            RRA                ;nibble with 
+0035 1f			            RRA                ;lower nibble 
+0036 1f			            RRA                ; 
+0037 e6 0f		            AND     0FH        ;Mask off upper nibble 
+0039 21 e2 00		            LD      HL,SEGTBL  ;Load HL with Segment Data Table 
+003c 85			            ADD     A,L        ;Index L with A 
+003d 6f			           	LD      L,A        ;Index Segment table with A 
+003e 7e			           	LD      A,(HL)     ;Load Segment Value to A 
+003f cb ff		           	SET     7,A        ;Set Bit 7 to display on LH display 
+0041 d3 02		           	OUT     (02),A     ;Output segment value to LH display 
+0043 06 10		           	LD      B,10H      ;Load B with short delay 
+0045 10 fe		LOOP3:      DJNZ    LOOP3      ;Delay 
+0047			 
+0047 cb 59		            BIT     3,C		   ;Is Bit 3 set? 
+0049 28 05		            JR      Z,GAMECHK  ;No, Players turn 
+004b			             
+004b af			            XOR     A          ;Zero A 
+004c 06 30		            LD      B,30H      ;Load B with short delay 
+004e 10 fe		LOOP4:      DJNZ    LOOP4      ;Delay 
+0050			 
+0050			GAMECHK: 
+0050			            ;Check game state 
+0050 15			            DEC     D          ;Decrease D 
+0051 c2 0a 00		            JP      NZ,ROUND   ;If not zero, do round again 
+0054 cb 59		            BIT     3,C        ;Is Bit 3 set? Is computer playing? 
+0056 ca 08 00		            JP      Z,GAME     ;No, Repeast Game loop 
+0059 18 2d		            JR      COMPTURN   ;Yes, handle computer game turn 
+005b			BUTTONA: 
+005b			            ;Button 'A' press handler 
+005b cb 41		            BIT     0,C        ;Is bit Zero set? 
+005d 20 d2		            JR      NZ,DISLEFT ;Yes, display Left segment 
+005f cb c1		            SET     0,C	       ;Set bit zero to indicate button 'a' press mode 
+0061 ed 57		            LD      A,I        ;Load current game count in A 
+0063 3d			            DEC     A          ;Reduce count by one 
+0064 27			            DAA                ;Adjust for hex to decimal 
+0065 fe 00		            CP      00H        ;Is score zero? 
+0067 28 48		            JR      Z,LOSE     ;Yes, player loses 
+0069 ed 47		            LD      I,A        ;Store new game count back in I 
+006b 1d			            DEC     E          ;Decrease player match pick up left 
+006c 28 03		            JR      Z,BUTTONB  ;If all used up, start computer turn 
+006e c3 0a 00		            JP      ROUND      ;Handle next round 
+0071			BUTTONB: 
+0071			            ;Button 'B' press handler 
+0071 cb d9		            SET     3,C        ;Set bit 3 for computer turn 
+0073 ed 57		            LD      A,I	       ;Load current game count to A 
+0075 fe 01		            CP      01H        ;Is score one? 
+0077 28 46		            JR      Z,WIN      ;Yes, player wins 
+0079			COMPLAY: 
+0079			            ;Play computer. Work out what the computer value will be 
+0079 fe 05		            CP      05H        ;Is current game count 5 or higher? 
+007b 28 23		            JR      Z,DO_DEC   ;Do computer decrease game count 
+007d 38 05		            JR      C,CONTGAME ;Is score lower than 5? 
+007f d6 04		            SUB     04H	       ;Subtract 4 from game total 
+0081 27			            DAA                ;Adjust for decimal 
+0082 18 f5		            JR      COMPLAY    ;Repeat until value under 4 
+0084			CONTGAME: 
+0084 5f			            LD      E,A        ;Save computer value in E 
+0085 c3 08 00		            JP      GAME       ;Repeat game loop 
+0088			COMPTURN: 
+0088			            ;Adjust game value with computers turn 
+0088 1d			            DEC     E          ;Decrease computer value 
+0089 28 0e		            JR      Z,COMPDONE ;If no more to do, exit computer round 
+008b af			            XOR     A          ;Zero A 
+008c d3 02		            OUT     (02),A     ;Blank the Segments 
+008e 10 fe		LOOP5:      DJNZ    LOOP5      ;Long Delay 
+0090 ed 57		            LD      A,I        ;Load current game value to A 
+0092 3d			            DEC     A          ;Decrease A 
+0093 27			            DAA                ;Adjust for decimal 
+0094 ed 47		            LD      I,A        ;Save count back to A 
+0096 c3 08 00		            JP      GAME       ;Repeat Game Loop 
+0099			COMPDONE: 
+0099 cb 99		            RES     3,C        ;Reset Bit 3 to end Computer turn 
+009b 1e 03		            LD      E,PLAY_MAT ;Reset max matches per round 
+009d c3 0a 00		            JP      ROUND      ;Handle next round 
+00a0			DO_DEC: 
+00a0 ed 5f		            LD      A,R        ;Load A with Random value 
+00a2			LOOP6: 
+00a2			            ;Calculate computer value 
+00a2 3c			            INC     A          ;Increase A to its not zero 
+00a3 e6 07		            AND     07H        ;Mask out high nibble 
+00a5 fe 05		            CP      05H        ;Is the value 5 or more? 
+00a7 30 f9		            JR      NC,LOOP6   ;Yes, try again 
+00a9 fe 02		            CP      02H        ;Is it under 2? 
+00ab 38 f5		            JR      C,LOOP6    ;Yes, try again 
+00ad 5f			            LD      E,A        ;Value is between 2 and 4, save back in E 
+00ae c3 08 00		            JP      GAME       ;Repeat Game Loop 
+00b1			LOSE: 
+00b1			            ;Computer wins	 
+00b1 06 00		            LD      B,00H      ;Load B with long delay 
+00b3 16 0b		            LD      D,0BH      ;Load D with chracter count 
+00b5 21 ec 00		            LD      HL,LOSEMSG ;Load HL with start of lose message 
+00b8 fd 21 b1 00	            LD      IY,LOSE    ;Load IY with jump return address 
+00bc c3 ca 00		            JP      PRNTMSG	   ;Call Print message subroutine 
+00bf			WIN: 
+00bf			            ;Player wins 
+00bf 06 00		            LD      B,00H      ;Load B with long delay 
+00c1 16 09		            LD      D,09H      ;Load D with charcter count 
+00c3 21 f7 00		            LD      HL,WINMSG  ;Load HL with start of win message 
+00c6 fd 21 bf 00	            LD      IY,WIN     ;Load IY with jump return address 
+00ca			PRNTMSG: 
+00ca			            ;Cycle through character table printing one character at a time 
+00ca 7e			            LD      A,(HL)     ;Load A with segment character 
+00cb d3 02		            OUT     (02),A     ;Output character to RH display 
+00cd 0e 05		            LD      C,05H      ;Load C with display repeat count 
+00cf 10 fe		LOOP7:      DJNZ    LOOP7      ;Delay 
+00d1 0d			            DEC     C	       ;Decrease C 
+00d2 20 fb		            JR      NZ,LOOP7   ;If C is not zero repeat delay 
+00d4 af			            XOR     A	       ;Zero A 
+00d5 d3 02		            OUT     (02),A     ;Blank the Segments 
+00d7 06 80		            LD      B,80H      ;Load B with delay 
+00d9 10 fe		LOOP8:      DJNZ    LOOP8      ;Delay 
+00db 23			            INC     HL         ;Move HL to next character 
+00dc 15			            DEC     D          ;Decrease D for next char count 
+00dd 20 eb		            JR      NZ,PRNTMSG ;Repeat display until all characters printed 
+00df fd e9		            JP      (IY)       ;Return back calling routing 
+00e1 00			            NOP                ;Fill 
+00e2			 
+00e2			            ;Ascii character table for seven segment display 
+00e2 3f 06 5b 4f 66 6d 7d 07 7f 67	SEGTBL:     DB      3FH,06H,5BH,4FH,66H,6DH,7DH,07H,7FH,67H ;0-9 
+00ec			 
+00ec			            ;Win/Lose messages 
+00ec 00 6e 3f 3e 00 38 3f 6d 79	LOSEMSG:    DB      00H,6EH,3FH,3EH,00H,38H,3FH,6DH,79H     ;You Lose 
+00f5 00 00		            DB      00H,00H 
+00f7			 
+00f7 00 30 00 38 3f 6d 79 00 00	WINMSG:     DB      00H,30H,00H,38H,3FH,6DH,79H,00H,00H     ;I Lose 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/nim.z80
+0100

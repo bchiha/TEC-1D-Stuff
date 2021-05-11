@@ -1,0 +1,165 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/tug_o_war.z80
+0000			; TUG O' WAR game for the Microcomp 
+0000			; --------------------------------- 
+0000			; 
+0000			; Published in the Talking Electronics Magazine issue 14 
+0000			; Listing type in by Brian Chiha 
+0000			; 
+0000			; Tug O' War is a game for two players.  The aim is to tap a button multiple 
+0000			; times to increase a number from 0 to 9.  When a player reaches 9, they win 
+0000			; and the game ends.  To increase their number they press their button, either 
+0000			; 'A' or 'B'.  The numbers are displayed on the Seven Segment Displays and the  
+0000			; left hand display is for Button/Player 'A' and the right hand is for 'B'. 
+0000			; There is a catch, more button presses are needed as the number gets closer 
+0000			; to 9 and if one player out presses the other player, their count goes higher, 
+0000			; while the slower players count decreases. 
+0000			; 
+0000			;Contstants 
+0000			BTN_A:      EQU     80H            ;Button 'A'  
+0000			BTN_B:      EQU     40H            ;Button 'B'  
+0000			BOTH_BTN:   EQU     BTN_A + BTN_B  ;Button 'A' and 'B'  
+0000			 
+0000			            ORG     0000H  
+0000			START:                
+0000			            ;Start up 
+0000 21 ba 00		            LD      HL,SEGTBL  ;Point to start of 0-9 table for LH display 
+0003 11 ba 00		            LD      DE,SEGTBL  ;Point to start of 0-9 table for RH display 
+0006 0e 00		            LD      C,00H      ;Load Button Debounce test flag register with zero 
+0008			DISPLAY: 
+0008			            ;Display multiplexing 
+0008 1a			            LD      A,(DE)     ;Load A with the current digit for RH display 
+0009 d3 02		            OUT     (02),A     ;Output digit to RH display 
+000b 06 20		            LD      B,20H      ;Load B with short delay 
+000d 10 fe		LOOP1:      DJNZ    LOOP1      ;Delay 
+000f af			            XOR     A          ;Zero A 
+0010 cb ff		            SET     7,A        ;Set Bit 7 to activate LH display 
+0012 86			            ADD     A,(HL)     ;Add A with the current digit for LH display 
+0013 d3 02		            OUT     (02),A     ;Output digit to LH display 
+0015			BUTTONS: 
+0015			            ;Look at Buttons 
+0015 db 01		            IN      A,(01)     ;Read input latch 
+0017 fe c0		            CP      BOTH_BTN   ;Are both buttons pressed? 40H + 80H = C0H 
+0019 28 12		            JR      Z,NO_UPD   ;Yes, Don't update anything and repeat display 
+001b fe 40		            CP      BTN_B      ;Has button 'B' been pressed? 
+001d 28 14		            JR      Z,B_PRESS  ;Yes, Handle button 'B' pressed 
+001f cb 81		            RES     0,C        ;No, Reset Button 'B' pressed flag 
+0021			CHK_A:  
+0021 db 01		            IN      A,(01)     ;Read input latch 
+0023 fe c0		            CP      BOTH_BTN   ;Are both buttons pressed? 40H + 80H = C0H 
+0025 28 06		            JR      Z,NO_UPD   ;Yes, Don't update anything and repeat display 
+0027 fe 80		            CP      BTN_A      ;Has button 'A' been pressed? 
+0029 28 4c		            JR      Z,A_PRESS  ;Yes, Handle button 'B' pressed 
+002b cb 89		            RES     1,C        ;No, Reset Button 'A' pressed flag 
+002d			NO_UPD: 
+002d			            ;Repeat Display 
+002d 06 10		            LD      B,10H      ;Load B with short delay 
+002f 10 fe		LOOP2:      DJNZ    LOOP2      ;Delay 
+0031 18 d5		            JR      DISPLAY    ;Jump back to display routine 
+0033			B_PRESS: 
+0033			            ;Button 'B' pressed 
+0033 cb 41		            BIT     0,C        ;Has button 'B' already been pressed? 
+0035 20 ea		            JR      NZ,CHK_A   ;Yes, check button 'A' 
+0037 cb c1		            SET     0,C        ;Set button 'B' pressed flag 
+0039 13			            INC     DE         ;Move current digit for RH closer to 9 
+003a 1a			            LD      A,(DE)     ;Load A with the next digit for RH display 
+003b fe 67		            CP      67H        ;Is it 9?  
+003d 20 2e		            JR      NZ,DEC_A   ;No, Jump to Decrease LH player 
+003f			            ;Player B wins 
+003f			DIS_WIN_B:                     ;Flash RH display 
+003f 0e 10		            LD      C,10H      ;Load C with multiplex delay 
+0041			LOOP3: 
+0041 1a			            LD      A,(DE)     ;Load A with the current digit for RH display 
+0042 d3 02		            OUT     (02),A     ;Output digit to RH display 
+0044 06 10		            LD      B,10H      ;Load B with short delay 
+0046 10 fe		LOOP4:      DJNZ    LOOP4      ;Delay 
+0048 af			            XOR     A          ;Zero A 
+0049 cb ff		            SET     7,A        ;Set Bit 7 to activate LH display 
+004b 86			            ADD     A,(HL)     ;Add A with the current digit for LH display 
+004c d3 02		            OUT     (02),A     ;Output digit to LH display 
+004e 06 10		            LD      B,10H      ;Load B with short delay 
+0050 10 fe		LOOP5:      DJNZ    LOOP5      ;Delay 
+0052 0d			            DEC     C          ;Decrease multiplex repeater 
+0053 20 ec		            JR      NZ,LOOP3   ;Repeat display 
+0055 0e 10		            LD      C,10H      ;Load C with multiplex delay 
+0057			LOOP6: 
+0057 af			            XOR     A          ;Zero A 
+0058 d3 02		            OUT     (02),A     ;Output digit to RH display 
+005a 06 10		            LD      B,10H      ;Load B with short delay 
+005c 10 fe		LOOP7:      DJNZ    LOOP7      ;Delay 
+005e af			            XOR     A          ;Zero A 
+005f cb ff		            SET     7,A        ;Set Bit 7 to activate LH display 
+0061 86			            ADD     A,(HL)     ;Add A with the current digit for LH display 
+0062 d3 02		            OUT     (02),A     ;Output digit to LH display 
+0064 06 10		            LD      B,10H      ;Load B with short delay 
+0066 10 fe		LOOP8:      DJNZ    LOOP8      ;Delay 
+0068 0d			            DEC     C          ;Decrease multiplex repeater 
+0069 20 ec		            JR      NZ,LOOP6   ;Repeat display 
+006b 18 d2		            JR      DIS_WIN_B  ;Keep Flashing Screen forever! 
+006d			DEC_A: 
+006d			            ;Decrease LH Player digit 
+006d 7e			            LD      A,(HL)     ;Add A with the current digit for LH display 
+006e fe 3f		            CP      3FH        ;Is it Zero? 
+0070 20 02		            JR      NZ,DO_DEC_A ;No, Do Decrease 
+0072 18 a1		            JR      BUTTONS    ;Yes, Just check buttons again and display 
+0074			DO_DEC_A: 
+0074 2b			            DEC     HL         ;Move LH Player back one digit 
+0075 18 9e		            JR      BUTTONS    ;Check buttons again and display 
+0077			A_PRESS: 
+0077			            ;Button 'A' pressed 
+0077 cb 49		            BIT     1,C        ;Has button 'A' already been pressed? 
+0079 20 b2		            JR      NZ,NO_UPD  ;Yes, Don't update anything and repeat display 
+007b cb c9		            SET     1,C        ;Set button 'A' pressed flag 
+007d 23			            INC     HL         ;Move current digit for LH closer to 9 
+007e 7e			            LD      A,(HL)     ;Load A with the next digit for LH display 
+007f fe 67		            CP      67H        ;Is it 9?  
+0081 20 2b		            JR      NZ,DEC_B   ;No, Jump to Decrease RH player 
+0083			            ;Player A wins 
+0083			DIS_WIN_A:                     ;Flash RH display 
+0083 0e 10		            LD      C,10H      ;Load C with multiplex delay 
+0085			LOOP9: 
+0085 1a			            LD      A,(DE)     ;Load A with the current digit for RH display 
+0086 d3 02		            OUT     (02),A     ;Output digit to RH display 
+0088 06 10		            LD      B,10H      ;Load B with short delay 
+008a 10 fe		LOOP10:     DJNZ    LOOP10     ;Delay 
+008c af			            XOR     A          ;Zero A 
+008d cb ff		            SET     7,A        ;Set Bit 7 to activate LH display 
+008f 86			            ADD     A,(HL)     ;Add A with the current digit for LH display 
+0090 d3 02		            OUT     (02),A     ;Output digit to LH display 
+0092 06 10		            LD      B,10H      ;Load B with short delay 
+0094 10 fe		LOOP11:     DJNZ    LOOP11     ;Delay 
+0096 0d			            DEC     C          ;Decrease multiplex repeater 
+0097 20 ec		            JR      NZ,LOOP9   ;Repeat display 
+0099 0e 10		            LD      C,10H      ;Load C with multiplex delay 
+009b			LOOP12: 
+009b 1a			            LD      A,(DE)     ;Load A with the current digit for RH display 
+009c d3 02		            OUT     (02),A     ;Output digit to RH display 
+009e 06 10		            LD      B,10H      ;Load B with short delay 
+00a0 10 fe		LOOP13:     DJNZ    LOOP13     ;Delay 
+00a2 af			            XOR     A          ;Zero A 
+00a3 d3 02		            OUT     (02),A     ;Output digit to LH display 
+00a5 06 10		            LD      B,10H      ;Load B with short delay 
+00a7 10 fe		LOOP14:     DJNZ    LOOP14     ;Delay 
+00a9 0d			            DEC     C          ;Decrease multiplex repeater 
+00aa 20 ef		            JR      NZ,LOOP12  ;Repeat display 
+00ac 18 d5		            JR      DIS_WIN_A  ;Keep Flashing Screen forever! 
+00ae			DEC_B: 
+00ae			            ;Decrease RH Player digit 
+00ae 1a			            LD      A,(DE)     ;Load A with the current digit for RH display 
+00af fe 3f		            CP      3FH        ;Is it Zero? 
+00b1 20 03		            JR      NZ,DO_DEC_B ;No, Do Decrease 
+00b3 c3 15 00		            JP      BUTTONS    ;Yes, Just check buttons again and display 
+00b6			DO_DEC_B: 
+00b6 1b			            DEC     DE         ;Move RH Player back one digit 
+00b7 c3 15 00		            JP      BUTTONS    ;Check buttons again and display 
+00ba			 
+00ba			;Table that displays the numbers 0-9.  Numbers repeat more as they get closer to 9 
+00ba 3f 06 06 5b 5b 5b 4f 4f	SEGTBL:     DB      3FH,06H,06H,5BH,5BH,5BH,4FH,4FH  ;01122233 
+00c2 4f 4f 66 66 66 66 66 6d	            DB      4FH,4FH,66H,66H,66H,66H,66H,6DH  ;33444445 
+00ca 6d 6d 6d 6d 6d 7d 7d 7d	            DB      6DH,6DH,6DH,6DH,6DH,7DH,7DH,7DH  ;55555666 
+00d2 7d 7d 7d 7d 07 07 07 07	            DB      7DH,7DH,7DH,7DH,07H,07H,07H,07H  ;66667777 
+00da 07 07 07 07 7f 7f 7f 7f	            DB      07H,07H,07H,07H,7FH,7FH,7FH,7FH  ;77778888 
+00e2 7f 7f 7f 7f 7f 67	            DB      7FH,7FH,7FH,7FH,7FH,67H          ;888889 
+00e8			;Fill 
+00e8 00 00 00 00 00 00 00 00	            DB      00H,00H,00H,00H,00H,00H,00H,00H 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/tug_o_war.z80
+00f0
