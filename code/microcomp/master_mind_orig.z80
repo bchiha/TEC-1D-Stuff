@@ -1,0 +1,229 @@
+; Master Mind game for the Microcomp
+; ----------------------------------
+;
+; Original code written by ?? (Probably Colin) and unreleased...
+; Listing type in by Brian Chiha.
+;
+; A series of 4 0-F hex numbers are to be guessed correctly in the right sequence.
+; A sequence of 4 0-F hex numbers are randomlly set and the player is to type in
+; four hex digits.  The program will return on the LH display the number of correct
+; digits on the correct spot and on the RH display the number of correct digits but 
+; not in the correct spot.  The aim is to see 40 on the two displayes.  To give up,
+; set Bit 1 on the input latch, then the actual 4 digit sequence will be displayed
+;
+; Note: This is the orginal version "as is" and it is full of bugs.  It also requires
+; RAM.  I recommend not using this program but master_mind.z80, which is my version
+; that actually workds and is RAM less!
+
+            ORG     0000H
+
+START:
+            LD      HL,0000H   ;Load HL with zero random number calculator
+            LD      DE,0804H   ;Load DE with original sequence address
+LOOP1:
+            IN      A,(01)     ;Read input latch
+            BIT     7,A        ;Has button A been pressed?
+            JR      NZ,SETUP   ;Yes, set up game data
+            INC     HL         ;Increase HL
+            JR      LOOP1      ;Loop again until button pressed
+SETUP:
+            ;Store new random HL in memory
+            LD      B,02H      ;Load B with 2 bytes to store
+            LD      A,L        ;Load A with random L value
+LOOP2:
+            LD      (DE),A     ;Load A into memeory location at DE (includes high nibble?)
+            INC     DE         ;Move DE to next location
+            SRL     A          ;Shift right and set Bit 7 to zero
+            SRL     A          ;Shift right and set Bit 7 to zero
+            LD      (DE),A     ;Load A into memeory location at DE
+            LD      A,H        ;Load A with random H value
+            INC     DE         ;Move DE to next location
+            DJNZ    LOOP2      ;Save HL to memeory location
+            ;Adjust for zero
+            LD      B,04H      ;Load B with 4
+            LD      DE,0804H   ;Load DE with original sequence address
+LOOP3:
+            LD      A,(DE)     ;Load A with contents of DE
+            OR      A          ;Is A zero?
+            JR      NZ,SKIP1   ;Don't adjust if non zero
+            INC     A          ;Increase A to be non zero
+            LD      (DE),A     ;Load A into memeory location at DE (includes high nibble?)
+SKIP1:
+            INC     DE         ;Move DE to next location
+            DJNZ    LOOP3      ;Save HL to memeory location
+            ;Setup is complete start game loop
+GAME:
+            ;Copy the four bytes of 0804H to 0800H
+            LD      BC,0004H   ;Load BC with 4 bytes to copy
+            LD      DE,0800H   ;Load DE with destination address
+            LD      HL,0804H   ;Load HL with start address
+            LDIR               ;Copy HL to DE, BC times
+            ;Output '--' on the seven segment displays
+            LD      B,0FFH     ;Load B with long delay
+LOOP4:
+            LD      A,40H      ;Load A with RH middle segment
+            OUT     (02),A     ;Output to RH segment
+            LD      A,0C0H     ;Load A with LH middle segment
+            OUT     (02),A     ;Output to LH segment
+            DJNZ    LOOP4      ;Repeat B times
+            ;Set correct counters
+            XOR     A          ;Zero A
+            LD      (0A00H),A  ;Load zero to correct position count
+            LD      (0A01H),A  ;Load zero to incorrect position count
+            LD      DE,0900H   ;Load DE with current player values
+LOOP5:
+            ;Select HEX value.  Use Button A to cycle through numbers
+            ;Button B to select
+            LD      IY,SEGTBL-1;Load IY with start of segment table minus 1
+            LD      L,0FFH     ;Load index L with FF
+KEYPRESS:
+            ;Check for key press
+            IN      A,(01H)    ;Read input latch
+            BIT     6,A        ;Is button 'B' pressed?
+            JR      NZ,KEYSEL  ;Yes, Jump to key selection
+            BIT     7,A        ;Is button 'A' pressed?
+            JR      Z,KEYPRESS ;No, Repeat key press loop
+NEXTVAL:
+            ;Display next hex value on seven segment display
+            DJNZ    NEXTVAL    ;Delay
+            INC     IY         ;Move IY to next segment in table
+            INC     L          ;Increase segment index
+            LD      A,(IY+0)   ;Load segment value at IY to A
+            OUT     (02),A     ;Output the RH segment
+LOOP6:
+            IN      A,(01)     ;Read input latch
+            BIT     7,A        ;Is button 'A' still pressed?
+            JR      NZ,LOOP6   ;Yes, loop until released
+            BIT     6,A        ;Is button 'B' still pressed? (shouldn't get here!)
+            JR      NZ,LOOP6   ;Yes, loop until released
+            LD      A,L        ;Load segment index to A
+            CP      0FH        ;Is it passed end of table 0F?
+            JR      NZ,KEYPRESS;No, loop key press
+            JR      LOOP5      ;Yes, reset indexing and start over
+KEYSEL:
+            ;A character has been selected, handle it
+            DJNZ    KEYSEL     ;Delay
+            LD      A,L        ;Load A with segment index
+            CP      0FFH       ;Was button 'B' pressed before selection?
+            JR      Z,NEXTVAL  ;Yes, go back and to key selection routine
+            LD      (DE),A     ;Store player key value in DE for checking
+LOOP7:
+            IN      A,(01)     ;Read input latch
+            BIT     6,A        ;Is butotn 'B' still being pressed?
+            JR      NZ,LOOP7   ;Yes, loop until released
+            LD      BC,0800H   ;Load BC with 0800
+            LD      C,E        ;Index C with E (BC with DE)
+            LD      A,(BC)     ;Load value stored in BC to A
+            CP      L          ;Compare A with current selected hex value
+            JR      NZ,WRONG   ;If not the same jump to handle wrong case
+RIGHT:
+            ;Selection is the same as initiallly generated
+            LD      HL,0A00H   ;Load HL with 0A00 to indicate found & correct position
+MARK:
+            ;Mark position as found 
+            INC     (HL)       ;Increase HL
+            LD      A,0FH      ;Load A with 0F
+            LD      (BC),A     ;Store 0F in BC to mark as correct
+            JR      NXTVAL      ;Move to next value to check
+WRONG:
+            ;Selection is wrong, check if another handle it
+            LD      BC,0800H   ;Load BC with 0800
+            LD      H,04H      ;Load H with 4 numbers to check
+LOOP8:
+            LD      A,(BC)     ;Load A with first stored value
+            CP      L          ;Check if stored value = chosen value
+            JR      Z,RIGHTBUT ;Yes, update as found but wrong position
+            INC     BC         ;No, Move to next stored value
+            DEC     H          ;Decrease counter
+            JR      NZ,LOOP8   ;Check next value until all 4 have been checked
+            JR      NXTVAL      ;Move to next value to check
+RIGHTBUT:
+            LD      HL,0A01H   ;Load HL with 0A01 to indicate found & different position
+            JR      MARK       ;Mark
+NXTVAL:
+            INC     E          ;Increase E to check next position
+LOOP9:
+            IN      A,(01)     ;Read input latch
+            BIT     6,A        ;Is button 'B' still pressed?
+            JR      NZ,LOOP9   ;Wait until button is released
+            LD      A,E        ;Load A with E
+            CP      04H        ;Have all values been looked at?
+            JR      NZ,NEXTVAL ;No, Check for next value
+            ;All values have been checked.  Display match score
+            LD      IY,0A00H   ;Load IY with correct position count
+LOOP10:
+            LD      IX,0900H   ;Load IX with player key values
+DISPLOOP:
+            ;Display match score loop
+            DJNZ    DISPLOOP    ;Delay
+LOOP11:     DJNZ    LOOP11      ;Delay
+            LD      D,04H       ;Load D with digits to display
+LOOP12:
+            ;Do the Seven Segment lookup
+            LD      HL,SEGTBL   ;Load HL with segment Lookup table
+            LD      A,(IX+0)    ;Load A with current keyed value
+            LD      C,A         ;Load Key to C
+            LD      A,L         ;Index A with L
+            ADD     A,C         ;Index C with A
+            LD      L,A         ;Load new index back to L
+            LD      A,(HL)      ;Load A with segment value
+            OUT     (02),A      ;Output keyed value t0 RH segment
+            INC     IX          ;Move to next keyed value
+LOOP13:     DJNZ    LOOP13      ;Delay
+LOOP14:     DJNZ    LOOP14      ;Delay
+LOOP15:     DJNZ    LOOP15      ;Delay
+            LD      B,0FFH      ;Load B with long delay
+LOOP16:
+            XOR     A           ;Zero A
+            OUT     (02),A      ;Blank Segments
+            DJNZ    LOOP16      ;Loop to keep blank
+            DEC     D           ;Move to next digit index
+            JR      NZ,LOOP12   ;If more digits to display, display next digit
+            ;Display correct/incorrect position count
+            XOR     A           ;Zero A
+            OUT     (02),A      ;Blank Segments
+LOOP17:     DJNZ    LOOP17      ;Delay
+LOOP18:     DJNZ    LOOP18      ;Delay
+            LD      HL,SEGTBL   ;Load HL with segment Lookup table
+POSTYP:
+            LD      C,02H       ;Load C with position type counter
+LOOP19:
+            LD      A,(IY+0)    ;Load A with position type
+            LD      L,40H       ;Load L with 40 ?? (This stuffs the indexing)
+            ADD     A,L         ;Add L to A
+            LD      L,A         ;Load new index back to L
+            LD      A,(HL)      ;Load A with segment value
+            SET     7,A         ;Set Bit 7 on A to display on LH segment
+            OUT     (02),A      ;Output correct position count to LH segment
+            LD      A,(IY+1)    ;Load A with next position type
+            LD      L,40H       ;Load L with 40 ?? (This stuffs the indexing)
+            ADD     A,L         ;Add L to A
+            LD      L,A         ;Load new index back to L
+            LD      A,(HL)      ;Load A with segment value
+            OUT     (02),A      ;Output incorrect position count to RH segment
+            ;Check input for next game choice
+            IN      A,(01)      ;Read input latch
+            BIT     6,A         ;Has Button 'B' pressed?
+            JP      NZ,GAME     ;Yes, restart for next round
+            BIT     0,A         ;Is Bit 0 set? (on DIP switch)
+            JR      NZ,GIVEUP   ;Yes, display actually values and give up!
+            DEC     C           ;Decrease C to display next position count
+            JR      NZ,LOOP19   ;Not Zero, display position count again
+            DJNZ    POSTYP      ;Repeat display unilt B = 0
+            XOR     A           ;Zero A
+            OUT     (02),A      ;Blank Segments
+            JR      LOOP10      ;Re display position count
+GIVEUP:
+            ;Bit 0 set, so give up and display actual sequence
+            LD      IX,0804H    ;Point IX to initial sequence
+            XOR     A           ;Zero A
+            OUT     (02),A      ;Blank Segments
+            DJNZ    GIVEUP      ;Delay Blanking
+            JR      DISPLOOP    ;Jump to Display loop to show actual sequence
+            EXX                 ;Not reached
+            DJNZ    $-6         ;Not reached
+            
+            DB      00H    ;Blank for segment indexing help
+            ;Ascii character table for seven segment display
+SEGTBL:     DB      3FH,06H,5BH,4FH,66H,6DH,7DH,07H  ;0-7
+            DB      7FH,67H,77H,7CH,39H,5EH,79H,71H  ;8-F

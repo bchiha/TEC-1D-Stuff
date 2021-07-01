@@ -1,0 +1,325 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/master_mind.z80
+0000			; Master Mind game for the Microcomp 
+0000			; ---------------------------------- 
+0000			; 
+0000			; Code written by Brian Chiha 
+0000			; 
+0000			; A series of 4 0-9 numbers are to be guessed correctly in the right sequence. 
+0000			; A sequence of 4 0-9 numbers are randomlly set and the player is to type in 
+0000			; four digits.  The program will return on the LH display the number of correct 
+0000			; digits on the correct spot and on the RH display the number of correct digits but  
+0000			; not in the correct spot.  The aim is to see 40 on the two displayes.  To give up, 
+0000			; press both buttons A and B together whilst on the display screen.  Then the actual 
+0000			; 4 digit sequence will be displayed. 
+0000			; 
+0000			; How to play 
+0000			; There are three phases of this game: 
+0000			; 1. Start. On reset or startup, press button 'A' to select a random sequence.  LED's will 
+0000			;    be randomly flashing during this time. 
+0000			; 2. Number select.  Two '--' will appear to indication a new round has started.   
+0000			;    Button 'A' cycles therough the numbers you would like to pick.  Once 
+0000			;    you have choosen your number, press button 'B' to register it.  An animation will be 
+0000			;    displayed when a number is choosen. 
+0000			; 3. When all 4 numbers have been selected, they will be shown back in the same sequence 
+0000			;    one at a time.  Then the score will be displayed.  The left hand segement shows the  
+0000			;    number of correct values in the correct position and the right hand segments shows the 
+0000			;    number of correct values in the incorrect position.  To start a new round press 
+0000			;    button 'A', when the score is being shown.  To give up, press both buttons and the  
+0000			;    actual sequence will be shown.  You can still press button 'A' and continue with the game 
+0000			;   
+0000			; 
+0000			; Note: This is a rewrite of the original (non complete and buggy) version and uses no RAM!. 
+0000			; Just plug straight in to the MicroComp and play away! 
+0000			 
+0000			;Constants 
+0000			BTN_A:      EQU     80H        ;Button 'A'  
+0000			BTN_B:      EQU     40H        ;Button 'B' 
+0000			 
+0000			            ORG     0000H 
+0000			 
+0000			START: 
+0000 01 00 00		            LD      BC,0000H   ;Load BC with zero random number calculator 
+0003			SETUP:                
+0003			            ;Generate a random 2 byte number for the mastermind answer 
+0003 03			            INC     BC         ;Increase BC 
+0004 ed 5f		            LD      A,R        ;Save R register to A 
+0006 80			            ADD     A,B        ;Add B to A 
+0007 89			            ADC     A,C        ;Add C to A 
+0008 80			            ADD     A,B        ;Add B to A again 
+0009 81			            ADD     A,C        ;Add C to A again 
+000a 07			            RLCA               ;Rotate A left 
+000b 57			            LD      D,A        ;Save A into D 
+000c 79			            LD      A,C        ;Load C to A  
+000d e6 1f		            AND     1FH        ;Check if Bits 0-4 are set 
+000f 20 03		            JR      NZ,SKIP1   ;No, Skip output 
+0011 7a			            LD      A,D        ;Reload A with actual value to output 
+0012 d3 02		            OUT     (02),A     ;Display value of A 
+0014 db 01		SKIP1:      IN      A,(01)     ;Read input latch 
+0016 fe 80		            CP      BTN_A      ;Has button A been pressed? 
+0018 20 e9		            JR      NZ,SETUP   ;Yes, set up game data 
+001a			 
+001a			            ;Save random number in SP 
+001a 7a			            LD      A,D        ;Restore A 
+001b 27			            DAA                ;Fix to remove A-F 
+001c 67			            LD      H,A        ;Save in H 
+001d 2f			            CPL                ;Invert bits to mix up number 
+001e 27			            DAA                ;Fix to remove A-F 
+001f 6f			            LD      L,A        ;Svae in L 
+0020 f9			            LD      SP,HL      ;Save in HL 
+0021			 
+0021			            ;Setup is complete start game loop 
+0021			GAME: 
+0021			            ;Output '--' on the seven segment displays to indicate a new round 
+0021 06 ff		            LD      B,0FFH     ;Load B with long delay 
+0023			LOOP1: 
+0023 3e 40		            LD      A,40H      ;Load A with RH middle segment 
+0025 d3 02		            OUT     (02),A     ;Output to RH segment 
+0027 3e c0		            LD      A,0C0H     ;Load A with LH middle segment 
+0029 d3 02		            OUT     (02),A     ;Output to LH segment 
+002b 10 f6		            DJNZ    LOOP1      ;Repeat B times 
+002d			 
+002d			            ;Initialize counters 
+002d af			            XOR     A          ;Zero A 
+002e ed 47		            LD      I,A        ;Reset counters and store in I 
+0030 11 00 00		            LD      DE,0000H   ;Clear DE for player keys 
+0033 0e 04		            LD      C,04H      ;Counter for number of values to key 
+0035			NEXTKEY: 
+0035			            ;Select HEX value.  Use Button A to cycle through numbers 
+0035			            ;Button B to select 
+0035 fd 21 55 01	            LD      IY,SEGTBL  ;Load IY with start of segment table starting at 0 
+0039 2e 00		            LD      L,00H      ;Load index L with 1 
+003b			DISPLAY: 
+003b			            ;Display next hex value on seven segment display 
+003b fd 7e 00		            LD      A,(IY+0)   ;Load segment value at IY to A 
+003e d3 02		            OUT     (02),A     ;Output the RH segment 
+0040			KEYPRESS: 
+0040			            ;Check for key press 
+0040 db 01		            IN      A,(01)     ;Read input latch 
+0042 fe 40		            CP      BTN_B      ;Has button B been pressed? 
+0044 28 18		            JR      Z,KEYSEL   ;Yes, Jump to key selection 
+0046 fe 80		            CP      BTN_A      ;Has button A been pressed? 
+0048 20 f6		            JR      NZ,KEYPRESS ;No, Repeat key press loop 
+004a			LOOP3: 
+004a db 01		            IN      A,(01)     ;Read input latch 
+004c fe 80		            CP      BTN_A      ;Is button A still pressed? 
+004e 28 fa		            JR      Z,LOOP3    ;Yes, loop until released 
+0050			NEXTVAL: 
+0050			            ;Button A pressed. Check if lookup table overflow 
+0050 10 fe		            DJNZ    NEXTVAL    ;Delay 
+0052 fd 23		            INC     IY         ;Move IY to next segment in table 
+0054 2c			            INC     L          ;Increase segment index 
+0055 7d			            LD      A,L        ;Load segment index to A 
+0056 27			            DAA                ;Wrap back to zero if passed 9 
+0057 e6 0f		            AND     0FH        ;Mask off upper nibble to keep to single digit 
+0059 28 da		            JR      Z,NEXTKEY  ;Overflow, reset table index 
+005b 6f			            LD      L,A        ;Save back to L 
+005c 18 dd		            JR      DISPLAY    ;Display the next character 
+005e			 
+005e			            ;A character has been selected with button B, handle it 
+005e			KEYSEL: 
+005e 7d			            LD      A,L        ;Load A with segment index 
+005f			            ;Shift value into DE from the right 
+005f b3			            OR      E          ;Add E to A. Lower nibble is always 0 
+0060 5f			            LD      E,A        ;Update E 
+0061 79			            LD      A,C        ;Check if on last number 
+0062 3d			            DEC     A          ;Check for zero 
+0063 28 08		            JR      Z,LOOP6    ;Skip shift if on last character      
+0065 06 04		            LD      B,04H      ;Shift four times 
+0067			LOOP5: 
+0067 cb 23		            SLA     E          ;Shift E left by one, set carry flag with bit 7 
+0069 cb 12		            RL      D          ;Shift D left by one, set bit 0 with carry flag 
+006b 10 fa		            DJNZ    LOOP5      ;Repeat 4 times 
+006d			            ;Wait if button B is still pressed 
+006d			LOOP6: 
+006d db 01		            IN      A,(01)     ;Read input latch 
+006f fe 40		            CP      BTN_B      ;Is button B still pressed? 
+0071 28 fa		            JR      Z,LOOP6    ;Yes, loop until released 
+0073			 
+0073			            ;Display a pattern to show a value has been selected 
+0073 06 08		            LD      B,08H      ;Count of segments in lookup table 
+0075 21 5f 01		            LD      HL,ANIMATE ;Load HL to base of animate table 
+0078			LOOPANI: 
+0078 7e			            LD      A,(HL)     ;Load Segment 
+0079 d3 02		            OUT     (02),A     ;Output to RH segment 
+007b d9			            EXX                ;Save registers 
+007c 06 ff		            LD      B,0FFH     ;Full delay 
+007e 10 fe		DELAY:      DJNZ    DELAY      ;Delay 
+0080 d9			            EXX                ;Restore registers 
+0081 23			            INC     HL         ;Move to next segment 
+0082 10 f4		            DJNZ    LOOPANI    ;Display next segment 
+0084			 
+0084			            ;Have all four values been keyed? 
+0084 0d			            DEC     C          ;Decrease value keyed counter 
+0085 20 ae		            JR      NZ,NEXTKEY ;More to key? Ask for next key 
+0087			 
+0087			            ;Check keyed values in DE with actual values in SP 
+0087 21 00 00		            LD      HL,0000H   ;Clear HL 
+008a 39			            ADD     HL,SP      ;Load SP into HL so it can be used 
+008b			             
+008b			            ;Cycle through all values in DE and HL, check for matching values in the 
+008b			            ;correct spot 
+008b 06 04		            LD      B,04H      ;Loop 4 times to check each value 
+008d			CORRECT: 
+008d 7b			            LD      A,E        ;Load E in A to mask 
+008e e6 0f		            AND     0FH        ;Mask out upper nibble 
+0090 4f			            LD      C,A        ;Save in C 
+0091 7d			            LD      A,L        ;Load L in A to mask 
+0092 e6 0f		            AND     0FH        ;Mask out upper nibble 
+0094 b9			            CP      C          ;Are they the same? 
+0095 20 06		            JR      NZ,WRONG1  ;No, Skip updating score 
+0097			            ;Exact Match, Update tally 
+0097 ed 57		            LD      A,I        ;Load counter to A 
+0099 c6 01		            ADD     A,01H      ;Add one 
+009b ed 47		            LD      I,A        ;Save it back 
+009d			            ;Rotate DE,HL bits four times to find the next value 
+009d			WRONG1: 
+009d 0e 04		            LD      C,04H      ;Loop four times 
+009f			LOOP7: 
+009f cb 24		            SLA     H          ;Shift left one with bit 7 in carry  
+00a1 cb 15		            RL      L          ;Rotate left one with bit 1 set with carry 
+00a3 30 01		            JR      NC,SKIP2   ;If no carry then don't update H 
+00a5 24			            INC     H          ;Add one as carry is set 
+00a6			SKIP2: 
+00a6 cb 22		            SLA     D          ;Shift left one with bit 7 in carry  
+00a8 cb 13		            RL      E          ;Rotate left one with bit 1 set with carry 
+00aa 30 01		            JR      NC,SKIP3   ;If no carry then don't update D 
+00ac 14			            INC     D          ;Add one as carry is set 
+00ad			SKIP3: 
+00ad 0d			            DEC     C          ;Decrease counter 
+00ae 20 ef		            JR      NZ,LOOP7   ;Repeat if not zero 
+00b0 10 db		            DJNZ    CORRECT      ;Check the next value 
+00b2			 
+00b2			            ;Cycle through all values in DE and HL, check for matching values in the 
+00b2			            ;incorrect spot 
+00b2 d9			            EXX                ;Out of counters, use shaddow 
+00b3 06 04		            LD      B,04H      ;Loop through all 4 keyed values 
+00b5			INCORRECT: 
+00b5 d9			            EXX                ;Swap back 
+00b6 06 03		            LD      B,03H      ;Loop four time to check values 
+00b8			NEXTHL: 
+00b8 0e 04		            LD      C,04H      ;Loop four times 
+00ba			ROTHL: 
+00ba cb 24		            SLA     H          ;Shift left one with bit 7 in carry  
+00bc cb 15		            RL      L          ;Rotate left one with bit 1 set with carry 
+00be 30 01		            JR      NC,SKIPH   ;If no carry then don't update H 
+00c0 24			            INC     H          ;Add one as carry is set 
+00c1			SKIPH:             
+00c1 0d			            DEC     C          ;Decrease counter 
+00c2 20 f6		            JR      NZ,ROTHL   ;Repeat if not zero 
+00c4			            ;Compare lower nibbles of HL and DE 
+00c4 7b			            LD      A,E        ;Load E in A to mask 
+00c5 e6 0f		            AND     0FH        ;Mask out upper nibble 
+00c7 4f			            LD      C,A        ;Save in C 
+00c8 7d			            LD      A,L        ;Load L in A to mask 
+00c9 e6 0f		            AND     0FH        ;Mask out upper nibble 
+00cb b9			            CP      C          ;Are they the same? 
+00cc 20 06		            JR      NZ,WRONG2  ;No, Skip updating score 
+00ce			            ;Incorrect Match, Update tally 
+00ce ed 57		            LD      A,I        ;Load counter to A 
+00d0 c6 10		            ADD     A,10H      ;Add 10 hex 
+00d2 ed 47		            LD      I,A        ;Save it back 
+00d4			            ;Rotate DE 
+00d4			WRONG2: 
+00d4 10 e2		            DJNZ    NEXTHL 
+00d6			            ;Rotate DE right to get the next value 
+00d6 06 04		            LD      B,04H      ;Do 4 times 
+00d8			ROTDE: 
+00d8 cb 3a		            SRL     D          ;Shift right one with bit 0 in carry  
+00da cb 1b		            RR      E          ;Rotate left one with bit 1 set with carry 
+00dc 30 02		            JR      NC,SKIPD   ;If no carry then don't update D 
+00de cb fa		            SET     7,D        ;Set bit 7 to account for carry flag 
+00e0			SKIPD: 
+00e0 10 f6		            DJNZ    ROTDE      ;Repeat until done 
+00e2			            ;Do outer loop 
+00e2 d9			            EXX                ;Get Shaddow B 
+00e3 10 d0		            DJNZ    INCORRECT  ;Do again until all values are checked 
+00e5			 
+00e5 d9			            EXX                ;Reset registers. 
+00e6			 
+00e6			            ;All values have been checked.  Display match score. Display from first 
+00e6			            ;keyed value to last, one at a time. 
+00e6			DISPLOOP: 
+00e6			            ;Display keyed values and match score loop 
+00e6 10 fe		            DJNZ    DISPLOOP   ;Delay 
+00e8 10 fe		LOOP8:      DJNZ    LOOP8      ;Delay 
+00ea 0e 04		            LD      C,04H      ;Load C with digits to display 
+00ec			VALUE: 
+00ec			            ;Rotate DE to get next value 
+00ec 06 04		            LD      B,04H      ;Four bits to rotate 
+00ee			LOOP9: 
+00ee cb 22		            SLA     D          ;Shift left one with bit 7 in carry  
+00f0 cb 13		            RL      E          ;Rotate left one with bit 1 set with carry 
+00f2 30 01		            JR      NC,SKIP4   ;If no carry then don't update D 
+00f4 14			            INC     D          ;Add one as carry is set 
+00f5			SKIP4:             
+00f5 10 f7		            DJNZ    LOOP9      ;Repeat until done 
+00f7			 
+00f7			            ;Do the Seven Segment lookup 
+00f7 21 55 01		            LD      HL,SEGTBL  ;Load HL with segment Lookup table 
+00fa 7b			            LD      A,E        ;Load E in A to mask 
+00fb e6 0f		            AND     0FH        ;Mask out upper nibble 
+00fd 85			            ADD     A,L        ;Add index to key 
+00fe 6f			            LD      L,A        ;Load new index back to L 
+00ff 7e			            LD      A,(HL)     ;Load A with segment value 
+0100 d3 02		            OUT     (02),A     ;Output keyed value t0 RH segment 
+0102 10 fe		LOOP10:     DJNZ    LOOP10     ;Delay 
+0104 10 fe		LOOP11:     DJNZ    LOOP11     ;Delay 
+0106 10 fe		LOOP12:     DJNZ    LOOP12     ;Delay 
+0108			LOOP13: 
+0108 af			            XOR     A          ;Zero A 
+0109 d3 02		            OUT     (02),A     ;Blank Segments 
+010b 10 fb		            DJNZ    LOOP13     ;Loop to keep blank 
+010d			  
+010d 0d			            DEC     C          ;Decrease C 
+010e 20 dc		            JR      NZ,VALUE   ;Display next value 
+0110			 
+0110			            ;Display correct/incorrect position count 
+0110 af			            XOR     A          ;Zero A 
+0111 d3 02		            OUT     (02),A     ;Blank Segments 
+0113 10 fe		LOOP14:     DJNZ    LOOP14     ;Delay 
+0115 10 fe		LOOP15:     DJNZ    LOOP15     ;Delay 
+0117			POSTYP: 
+0117 0e 02		            LD      C,02H      ;Load C with position type counter 
+0119			LOOP16: 
+0119 21 55 01		            LD      HL,SEGTBL  ;Load HL with segment Lookup table 
+011c ed 57		            LD      A,I        ;Load A Counter 
+011e e6 0f		            AND     0FH        ;Mask out upper nibble 
+0120 85			            ADD     A,L        ;Add L to A 
+0121 6f			            LD      L,A        ;Load new index back to L 
+0122 7e			            LD      A,(HL)     ;Load A with segment value 
+0123 cb ff		            SET     7,A        ;Set Bit 7 on A to display on LH segment 
+0125 d3 02		            OUT     (02),A     ;Output correct position count to LH segment 
+0127 21 55 01		            LD      HL,SEGTBL  ;Load HL with segment Lookup table 
+012a ed 57		            LD      A,I        ;Load A Counter 
+012c cb 3f		            SRL     A          ;Shift right 1 
+012e cb 3f		            SRL     A          ;Shift right 1 
+0130 cb 3f		            SRL     A          ;Shift right 1 
+0132 cb 3f		            SRL     A          ;Shift right 1 
+0134 85			            ADD     A,L        ;Add L to A 
+0135 6f			            LD      L,A        ;Load new index back to L 
+0136 7e			            LD      A,(HL)     ;Load A with segment value 
+0137 d3 02		            OUT     (02),A     ;Output incorrect position count to RH segment 
+0139			            ;Check input for next game choice 
+0139 db 01		            IN      A,(01)     ;Read input latch 
+013b fe 80		            CP      BTN_A      ;Has button A been pressed? 
+013d ca 21 00		            JP      Z,GAME     ;Yes, restart for next round 
+0140 fe c0		            CP      BTN_A + BTN_B ;Are both buttons pressed? 
+0142 28 0a		            JR      Z,GIVEUP   ;Yes, display actually values and give up! 
+0144 0d			            DEC     C          ;Decrease C to display next position count 
+0145 20 d2		            JR      NZ,LOOP16  ;Not Zero, display position count again 
+0147 10 ce		            DJNZ    POSTYP     ;Repeat display unilt B = 0 
+0149 af			            XOR     A          ;Zero A 
+014a d3 02		            OUT     (02),A     ;Blank Segments 
+014c 18 98		            JR      DISPLOOP   ;Re display position count 
+014e			GIVEUP: 
+014e			            ;Bit 0 set, so give up and display actual sequence 
+014e 21 00 00		            LD      HL,0000H    ;Load HL with 0 
+0151 39			            ADD     HL,SP       ;Get real values from SP to HL 
+0152 eb			            EX      DE,HL       ;Store HL in DE 
+0153 18 91		            JR      DISPLOOP    ;Jump to Display loop to show actual sequence 
+0155			             
+0155			            ;Ascii character table for seven segment display 
+0155 3f 06 5b 4f 66 6d 7d 07 7f 67	SEGTBL:     DB      3FH,06H,5BH,4FH,66H,6DH,7DH,07H,7FH,67H  ;0-9 
+015f 01 02 04 08 88 90 a0 81	ANIMATE:    DB      01H,02H,04H,08H,88H,90H,0A0H,81H         ;Animation sequence 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/master_mind.z80
+0167

@@ -11,7 +11,7 @@
 ; goes over 21, the ACE is converted to 1 point instead of 11.
 ; It is a fun game but it is all luck, so it might take a few goes to get to 21
 
-;Contstants
+;Constants
 BTN:        EQU     40H            ;Button 'B' 
 
             ORG     0000H 
@@ -177,7 +177,7 @@ LOOP15:     DJNZ    LOOP15     ;Delay
             LD      B,0FFH     ;Load B with long delay
 LOOP16:     DJNZ    LOOP16     ;Delay
             IN      A,(01)     ;Read input latch
-            CP      BTN      ;Has Button 'B' been pressed?
+            CP      BTN        ;Has Button 'B' been pressed?
             JP      Z,START    ;Yes, Jump to start of game
             JR      WIN        ;No, keep displaying winning screen
 

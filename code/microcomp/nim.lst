@@ -22,6 +22,7 @@
 0000			INIT_MAT:   EQU     23H            ;Initial Match count 
 0000			PLAY_MAT:   EQU     03H            ;Maximum number of matches to pick up per round  
 0000			 
+0000			 
 0000			            ORG     0000H  
 0000			START:                
 0000			            ;Set up 
@@ -38,10 +39,10 @@
 000d ed 57		            LD      A,I        ;Load A with current game value 
 000f e6 0f		            AND     0FH        ;Mask off upper nibble 
 0011 85			            ADD     A,L        ;Index L with A 
-0012 6f			           	LD      L,A        ;Index Segment table with A 
-0013 7e			           	LD      A,(HL)     ;Load Segment Value to A 
-0014 d3 02		           	OUT     (02),A     ;Output segment value to RH display 
-0016 06 10		           	LD      B,10H      ;Load B with short delay 
+0012 6f			            LD      L,A        ;Index Segment table with A 
+0013 7e			            LD      A,(HL)     ;Load Segment Value to A 
+0014 d3 02		            OUT     (02),A     ;Output segment value to RH display 
+0016 06 10		            LD      B,10H      ;Load B with short delay 
 0018 10 fe		LOOP1:      DJNZ    LOOP1      ;Delay 
 001a			             
 001a cb 59		            BIT     3,C		   ;Is Bit 3 set? 
@@ -50,7 +51,7 @@
 001e af			            XOR     A          ;Zero A 
 001f 06 30		            LD      B,30H      ;Load B with short delay 
 0021 10 fe		LOOP2:      DJNZ    LOOP2      ;Delay 
-0023 18 0c		           	JR      DISLEFT    ;Display Left Value 
+0023 18 0c		            JR      DISLEFT    ;Display Left Value 
 0025			BUTCHK: 
 0025			            ;Check if button pressed 
 0025 db 01		            IN      A,(01)     ;Read input latch 
@@ -69,14 +70,14 @@
 0037 e6 0f		            AND     0FH        ;Mask off upper nibble 
 0039 21 e2 00		            LD      HL,SEGTBL  ;Load HL with Segment Data Table 
 003c 85			            ADD     A,L        ;Index L with A 
-003d 6f			           	LD      L,A        ;Index Segment table with A 
-003e 7e			           	LD      A,(HL)     ;Load Segment Value to A 
-003f cb ff		           	SET     7,A        ;Set Bit 7 to display on LH display 
-0041 d3 02		           	OUT     (02),A     ;Output segment value to LH display 
-0043 06 10		           	LD      B,10H      ;Load B with short delay 
+003d 6f			            LD      L,A        ;Index Segment table with A 
+003e 7e			            LD      A,(HL)     ;Load Segment Value to A 
+003f cb ff		            SET     7,A        ;Set Bit 7 to display on LH display 
+0041 d3 02		            OUT     (02),A     ;Output segment value to LH display 
+0043 06 10		            LD      B,10H      ;Load B with short delay 
 0045 10 fe		LOOP3:      DJNZ    LOOP3      ;Delay 
 0047			 
-0047 cb 59		            BIT     3,C		   ;Is Bit 3 set? 
+0047 cb 59		            BIT     3,C        ;Is Bit 3 set? 
 0049 28 05		            JR      Z,GAMECHK  ;No, Players turn 
 004b			             
 004b af			            XOR     A          ;Zero A 

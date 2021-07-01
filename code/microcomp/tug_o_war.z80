@@ -13,7 +13,7 @@
 ; to 9 and if one player out presses the other player, their count goes higher,
 ; while the slower players count decreases.
 ;
-;Contstants
+;Constants
 BTN_A:      EQU     80H            ;Button 'A' 
 BTN_B:      EQU     40H            ;Button 'B' 
 BOTH_BTN:   EQU     BTN_A + BTN_B  ;Button 'A' and 'B' 
