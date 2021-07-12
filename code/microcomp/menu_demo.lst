@@ -1,0 +1,216 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/menu_demo.z80
+0000			; Menu demmonstration for the Microcomp 
+0000			; ------------------------------------- 
+0000			; 
+0000			; Code written by Brian Chiha 
+0000			; 
+0000			; This Menu Driver written for the Microcomp gives the programmer the ability 
+0000			; to select programs using a visual scrolling text menu instead of using  
+0000			; the input dip switch.  It takes up more space then the dip lookup, but is  
+0000			; much easier and more visually appealing to use. 
+0000			; 
+0000			; This code should be placed at the start of the ROM in address 0x0000 and will 
+0000			; be called on startup or reset. 
+0000			; 
+0000			; To configure the menu text and call routines, five bytes are needed to set the 
+0000			; menu size, the address of the text lookup table and the address of the menu jump 
+0000			; table.  They should be places from a label called MENU_CONFIG.  Here is an example 
+0000			; 
+0000			; MENU_CONFIG: 
+0000			;              DB      04H         ;Menu Size (Four items) 
+0000			;              DW      MENU_TEXT   ;Label pointing to menu text table 
+0000			;              DW      MENU_JUMP   ;Label pointing to menu jump table 
+0000			; 
+0000			; The Menu text table has the letters for the menu item in hex based on the  
+0000			; seven segment display.  The text is terminated with an FF.  It's recommended to 
+0000			; put a 00 (blank) or two at the end before the FF.  The Menu text needs to be 
+0000			; atleast 1 character.  Here is an example 
+0000			; 
+0000			; MENU_TEXT: 
+0000			;              DB      73H,33H,3FH,3DH,33H,77H,55H,00H,0FFH ;Program 
+0000			;              DB      55H,79H,37H,3EH,00H,0FFH             ;Menu 
+0000			;              DB      70H,79H,64H,70H,00H,0FFH             ;Text 
+0000			;              DB      70H,77H,7CH,38H,79H,00H,0FFH         ;Table 
+0000			; 
+0000			; The Menu jump table has a jump call to the program start address.  The order 
+0000			; is to be in the same order to the menu table.  Here is an example 
+0000			; 
+0000			; MENU_JUMP: 
+0000			;              JP      PROGRAM1 
+0000			;              JP      PROGRAM2 
+0000			;              JP      PROGRAM3 
+0000			;              JP      PROGRAM4 
+0000			; 
+0000			; To use the menu, Button 'A' rotates through the different items, Button 'B' 
+0000			; select the menu item.  The menu rotataes to the first item when the last item 
+0000			; is passed. 
+0000			; Once a program has been selected, only a RESET will jump back to the menu.  This 
+0000			; can be modified if a RST 00 (C7), is placed in the program when the program  
+0000			; terminates. 
+0000			; 
+0000			; In the example below, I use the above menu example, the all call the same program 
+0000			; but with a different visual output.  The RESET button is required to be pressed 
+0000			; to restart the menu 
+0000			 
+0000			 
+0000			;Constants 
+0000			BTN_A:      EQU     80H        ;Button 'A'  
+0000			BTN_B:      EQU     40H        ;Button 'B' 
+0000			 
+0000			            ORG     0000H 
+0000			 
+0000			START: 
+0000			            ;Start of menu routine 
+0000 3a 62 00		            LD      A,(MENU_CONFIG) ;Load A with total menu items 
+0003 ed 47		            LD      I,A             ;Set I with total menu items 
+0005 0e 00		            LD      C,00H           ;Current menu item 
+0007 fd 21 22 00	            LD      IY,BTN_HANDLE   ;Set IY to handle button press from menu 
+000b dd 21 0f 00	            LD      IX,MENU         ;Set IX to menu loop 
+000f			MENU: 
+000f			            ;Menu display loop 
+000f 2a 63 00		            LD      HL,(MENU_CONFIG + 1) ;Load HL wtth Menu Text table 
+0012 79			            LD      A,C             ;Set A to current menu item 
+0013 b7			            OR      A               ;Is it zero?, skip indexing 
+0014 28 0a		            JR      Z,DOSCROLL      ;Just do the scroll 
+0016 47			            LD      B,A             ;Set A to B counter 
+0017			MENUIND: 
+0017			            ;Find the next menu text by searching for end of line 0FFH 
+0017 7e			            LD      A,(HL)          ;Load A contents at HL 
+0018 23			            INC     HL              ;Increment HL 
+0019 3c			            INC     A               ;Is it FF, then result will be zero 
+001a 28 02		            JR      Z,MENUNEXT      ;Skip increment 
+001c 18 f9		            JR      MENUIND         ;Check next menu item 
+001e			MENUNEXT: 
+001e 10 f7		            DJNZ    MENUIND         ;Jump back 3 to Increment HL and repeat menu indexing 
+0020			            ;Menu found 
+0020			DOSCROLL: 
+0020 18 21		            JR      SEGSCROLL       ;Call Seven Segment Scroll routine 
+0022			                                    ;Can only exit from button press 
+0022			BTN_HANDLE: 
+0022			            ;Button Handler, A is the current button pressed 
+0022 47			            LD      B,A             ;Save button pressed 
+0023			BTNLOOP: 
+0023			            ;Ensure button is released 
+0023 db 01		            IN      A,(01)          ;Read input latch 
+0025 b7			            OR      A               ;Is button A still pressed? 
+0026 20 fb		            JR      NZ,BTNLOOP      ;Yes, loop until released 
+0028 78			            LD      A,B             ;Restore button pressed 
+0029 fe 40		            CP      BTN_B           ;Has button B been pressed? 
+002b 28 08		            JR      Z,MENUSEL       ;Yes, Jump to menu selection 
+002d			            ;Must be button 'A' if here. Go to next menu item 
+002d 0c			            INC     C               ;Move to next menu item 
+002e ed 57		            LD      A,I             ;Load A with total menu items 
+0030 91			            SUB     C               ;Subtract current menu item from total 
+0031 28 cd		            JR      Z,START         ;On last menu item, re-run from start 
+0033 18 da		            JR      MENU            ;Display menu loop 
+0035			 
+0035			MENUSEL: 
+0035			            ;Button 'B' pressed, jump to the procedure based on the menu selected 
+0035 2a 65 00		            LD      HL,(MENU_CONFIG + 3) ;Load HL wtth Menu Jump table 
+0038 79			            LD      A,C             ;Set A to current menu item 
+0039 b7			            OR      A               ;No indexing needed 
+003a 28 06		            JR      Z,RUNPROC       ;Jump to procedure 
+003c			PROCIND: 
+003c 23			            INC     HL              ;Move to next jump 
+003d 23			            INC     HL              ;Move to next jump 
+003e 23			            INC     HL              ;Move to next jump 
+003f 3d			            DEC     A               ;Decrease menu index 
+0040 20 fa		            JR      NZ,PROCIND      ;Move to next index 
+0042			RUNPROC: 
+0042 e9			            JP      (HL)            ;Jump to the menu  
+0043			             
+0043			;Scrolling Seven Segment text.   
+0043			; IN - HL - data to send, FF to end.  Must have atleast one character to print. 
+0043			; Exit to address pointing to IX 
+0043			SEGSCROLL: 
+0043 06 80		            LD      B,80H           ;Half Delay 
+0045			SEGLOOP: 
+0045			            ;Display on both segments 
+0045 7e			            LD      A,(HL)          ;Load Segment data 
+0046 cb ff		            SET     7,A             ;Set bit 7 to display on LH LED Segment 
+0048 d3 02		            OUT     (02),A          ;Output to LH segment 
+004a 23			            INC     HL              ;Move to next value 
+004b 7e			            LD      A,(HL)          ;Load Segment data 
+004c fe ff		            CP      0FFH            ;Is it end of sequence 
+004e 28 10		            JR      Z,ENDSRL        ;Yes, Exit the routine 
+0050 d3 02		            OUT     (02),A          ;Output to RH segment 
+0052 2b			            DEC     HL              ;Move back to first value 
+0053 10 f0		            DJNZ    SEGLOOP         ;Repeat FF times 
+0055			            ;Check for key press 
+0055 db 01		            IN      A,(01)          ;Read input latch 
+0057 e6 c0		            AND     BTN_A + BTN_B   ;Has button A or B been pressed? 
+0059 28 02		            JR      Z,SEGNEXT       ;No, Keep looping display 
+005b fd e9		            JP      (IY)            ;Jump to button handler 
+005d			SEGNEXT:      
+005d 23			            INC     HL              ;Move to next data value 
+005e 18 e3		            JR      SEGSCROLL       ;Repeat until FF is found 
+0060			ENDSRL:      
+0060 dd e9		            JP      (IX)            ;Jump back to calling routine 
+0062			 
+0062			 
+0062			;--------------------------------------------------- 
+0062			; END OF MENU DRIVER. MAKE YOUR CONFIGURATIONS BELOW 
+0062			;--------------------------------------------------- 
+0062			 
+0062			;Must have configuration. Modify to suit 
+0062			MENU_CONFIG: 
+0062 04			            DB      04H         ;Number of menu items 
+0063 67 00		            DW      MENU_TEXT   ;Jump table for menu text on seven segment 
+0065 87 00		            DW      MENU_JUMP   ;Jump table for menu items 
+0067			 
+0067			MENU_TEXT: 
+0067 73 33 3f 3d 33 77 55 00 00 ff	            DB      73H,33H,3FH,3DH,33H,77H,55H,00H,00H,0FFH ;Program 
+0071 55 79 37 3e 00 00 ff	            DB      55H,79H,37H,3EH,00H,00H,0FFH             ;Menu 
+0078 70 79 64 70 00 00 ff	            DB      70H,79H,64H,70H,00H,00H,0FFH             ;Text 
+007f 70 77 7c 38 79 00 00 ff	            DB      70H,77H,7CH,38H,79H,00H,00H,0FFH         ;Table 
+0087			 
+0087			MENU_JUMP: 
+0087 c3 93 00		            JP      PROGRAM1       ;Demo 1 
+008a c3 98 00		            JP      PROGRAM2       ;Demo 2 
+008d c3 9d 00		            JP      PROGRAM3       ;Demo 2 
+0090 c3 a2 00		            JP      PROGRAM4       ;Demo 2 
+0093			 
+0093			;Example LED programs below 
+0093			PROGRAM1: 
+0093 21 ba 00		LD HL,DATA1 
+0096 18 0f		JR LEDSEQ 
+0098			 
+0098			PROGRAM2: 
+0098 21 c2 00		LD HL,DATA2 
+009b 18 0a		JR LEDSEQ 
+009d			 
+009d			PROGRAM3: 
+009d 21 ca 00		LD HL,DATA3 
+00a0 18 05		JR LEDSEQ 
+00a2			 
+00a2			PROGRAM4: 
+00a2 21 d2 00		LD HL,DATA4 
+00a5 18 00		JR LEDSEQ 
+00a7			 
+00a7			 
+00a7			;Output Directly to the LED's with sequential data 
+00a7			; IN - HL - data to send, FF to end 
+00a7			; Exit to address pointing to IX 
+00a7			LEDSEQ: 
+00a7 0e 08		            LD      C,08H      ;Eight value 
+00a9 54			            LD      D,H        ;Make DE 
+00aa 5d			            LD      E,L        ;equal HL 
+00ab			LEDNEXT: 
+00ab 7e			            LD      A,(HL)     ;Load Data 
+00ac d3 02		            OUT     (02),A     ;Send to Output latch 
+00ae 06 ff		            LD      B,0FFH     ;Full delay 
+00b0 10 fe		LEDDLY:     DJNZ    LEDDLY     ;Delay 
+00b2 23			            INC     HL         ;Move to next segment 
+00b3 0d			            DEC     C          ;Decrease C 
+00b4 20 f5		            JR      NZ,LEDNEXT ;Display next segment 
+00b6			ENDSEQ:  
+00b6 eb			            EX      DE,HL      ;Restore HL 
+00b7 c3 a7 00		            JP      LEDSEQ     ;Jump back to the start 
+00ba			 
+00ba 01 02 04 08 10 20 40 80	DATA1:     DB      01H,02H,04H,08H,10H,20H,40H,80H 
+00c2 ef df bf 7f 7f bf df ef	DATA2:     DB      0EFH,0DFH,0BFH,7FH,7FH,0BFH,0DFH,0EFH 
+00ca 0e 0d 0b 07 07 0b 0d 0e	DATA3:     DB      0EH,0DH,0BH,07H,07H,0BH,0DH,0EH 
+00d2 0e 0c 08 ff 01 03 07 0f	DATA4:     DB      0EH,0CH,08H,0FFH,01H,03H,07H,0FH 
+00da			 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/menu_demo.z80
+00da
