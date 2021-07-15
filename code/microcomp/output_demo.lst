@@ -1,0 +1,218 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/output_demo.z80
+0000			; Output Demo for the Microcomp 
+0000			; ----------------------------- 
+0000			; 
+0000			; By Brian Chiha 
+0000			; 
+0000			; This little demonstration routine creates some interesting paterne on the output LED's and  
+0000			; Seven Segments.  Two routines are used to output.  One routine sends data out one at a time, 
+0000			; The other uses multiplexing on the 4x4 matrix to create any pattern you wish.  The display 
+0000			; routines requires HL to point to the display data and IX to the next display routines. Each 
+0000			; routine runs 8 times and when the last routine is finished RST 00 is called to re run the 
+0000			; program.  Output data sequences are to be terminated with FF. 
+0000			; 
+0000			 
+0000			            ORG     0000H 
+0000			 
+0000			START: 
+0000			;Alternate between LEDSEQ and LEDMUX and use data based on the DATA lookup table 
+0000			;Data table lookup contains the start of the data address and the number of times 
+0000			;to repeat the sequcne.  Data lookup must have even number of data labels, last 
+0000			;label to be 0x0000 
+0000 fd 21 72 00	            LD      IY,DATA_TBL ;Point IY to start of data table 
+0004			 
+0004			OD_DISPLAY:  
+0004 fd 6e 00		            LD      L,(IY+00H)  ;Load L 
+0007 fd 66 01		            LD      H,(IY+01H)  ;Load H 
+000a fd 23		            INC     IY          ;Move to next data location 
+000c fd 23		            INC     IY          ; 
+000e			            ;Check for zero 
+000e 7c			            LD      A,H         ;Load A with H 
+000f b5			            OR      L           ;Compare with L 
+0010 20 01		            JR      NZ,$+3      ;Not zero do display 
+0012			            ;Exit 
+0012 c7			            RST     00H         ;Restart Program 
+0013			 
+0013 fd 4e 00		            LD      C,(IY+00H)  ;Load loop counter 
+0016 fd 23		            INC     IY          ;Move to next data location 
+0018 dd 21 1e 00	            LD      IX,$+6      ;Next routines 
+001c 18 15		            JR      LEDSEQ      ;Display Routine 
+001e			 
+001e fd 6e 00		            LD      L,(IY+00H)  ;Load L 
+0021 fd 66 01		            LD      H,(IY+01H)  ;Load H 
+0024 fd 23		            INC     IY          ;Move to next data location 
+0026 fd 23		            INC     IY          ; 
+0028 fd 4e 00		            LD      C,(IY+00H)  ;Load loop counter 
+002b fd 23		            INC     IY          ;Move to next data location 
+002d			 
+002d dd 21 04 00	            LD      IX,OD_DISPLAY ;Next routines 
+0031 18 18		            JR      LEDMUX      ;Display Routine 
+0033			 
+0033			;Output Directly to the LED's with sequential data 
+0033			; IN - HL - data to send, FF to end 
+0033			; Exit to address pointing to IX 
+0033			LEDSEQ: 
+0033 f9			            LD      SP,HL      ;Save HL for looping 
+0034			OD_LOOP1: 
+0034 7e			            LD      A,(HL)     ;Load Data 
+0035 fe ff		            CP      0FFH       ;Is it end of sequence 
+0037 28 09		            JR      Z,ENDSEQ   ;Yes, Exit the routine 
+0039 d3 02		            OUT     (02),A     ;Send to Output latch 
+003b 06 ff		            LD      B,0FFH     ;Full delay 
+003d 10 fe		LEDDLY:     DJNZ    LEDDLY     ;Delay 
+003f 23			            INC     HL         ;Move to next segment 
+0040 18 f2		            JR      OD_LOOP1   ;Display next segment 
+0042			ENDSEQ:  
+0042 21 00 00		            LD      HL,0000H   ;Wipe HL 
+0045 39			            ADD     HL,SP      ;Restore HL 
+0046 0d			            DEC     C          ;Decrease loop counter 
+0047 20 eb		            JR      NZ,OD_LOOP1 ;Repeat sequence 
+0049 dd e9		            JP      (IX)       ;Jump back to calling routine 
+004b			 
+004b			 
+004b			;Multiplex the 4x4 LED's 
+004b			; IN - HL - data to send (in groups of 4, one byte per column), FF to end 
+004b			; Exit to address pointing to IX 
+004b			LEDMUX: 
+004b f9			            LD      SP,HL      ;Save HL for looping 
+004c			OD_LOOP2: 
+004c 7e			            LD      A,(HL)     ;Load Segment data 
+004d fe ff		            CP      0FFH       ;Is it end of sequence 
+004f 28 18		            JR      Z,ENDMUX   ;Yes, Exit the routine 
+0051 06 40		            LD      B,040H     ;Half Delay 
+0053			MUXLOOP: 
+0053 16 04		            LD      D,04H      ;Four columns 
+0055			MUXOUT:  
+0055 7e			            LD      A,(HL)     ;Load Segment data 
+0056 d3 02		            OUT     (02),A     ;Output to 4x4 LED 
+0058 23			            INC     HL         ;Move to next column 
+0059 15			            DEC     D          ;One less column 
+005a 20 f9		            JR      NZ,MUXOUT  ;Display next column 
+005c 78			            LD      A,B        ;Load B to A 
+005d d6 01		            SUB     01H        ;Is it on the last run, skip roll back 
+005f 28 04		            JR      Z,MUXSKIP  ;Skip roll back as on last display loop 
+0061 2b			            DEC     HL         ;Roll back HL 
+0062 2b			            DEC     HL         ;Roll back HL 
+0063 2b			            DEC     HL         ;Roll back HL 
+0064 2b			            DEC     HL         ;Roll back HL 
+0065			MUXSKIP: 
+0065 10 ec		            DJNZ    MUXLOOP    ;Do 4x4 loop again FF times 
+0067 18 e3		            JR      OD_LOOP2     ;Repeat until FF 
+0069			ENDMUX: 
+0069 21 00 00		            LD      HL,0000H   ;Wipe HL 
+006c 39			            ADD     HL,SP      ;Restore HL 
+006d 0d			            DEC     C          ;Decrease loop counter 
+006e 20 dc		            JR      NZ,OD_LOOP2 ;Repeat sequence 
+0070 dd e9		            JP      (IX)       ;Jump back to calling routine 
+0072			 
+0072			;Data table lookup to help reduce code duplication 
+0072			DATA_TBL: 
+0072 98 00		            DW      DATA1 
+0074 08			            DB      08H 
+0075 a1 00		            DW      DATA2 
+0077 04			            DB      04H 
+0078 aa 00		            DW      DATA3 
+007a 06			            DB      06H 
+007b b7 00		            DW      DATA4 
+007d 04			            DB      04H 
+007e c8 00		            DW      DATA5 
+0080 02			            DB      02H 
+0081 e9 00		            DW      DATA6 
+0083 01			            DB      01H 
+0084 9a 01		            DW      DATA7 
+0086 04			            DB      04H 
+0087 be 01		            DW      DATA8 
+0089 03			            DB      03H 
+008a d7 01		            DW      DATA9 
+008c 04			            DB      04H 
+008d f4 01		            DW      DATA10 
+008f 02			            DB      02H 
+0090 95 02		            DW      DATA11 
+0092 04			            DB      04H 
+0093 a6 02		            DW      DATA12 
+0095 08 00 00		            DB      08H,00H,00H  
+0098			 
+0098 01 02 04 08 10 20 40 80 ff	DATA1:      DB      001H,002H,004H,008H,010H,020H,040H,080H,0FFH ;All bites 
+00a1 71 b2 d4 e8 78 b4 d2 e1 ff	DATA2:      DB      071H,0B2H,0D4H,0E8H,078H,0B4H,0D2H,0E1H,0FFH ;Diagonals 
+00aa 81 01 02 40 c0 90 88 08	DATA3:      DB      081H,001H,002H,040H,0C0H,090H,088H,008H      ;Round Segments 
+00b2 04 40 c0 a0 ff	            DB      004H,040H,0C0H,0A0H,0FFH                      
+00b7 e1 c2 84 08 01 82 c4 e8	DATA4:      DB      0E1H,0C2H,084H,008H,001H,082H,0C4H,0E8H      ;Rotating Triangle 
+00bf 01 12 34 78 71 32 14 08 ff	            DB      001H,012H,034H,078H,071H,032H,014H,008H,0FFH  
+00c8 71 33 17 0f 8e cc e8 00	DATA5:      DB      071H,033H,017H,00FH,08EH,0CCH,0E8H,000H      ;4 Corner Strobe 
+00d0 e1 c3 87 0f 1e 3c 78 00	            DB      0E1H,0C3H,087H,00FH,01EH,03CH,078H,000H 
+00d8 e8 cc 8e 0f 17 33 71 00	            DB      0E8H,0CCH,08EH,00FH,017H,033H,071H,000H 
+00e0 78 3c 1e 0f 87 c3 e1 00 ff	            DB      078H,03CH,01EH,00FH,087H,0C3H,0E1H,000H,0FFH  
+00e9 f1 f2 f4 f8 f1 f2 f4 88	DATA6:      DB      0F1H,0F2H,0F4H,0F8H,0F1H,0F2H,0F4H,088H      ;Microcomp Scroll 
+00f1 f1 f2 84 78 f1 82 74 88	            DB      0F1H,0F2H,084H,078H,0F1H,082H,074H,088H 
+00f9 81 72 84 78 71 82 74 88	            DB      081H,072H,084H,078H,071H,082H,074H,088H 
+0101 81 72 84 f8 71 82 f4 48	            DB      081H,072H,084H,0F8H,071H,082H,0F4H,048H 
+0109 81 f2 44 f8 f1 42 f4 98	            DB      081H,0F2H,044H,0F8H,0F1H,042H,0F4H,098H 
+0111 41 f2 94 68 f1 92 64 68	            DB      041H,0F2H,094H,068H,0F1H,092H,064H,068H 
+0119 91 62 64 f8 61 62 f4 88	            DB      091H,062H,064H,0F8H,061H,062H,0F4H,088H 
+0121 61 f2 84 78 f1 82 74 78	            DB      061H,0F2H,084H,078H,0F1H,082H,074H,078H 
+0129 81 72 74 f8 71 72 f4 98	            DB      081H,072H,074H,0F8H,071H,072H,0F4H,098H 
+0131 71 f2 94 68 f1 92 64 68	            DB      071H,0F2H,094H,068H,0F1H,092H,064H,068H 
+0139 91 62 64 98 61 62 94 f8	            DB      091H,062H,064H,098H,061H,062H,094H,0F8H 
+0141 61 92 f4 98 91 f2 94 68	            DB      061H,092H,0F4H,098H,091H,0F2H,094H,068H 
+0149 f1 92 64 68 91 62 64 f8	            DB      0F1H,092H,064H,068H,091H,062H,064H,0F8H 
+0151 61 62 f4 98 61 f2 94 68	            DB      061H,062H,0F4H,098H,061H,0F2H,094H,068H 
+0159 f1 92 64 68 91 62 64 98	            DB      0F1H,092H,064H,068H,091H,062H,064H,098H 
+0161 61 62 94 f8 61 92 f4 88	            DB      061H,062H,094H,0F8H,061H,092H,0F4H,088H 
+0169 91 f2 84 78 f1 82 74 88	            DB      091H,0F2H,084H,078H,0F1H,082H,074H,088H 
+0171 81 72 84 78 71 82 74 88	            DB      081H,072H,084H,078H,071H,082H,074H,088H 
+0179 81 72 84 f8 71 82 f4 08	            DB      081H,072H,084H,0F8H,071H,082H,0F4H,008H 
+0181 81 f2 04 58 f1 02 54 18	            DB      081H,0F2H,004H,058H,0F1H,002H,054H,018H 
+0189 01 52 14 f8 51 12 f4 f8	            DB      001H,052H,014H,0F8H,051H,012H,0F4H,0F8H 
+0191 11 f2 f4 f8 f1 f2 f4 f8 ff	            DB      011H,0F2H,0F4H,0F8H,0F1H,0F2H,0F4H,0F8H,0FFH  
+019a 71 72 74 78 b8 b4 b2 b1	DATA7:      DB      071H,072H,074H,078H,0B8H,0B4H,0B2H,0B1H      ;Zig Zag 
+01a2 d1 d2 d4 d8 e8 e4 e2 d1	            DB      0D1H,0D2H,0D4H,0D8H,0E8H,0E4H,0E2H,0D1H 
+01aa b1 71 72 b2 d2 e2 e4 d4	            DB      0B1H,071H,072H,0B2H,0D2H,0E2H,0E4H,0D4H 
+01b2 b4 74 78 b8 d8 e8 e4 e2	            DB      0B4H,074H,078H,0B8H,0D8H,0E8H,0E4H,0E2H 
+01ba e1 d1 b1 ff	            DB      0E1H,0D1H,0B1H,0FFH                           
+01be 71 92 94 e8 f1 12 84 f8	DATA8:      DB      071H,092H,094H,0E8H,0F1H,012H,084H,0F8H      ;Propeller 
+01c6 f1 82 14 f8 e1 92 94 78	            DB      0F1H,082H,014H,0F8H,0E1H,092H,094H,078H 
+01ce d1 92 94 b8 b1 92 94 d8 ff	            DB      0D1H,092H,094H,0B8H,0B1H,092H,094H,0D8H,0FFH  
+01d7 71 78 e8 e1 33 3c cc c3	DATA9:      DB      071H,078H,0E8H,0E1H,033H,03CH,0CCH,0C3H      ;Square Circle 
+01df 17 1e 8e 87 0f 0f 0f 0f	            DB      017H,01EH,08EH,087H,00FH,00FH,00FH,00FH 
+01e7 17 1e 8e 87 33 3c cc c3	            DB      017H,01EH,08EH,087H,033H,03CH,0CCH,0C3H 
+01ef 71 78 e8 e1 ff	            DB      071H,078H,0E8H,0E1H,0FFH                      
+01f4 c1 e2 e4 e8 c1 e2 e4 c8	DATA10:     DB      0C1H,0E2H,0E4H,0E8H,0C1H,0E2H,0E4H,0C8H      ;Running Man 
+01fc e1 a2 c4 e8 e1 c2 64 e8	            DB      0E1H,0A2H,0C4H,0E8H,0E1H,0C2H,064H,0E8H 
+0204 c1 e2 a4 e8 e1 c2 e4 e8	            DB      0C1H,0E2H,0A4H,0E8H,0E1H,0C2H,0E4H,0E8H 
+020c c1 e2 e4 e8 c1 e2 e4 88	            DB      0C1H,0E2H,0E4H,0E8H,0C1H,0E2H,0E4H,088H 
+0214 e1 a2 84 e8 e1 82 64 e8	            DB      0E1H,0A2H,084H,0E8H,0E1H,082H,064H,0E8H 
+021c 81 e2 a4 e8 e1 c2 e4 e8	            DB      081H,0E2H,0A4H,0E8H,0E1H,0C2H,0E4H,0E8H 
+0224 c1 e2 e4 e8 c1 e2 e4 08	            DB      0C1H,0E2H,0E4H,0E8H,0C1H,0E2H,0E4H,008H 
+022c e1 a2 04 e8 61 02 e4 e8	            DB      0E1H,0A2H,004H,0E8H,061H,002H,0E4H,0E8H 
+0234 a1 02 e4 e8 c1 02 e4 e8	            DB      0A1H,002H,0E4H,0E8H,0C1H,002H,0E4H,0E8H 
+023c c1 22 e4 e8 01 e2 e4 e8	            DB      0C1H,022H,0E4H,0E8H,001H,0E2H,0E4H,0E8H 
+0244 21 c2 e4 e8 e1 c2 e4 e8	            DB      021H,0C2H,0E4H,0E8H,0E1H,0C2H,0E4H,0E8H 
+024c c1 e2 e4 e8 c1 e2 e4 f8	            DB      0C1H,0E2H,0E4H,0E8H,0C1H,0E2H,0E4H,0F8H 
+0254 c1 e2 f4 e8 c1 f2 e4 e8	            DB      0C1H,0E2H,0F4H,0E8H,0C1H,0F2H,0E4H,0E8H 
+025c e1 d2 e4 e8 e1 e2 e4 e8	            DB      0E1H,0D2H,0E4H,0E8H,0E1H,0E2H,0E4H,0E8H 
+0264 d1 e2 d4 d8 b1 e2 b4 b8	            DB      0D1H,0E2H,0D4H,0D8H,0B1H,0E2H,0B4H,0B8H 
+026c 71 e2 74 78 f1 e2 f4 f8	            DB      071H,0E2H,074H,078H,0F1H,0E2H,0F4H,0F8H 
+0274 f1 d2 f4 f8 f1 b2 f4 f8	            DB      0F1H,0D2H,0F4H,0F8H,0F1H,0B2H,0F4H,0F8H 
+027c f1 72 f4 f8 e1 62 e4 e8	            DB      0F1H,072H,0F4H,0F8H,0E1H,062H,0E4H,0E8H 
+0284 e1 a2 e4 e8 e1 c2 e4 e8	            DB      0E1H,0A2H,0E4H,0E8H,0E1H,0C2H,0E4H,0E8H 
+028c e1 c2 e4 e8 c1 e2 e4 e8 ff	            DB      0E1H,0C2H,0E4H,0E8H,0C1H,0E2H,0E4H,0E8H,0FFH 
+0295 7f bf df ef 01 02 04 08	DATA11:     DB      07FH,0BFH,0DFH,0EFH,001H,002H,004H,008H 
+029d ef df bf 7f 08 04 02 01 ff	            DB      0EFH,0DFH,0BFH,07FH,008H,004H,002H,001H,0FFH 
+02a6 f1 92 94 f8 01 62 64 08	DATA12:     DB      0F1H,092H,094H,0F8H,001H,062H,064H,008H 
+02ae f1 92 94 f8 91 62 64 98	            DB      0F1H,092H,094H,0F8H,091H,062H,064H,098H 
+02b6 61 f2 f4 68 ff 00 00 00	            DB      061H,0F2H,0F4H,068H,0FFH,000H,000H,000H 
+02be			 
+02be			;LED 4x4 Vertical combinations, Helpful for multiplex output.   
+02be			;Hex value is the high nibble.  For the low mibble use: 
+02be			; 1  2  4  8  for the columns left to right. 
+02be			; Key * = ON, o = OFF 
+02be			; 
+02be			;        *  *  *  *  *  *  *  *  o  o  o  o  o  o  o  o 
+02be			;        *  *  *  *  o  o  o  o  *  *  *  *  o  o  o  o  
+02be			;        *  *  o  o  *  *  o  o  *  *  o  o  *  *  o  o 
+02be			;        *  o  *  o  *  o  *  o  *  o  *  o  *  o  *  o   
+02be			; HEX -> 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F 
+02be			 
+02be			 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/output_demo.z80
+02be

@@ -45,10 +45,10 @@
 0000			; select the menu item.  The menu rotataes to the first item when the last item 
 0000			; is passed. 
 0000			; Once a program has been selected, only a RESET will jump back to the menu.  This 
-0000			; can be modified if a RST 00 (C7), is placed in the program when the program  
-0000			; terminates. 
+0000			; can be modified to restart the menu again if a RST 00 (C7), is placed in the program 
+0000			; when the program terminates. 
 0000			; 
-0000			; In the example below, I use the above menu example, the all call the same program 
+0000			; In the example below, I use the above menu example, they all call the same program 
 0000			; but with a different visual output.  The RESET button is required to be pressed 
 0000			; to restart the menu 
 0000			 
@@ -172,20 +172,20 @@
 0093			 
 0093			;Example LED programs below 
 0093			PROGRAM1: 
-0093 21 ba 00		LD HL,DATA1 
-0096 18 0f		JR LEDSEQ 
+0093 21 ba 00		            LD      HL,DATA1 
+0096 18 0f		            JR      LEDSEQ 
 0098			 
 0098			PROGRAM2: 
-0098 21 c2 00		LD HL,DATA2 
-009b 18 0a		JR LEDSEQ 
+0098 21 c2 00		            LD      HL,DATA2 
+009b 18 0a		            JR      LEDSEQ 
 009d			 
 009d			PROGRAM3: 
-009d 21 ca 00		LD HL,DATA3 
-00a0 18 05		JR LEDSEQ 
+009d 21 ca 00		            LD      HL,DATA3 
+00a0 18 05		            JR      LEDSEQ 
 00a2			 
 00a2			PROGRAM4: 
-00a2 21 d2 00		LD HL,DATA4 
-00a5 18 00		JR LEDSEQ 
+00a2 21 d2 00		            LD      HL,DATA4 
+00a5 18 00		            JR      LEDSEQ 
 00a7			 
 00a7			 
 00a7			;Output Directly to the LED's with sequential data 
@@ -207,10 +207,10 @@
 00b6 eb			            EX      DE,HL      ;Restore HL 
 00b7 c3 a7 00		            JP      LEDSEQ     ;Jump back to the start 
 00ba			 
-00ba 01 02 04 08 10 20 40 80	DATA1:     DB      01H,02H,04H,08H,10H,20H,40H,80H 
-00c2 ef df bf 7f 7f bf df ef	DATA2:     DB      0EFH,0DFH,0BFH,7FH,7FH,0BFH,0DFH,0EFH 
-00ca 0e 0d 0b 07 07 0b 0d 0e	DATA3:     DB      0EH,0DH,0BH,07H,07H,0BH,0DH,0EH 
-00d2 0e 0c 08 ff 01 03 07 0f	DATA4:     DB      0EH,0CH,08H,0FFH,01H,03H,07H,0FH 
+00ba 01 02 04 08 10 20 40 80	DATA1:      DB      01H,02H,04H,08H,10H,20H,40H,80H 
+00c2 ef df bf 7f 7f bf df ef	DATA2:      DB      0EFH,0DFH,0BFH,7FH,7FH,0BFH,0DFH,0EFH 
+00ca 0e 0d 0b 07 07 0b 0d 0e	DATA3:      DB      0EH,0DH,0BH,07H,07H,0BH,0DH,0EH 
+00d2 0e 0c 08 ff 01 03 07 0f	DATA4:      DB      0EH,0CH,08H,0FFH,01H,03H,07H,0FH 
 00da			 
 # End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/menu_demo.z80
 00da

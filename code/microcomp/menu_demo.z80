@@ -44,10 +44,10 @@
 ; select the menu item.  The menu rotataes to the first item when the last item
 ; is passed.
 ; Once a program has been selected, only a RESET will jump back to the menu.  This
-; can be modified if a RST 00 (C7), is placed in the program when the program 
-; terminates.
+; can be modified to restart the menu again if a RST 00 (C7), is placed in the program
+; when the program terminates.
 ;
-; In the example below, I use the above menu example, the all call the same program
+; In the example below, I use the above menu example, they all call the same program
 ; but with a different visual output.  The RESET button is required to be pressed
 ; to restart the menu
 
@@ -171,20 +171,20 @@ MENU_JUMP:
 
 ;Example LED programs below
 PROGRAM1:
-LD HL,DATA1
-JR LEDSEQ
+            LD      HL,DATA1
+            JR      LEDSEQ
 
 PROGRAM2:
-LD HL,DATA2
-JR LEDSEQ
+            LD      HL,DATA2
+            JR      LEDSEQ
 
 PROGRAM3:
-LD HL,DATA3
-JR LEDSEQ
+            LD      HL,DATA3
+            JR      LEDSEQ
 
 PROGRAM4:
-LD HL,DATA4
-JR LEDSEQ
+            LD      HL,DATA4
+            JR      LEDSEQ
 
 
 ;Output Directly to the LED's with sequential data
@@ -206,8 +206,8 @@ ENDSEQ:
             EX      DE,HL      ;Restore HL
             JP      LEDSEQ     ;Jump back to the start
 
-DATA1:     DB      01H,02H,04H,08H,10H,20H,40H,80H
-DATA2:     DB      0EFH,0DFH,0BFH,7FH,7FH,0BFH,0DFH,0EFH
-DATA3:     DB      0EH,0DH,0BH,07H,07H,0BH,0DH,0EH
-DATA4:     DB      0EH,0CH,08H,0FFH,01H,03H,07H,0FH
+DATA1:      DB      01H,02H,04H,08H,10H,20H,40H,80H
+DATA2:      DB      0EFH,0DFH,0BFH,7FH,7FH,0BFH,0DFH,0EFH
+DATA3:      DB      0EH,0DH,0BH,07H,07H,0BH,0DH,0EH
+DATA4:      DB      0EH,0CH,08H,0FFH,01H,03H,07H,0FH
 
