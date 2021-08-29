@@ -16,6 +16,7 @@
 // Options
 // -b 		Output Binary File which includes main program code
 // -w       Don't include main program in bianary file (used with -b)
+// -p xx    Change the output port.  Default is port 7 (used with -b)
 //
 // For binary output to directly load into the TEC. use -b as a command line option.
 // Binary files are created with the code to activate the Speech Module and the speech 
@@ -61,6 +62,7 @@ TXT> WW EH LL KK2 AX MM . TT2 UW2 . TT2 AO KK2 IH NG . IH LL EH KK2 TT2 RR1 AA
 */
 
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -71,6 +73,7 @@ TXT> WW EH LL KK2 AX MM . TT2 UW2 . TT2 AO KK2 IH NG . IH LL EH KK2 TT2 RR1 AA
 #define MAX_KEY_LENGTH 35
 #define MAX_INPUT_SIZE 5000
 #define WHITESPACE " "
+#define PORT 7
 
 #define ODD(x) ((x)/2*2 != (x))
 
@@ -282,9 +285,10 @@ int main(int argc, char *argv[]) {
     int f_binary_file=0;
     int f_without_header=0;
     int file_count=0;
+    int port=PORT;
 
     //parse options if any
-	while((opt = getopt(argc, argv, ":bw")) != -1) 
+	while((opt = getopt(argc, argv, "p:bw")) != -1) 
 	{ 
 		switch(opt) 
 		{ 
@@ -294,6 +298,12 @@ int main(int argc, char *argv[]) {
 			case 'w':
 				f_without_header = 1; 
 				break;
+            case 'p':
+                port=atoi(optarg);
+                break;
+            default:
+                fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+                return 1;
 		} 
 	} 
 	
@@ -312,8 +322,14 @@ int main(int argc, char *argv[]) {
     		sprintf(bin_file_name,"speech%03d.bin",file_count++);
     		fout = fopen(bin_file_name,"wb");
     		if (!f_without_header)
+            {
+                //modify port
+                if (port == 0)
+                    port = PORT;
+                test_code_z80[9] = port;
     			for (int address = 0; address < 16; address++)
 				    fprintf(fout,"%c",test_code_z80[address]);
+            }
     	} 
 
 	    /* remove new line character*/
@@ -364,16 +380,3 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-//file writing
-//int main()
-//{
-//    loadCmuRefFile();
-
-//  FILE *fptr;
-//   fptr = fopen("blank.bin","wb");
-//   for (int address = 0; address <= 2047; address += 1) {
-//      fprintf(fptr,"%c",0x00); 
-//   }
-//fclose(fptr);
-//return 0;
-//}

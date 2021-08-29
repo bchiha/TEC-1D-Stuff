@@ -23,7 +23,7 @@
 ;    one at a time.  Then the score will be displayed.  The left hand segement shows the 
 ;    number of correct values in the correct position and the right hand segments shows the
 ;    number of correct values in the incorrect position.  To start a new round press
-;    button 'A', when the score is being shown.  To give up, press both buttons and the 
+;    button 'A', when the score is being shown.  To give up, press both buttons and the same time and the 
 ;    actual sequence will be shown.  You can still press button 'A' and continue with the game
 ;  
 ;
