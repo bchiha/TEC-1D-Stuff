@@ -1,0 +1,47 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/speech/play_music.z80
+0000			; Play some music (kind of) on the SPO256-AL2 Chip 
+0000			; ------------------------------------------------- 
+0000			; 
+0000			; This program interates through a list of Allophones and outputs them to the SP0256-AL2 chip 
+0000			; Once all Allophones are sent (terminated by 0FFH, it waits for kay press, then repeats. 
+0000			; 
+0000			; This program is designed for the TEC (Talking Electroincis) Z80 Single board computer 
+0000			; with the Speech Add-on.  The Add on is connected to Port 5 of the output decoder. 
+0000			; 
+0000			;Constants 
+0000			PORT:       EQU     05H            ;Output Port '5' Change is necessary to your setup 
+0000			 
+0000			            ORG     0900H    
+0900			 
+0900			; ------------------------ 
+0900			; Play a list of Allophone  
+0900			; ------------------------ 
+0900			; 
+0900			START: 
+0900			            ;Start of routine 
+0900 21 0b 09		            LD      HL,ALLOPHONES  ;Load HL with the start of the Allophone list 
+0903 01 05 48		            LD      BC,((END_ALLO - ALLOPHONES) * 256) + PORT ;Load BC with total allophones and port 
+0906			 
+0906			            ;Do the Outputting 
+0906 ed b3		            OTIR                   ;Output Contents of HL, to port C, B times 
+0908			 
+0908 76			            HALT                   ;Wait for key 
+0909 18 f5		            JR      START          ;Repeat outputing. 
+090b			 
+090b			 
+090b			ALLOPHONES:  ;Sample output, modify to create your own! 
+090b 0d 03 32 03 0d 03 32 03	            DB      0DH,03H,32H,03H,0DH,03H,32H,03H  ;Tic Toc 
+0913 0d 03 32 03 0d 03 32 03	            DB      0DH,03H,32H,03H,0DH,03H,32H,03H  
+091b			 
+091b 2c 03 1c 03 2c 02 2c 03	            DB      2CH,03H,1CH,03H,2CH,02H,2CH,03H  ;Beat 
+0923 1c 03 2c 02 2c 03 1c 03	            DB      1CH,03H,2CH,02H,2CH,03H,1CH,03H 
+092b 2c 02 2c 03 1c 03 2c 02	            DB      2CH,02H,2CH,03H,1CH,03H,2CH,02H 
+0933			 
+0933 05 03 06 03 3b 03 31 03	            DB      05H,03H,06H,03H,3BH,03H,31H,03H  ;Scroll 
+093b 31 03 3b 03 06 03 05 03	            DB      31H,03H,3BH,03H,06H,03H,05H,03H 
+0943 05 03 06 03 3b 03 31 03	            DB      05H,03H,06H,03H,3BH,03H,31H,03H 
+094b 31 03 3b 03 06 03 05 03	            DB      31H,03H,3BH,03H,06H,03H,05H,03H 
+0953			           
+0953			END_ALLO:  ;Must have end label to work out size of Allophone list at runtime 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/speech/play_music.z80
+0953

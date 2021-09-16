@@ -1,0 +1,73 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/speech/play_sentence.z80
+0000			; Play an English sentence the SPO256-AL2 Chip 
+0000			; -------------------------------------------- 
+0000			; 
+0000			; This program interates through a list of Allophones and outputs them to the SP0256-AL2 chip 
+0000			; Once all Allophones are sent (terminated by 0FFH, it waits for kay press, then repeats. 
+0000			; 
+0000			; This program is designed for the TEC (Talking Electroincis) Z80 Single board computer 
+0000			; with the Speech Add-on.  The Add on is connected to Port 5 of the output decoder. 
+0000			; 
+0000			;Constants 
+0000			PORT:       EQU     05H            ;Output Port '5' Change is necessary to your setup 
+0000			 
+0000			            ORG     0900H    
+0900			 
+0900			; ------------------------ 
+0900			; Play a list of Allophone  
+0900			; ------------------------ 
+0900			; 
+0900			START: 
+0900			            ;Start of routine 
+0900 21 0b 09		            LD      HL,ALLOPHONES  ;Load HL with the start of the Allophone list 
+0903 01 05 47		            LD      BC,((END_ALLO - ALLOPHONES) * 256) + PORT ;Load BC with total allophones and port 
+0906			 
+0906			            ;Do the Outputting 
+0906 ed b3		            OTIR                   ;Output Contents of HL, to port C, B times 
+0908			 
+0908 76			            HALT                   ;Wait for key 
+0909 18 f5		            JR      START          ;Repeat outputing. 
+090b			 
+090b			 
+090b			ALLOPHONES:  ;Sample output, modify to create your own! 
+090b 0d 17 17 02 2a 0c 2c 04	            DB     0DH,17H,17H,02H,2AH,0CH,2CH,04H 
+0913 04 2a 0f 10 00 31 16 0d	            DB     04H,2AH,0FH,10H,00H,31H,16H,0DH 
+091b 33 04 04 00 00 00 00 00	            DB     33H,04H,04H,00H,00H,00H,00H,00H 
+0923 1b 07 2d 35 00 36 07 2f	            DB     1BH,07H,2DH,35H,00H,36H,07H,2FH 
+092b 04 06 00 1a 10 00 12 13	            DB     04H,06H,00H,1AH,10H,00H,12H,13H 
+0933 00 0d 13 03 13 03 37 13	            DB     00H,0DH,13H,03H,13H,03H,37H,13H 
+093b 03 08 18 10 09 31 16 11	            DB     03H,08H,18H,10H,09H,31H,16H,11H 
+0943 33 04 04 04 38 20 00 30	            DB     33H,04H,04H,04H,38H,20H,00H,30H 
+094b 0c 1d 37 09 13 32 04	            DB     0CH,1DH,37H,09H,13H,32H,04H 
+0952			END_ALLO:  ;Must have end label to work out size of Allophone list at runtime 
+0952			 
+0952			 
+0952			 
+0952			 
+0952			;Original Code below.  Above code is optimised 
+0952			;Play a series of Allophones to the SP0256-AL2 Chip 
+0952			;PORT 05H 
+0952			; 
+0952			;START: 
+0952			;    LD  HL,DATA   ;Load HL with start of Data Table 
+0952			;LOOP: 
+0952			;    LD  A,(HL)    ;Load A with contents of HL 
+0952			;    CP  0FFH      ;Is it FF? 
+0952			;    JR  Z,WAIT    ;Yes, Jump for key press 
+0952			;    OUT (PORT),A  ;Output to SP0256-AL chip 
+0952			;    INC HL        ;Move to next Allophone 
+0952			;    JR  LOOP      ;Loop output again 
+0952			;WAIT: 
+0952			;    HALT          ;Wait for key press 
+0952			;    JR  START     ;Repeat from start 
+0952			;DATA: 
+0952			;    DB  0DH,17H,17H,02H,2AH,0CH,2CH,04H ;Talking Electroinics 
+0952			;    DB  04H,2AH,0FH,10H,00H,31H,16H,0DH 
+0952			;    DB  33H,04H,04H,0FFH 
+0952			 
+0952			 
+0952			 
+0952			 
+0952			 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/speech/play_sentence.z80
+0952

@@ -1,0 +1,43 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/speech/play_all_allophones_key.z80
+0000			; Play all Allophones on the SPO256-AL2 Chip with key repeat 
+0000			; ---------------------------------------------------------- 
+0000			; 
+0000			; This program cycles through all Allophones.  Once an Allophone is played, the  
+0000			; system will halt and wait for a button press. If button '+' is pressed the next 
+0000			; Allophone is played.  Any other key will repeat the allophone. 
+0000			; 
+0000			; This program is designed for the TEC (Talking Electroincis) Z80 Single board computer 
+0000			; with the Speech Add-on.  The Add on is connected to Port 5 of the output decoder. 
+0000			; It also use JMON Monitor with its keyboard calls. 
+0000			; Note: First five allophones are pauses (no sound) 
+0000			; 
+0000			;Constants 
+0000			PORT:       EQU     05H            ;Output Port '5' Change is necessary to your setup 
+0000			ALLOPHONES: EQU     40H            ;Total Allophones on Chip (64 Decimal) 
+0000			NEXTKEY:    EQU     10H            ;Plus key on TEC 
+0000			 
+0000			            ORG     0900H    
+0900			 
+0900			; ------------------ 
+0900			; Play all Allophone  
+0900			; ------------------ 
+0900			; 
+0900			START: 
+0900			            ;Start of routine 
+0900 01 05 40		            LD      BC,(ALLOPHONES * 256) + PORT ;Load BC with total allophones and port 
+0903 16 00		            LD      D,00H          ;Load D with zero 
+0905			DO_OUT: 
+0905 ed 51		            OUT     (C),D          ;Send Allophone out to Speech Chip 
+0907			            ;Wait for key input (JMON routine) 
+0907 cf			            RST     08H            ;Read Keyboard and loop until a key pressed 
+0908			            ;Handle Key 
+0908 fe 10		            CP      NEXTKEY        ;Is Key press the Plus KEY? 
+090a 20 f9		            JR      NZ,DO_OUT      ;Repeat Allophone 
+090c 14			            INC     D              ;Move to next allophone 
+090d 10 f6		            DJNZ    DO_OUT         ;Jump to output until B=0 
+090f			            ;All Done, Repeat from start 
+090f 18 ef		            JR      START          ;Go to the start 
+0911			 
+0911			 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/speech/play_all_allophones_key.z80
+0911

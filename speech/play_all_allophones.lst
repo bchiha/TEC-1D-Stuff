@@ -1,0 +1,56 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/speech/play_all_allophones.z80
+0000			; Play all Allophones on the SPO256-AL2 Chip 
+0000			; ------------------------------------------ 
+0000			; 
+0000			; This program cycles through all Allophones.  It plays the Allophone twice with 
+0000			; pauses between each Allophone then the next one is played.  Once all Allophones 
+0000			; are played, it waits for a key press, then repeats 
+0000			; 
+0000			; This program is designed for the TEC (Talking Electroincis) Z80 Single board computer 
+0000			; with the Speech Add-on.  The Add on is connected to Port 5 of the output decoder. 
+0000			; It also use JMON Monitor with its keyboard calls. 
+0000			; Note: First five allophones are pauses (no sound) 
+0000			; 
+0000			;Constants 
+0000			PORT:       EQU     05H            ;Output Port '5' Change is necessary to your setup 
+0000			ALLOPHONES: EQU     40H            ;Total Allophones on Chip (64 Decimal) 
+0000			 
+0000			            ORG     0900H    
+0900			 
+0900			; ------------------ 
+0900			; Play all Allophone  
+0900			; ------------------ 
+0900			; 
+0900			START: 
+0900			            ;Start of routine 
+0900 06 40		            LD      B,ALLOPHONES   ;Load B with total allophones to play 
+0902 af			            XOR     A              ;Zero A 
+0903			 
+0903			DO_OUT: 
+0903			             
+0903 cd 0f 09		            CALL    OUTPUT         ;Output Allophone and Delay 
+0906 cd 0f 09		            CALL    OUTPUT         ;Output Allophone and Delay 
+0909			 
+0909 3c			            INC     A              ;Next Allophone 
+090a 10 f7		            DJNZ    DO_OUT         ;Jump to output until B=0 
+090c			 
+090c cf			            RST     08H            ;Read Keyboard and loop until a key pressed 
+090d			            ;All Done, Repeat from start 
+090d 18 f1		            JR      START          ;Go to the start 
+090f			 
+090f			OUTPUT:                            ;Output with delay 
+090f d3 05		            OUT     (PORT),A       ;Send Allophone out to Speech Chip 
+0911			            ;Delay 
+0911 16 ff		            LD      D,0FFH         ;Load D with FF 
+0913			D1:                    
+0913 1e ff		            LD      E,0FFH         ;Load E with FF  
+0915			D2:                   
+0915 1d			            DEC     E              ;Decrease E 
+0916 20 fd		            JR      NZ,D2          ;Loop until E is zero 
+0918 15			            DEC     D              ;Decrease D 
+0919 20 f8		            JR      NZ,D1          ;Loop until D is zero 
+091b c9			            RET                    ;Exit 
+091c			 
+091c			 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/speech/play_all_allophones.z80
+091c

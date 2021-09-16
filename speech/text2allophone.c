@@ -11,12 +11,13 @@
 // can't be found '??' is outputed and a '.' represents a word gap.  A pause of 100ms is
 // automatically placed between words.
 //
-// To be used with the TEC Speech Module attached to Port 7.
+// To be used with the TEC Speech Module attached to Port 7.  Port can be changed see below
 //
 // Options
 // -b 		Output Binary File which includes main program code
 // -w       Don't include main program in bianary file (used with -b)
 // -p xx    Change the output port.  Default is port 7 (used with -b)
+// -d       Output allophones as Z80 Assembler DB format for easy code insersion
 //
 // For binary output to directly load into the TEC. use -b as a command line option.
 // Binary files are created with the code to activate the Speech Module and the speech 
@@ -31,34 +32,49 @@
 
 /* sample output from the program
 > Welcome to Talking Electronics PP I hope you have a great day ! EOF
-TXT> WW EH LL KK2 AX MM . TT2 UW2 . TT2 AO KK2 IH NG . IH LL EH KK2 TT2 RR1 AA
-     NN1 IH KK2 SS . AY . HH2 OW PP . YY2 UW2 . HH2 AE VV . AX . GG3 RR1 EY TT2 .
-     DD2 EY . EH KK2 SS KK2 LL AX MM EY SH AX NN1 PP OY NN1 TT2 .
+TXT> WW EH LL PA3 KK2 AX MM . PA3 TT2 UW2 . PA3 TT2 AO PA3 KK2 IH
+     NG . IH LL EH PA3 KK2 PA3 TT2 RR1 AA NN1 IH PA3 KK2 SS . AY .
+     HH2 OW PA3 PP . YY2 UW2 . HH2 AE VV . AX . PA2 GG3 RR1 EY PA3
+     TT2 . PA2 DD2 EY . EH PA3 KK2 SS PA3 KK2 LL AX MM EY SH AX NN1
+     PA3 PP OY NN1 PA3 TT2 .
 
-000> 2E 07 2D 29 0F 10 03 0D
-008> 1F 03 0D 17 29 0C 2C 03
-010> 0C 2D 07 29 0D 0E 18 0B
-018> 0C 29 37 03 04 06 03 39
-020> 35 09 03 19 1F 03 39 1A
-028> 23 03 0F 03 22 0E 14 0D
-030> 03 21 14 03 07 29 37 29
-038> 2D 0F 10 14 25 0F 0B 09
-040> 05 0B 0D 03 FF
+000> 2E 07 2D 02 29 0F 10 03
+008> 02 0D 1F 03 02 0D 17 02
+010> 29 0C 2C 03 0C 2D 07 02
+018> 29 02 0D 0E 18 0B 0C 02
+020> 29 37 03 04 06 03 39 35
+028> 02 09 03 19 1F 03 39 1A
+030> 23 03 0F 03 01 22 0E 14
+038> 02 0D 03 01 21 14 03 07
+040> 02 29 37 02 29 2D 0F 10
+048> 14 25 0F 0B 02 09 05 0B
+050> 02 0D 03 FF
+
+DB 2EH,07H,2DH,02H,29H,0FH,10H,03H
+DB 02H,0DH,1FH,03H,02H,0DH,17H,02H
+DB 29H,0CH,2CH,03H,0CH,2DH,07H,02H
+DB 29H,02H,0DH,0EH,18H,0BH,0CH,02H
+DB 29H,37H,03H,04H,06H,03H,39H,35H
+DB 02H,09H,03H,19H,1FH,03H,39H,1AH
+DB 23H,03H,0FH,03H,01H,22H,0EH,14H
+DB 02H,0DH,03H,01H,21H,14H,03H,07H
+DB 02H,29H,37H,02H,29H,2DH,0FH,10H
+DB 14H,25H,0FH,0BH,02H,09H,05H,0BH
+DB 02H,0DH,03H,0FFH
+
 */
 
 /* For reference, here is the Test Program that is used to run the Speech Module taking in data
    for the SP0256a-AL2 chip.  It is included in the binary output by default
 
-0900	21 10 09	LD HL,0910		;Location of allophone data
-0903	7E			LD A,(HL)		;Load A with the next allophone
-0904	FE FF 		CP 0xFF			;Compare A with 0xFF (EOF for data)
-0906	28 05       JR Z,090D       ;IF EOF then jump to address 090D
-0908    D3 07		OUT (07),A      ;Output A to port 7 on the TEC
-090A	23			INC HL          ;Index to the next allophone
-090B	18 F6       JR 0903         ;Jump back to 0903 to say the next allophone
-090D    76          HALT            ;Wait for key input as EOF has reached
-090E    18 F0       JR 0900         ;Jump back to start
+0900    21 0B 09    LD HL,090C      ;Location of allophone data
+0903    01 pp ss    LD BC,SIZE + PORT ;Load BC with length of allophone data and output port
+0906    ED B3       OTIR            ;Output Contents of HL, to port C, B times 
+0908    76          HALT            ;Wait for key input as EOF has reached
+0909    18 F5       JR 0900         ;Jump back to start
+090B    <start of Allophone data>
 
+Note: SIZE (ss) and PORT (pp) are calculated at runtime based on inputs
 */
 
 #include <stdio.h>
@@ -77,7 +93,7 @@ TXT> WW EH LL KK2 AX MM . TT2 UW2 . TT2 AO KK2 IH NG . IH LL EH KK2 TT2 RR1 AA
 
 #define ODD(x) ((x)/2*2 != (x))
 
-int test_code_z80[16] = {0x21,0x10,0x09,0x7E,0xFE,0xFF,0x28,0x05,0xD3,0x07,0x23,0x18,0xF6,0x76,0x18,0xF0};
+int test_code_z80[11] = {0x21,0x0B,0x09,0x01,0x00,0x00,0xED,0xB3,0x76,0x18,0xF5};
 
 FILE *dictptr=NULL;   //file pointer to dictionary
 
@@ -209,7 +225,7 @@ Node_type *GetNode(void) {
 
 
 //Build Tree assumes entries are already sorted when inserted
-Node_type *BuildCMUTree(void) {
+Node_type *BuildCMUTree(char filename[]) {
     Node_type *p;   //current node
     int count = 0;  //number of nodes so far
     int level;      //level for current nodes
@@ -219,8 +235,8 @@ Node_type *BuildCMUTree(void) {
         lastnode[level] = NULL;
 
     //open cmu to sp0 file
-    if ((dictptr = fopen("cmudict-0.7b","r")) == NULL) {
-       printf("Error! opening cmudict-0.7b file");
+    if ((dictptr = fopen(filename,"r")) == NULL) {
+       fprintf(stderr, "Error! opening %s file\n", filename);
        exit(1);
     }
 
@@ -251,7 +267,7 @@ Symdat **LoadSymbolTable(char filename[]) {
     
     //open cmu to sp0 file
     if ((fp = fopen(filename,"r")) == NULL) {
-       printf("Error! opening cmu2sp0.symbols file");
+       fprintf(stderr, "Error! opening %s file\n",filename);
        exit(1);
     }
     //read file and store in sd array
@@ -274,7 +290,7 @@ Symdat **LoadSymbolTable(char filename[]) {
 int main(int argc, char *argv[]) {
     FILE *fp=NULL,*fout=NULL;
     Symdat **sd;
-    char *token;
+    char *token, *sp0;
     Node_type *dictionary, *target;
     List_type *curr_symbol;
     char input_text[MAX_INPUT_SIZE];
@@ -284,11 +300,12 @@ int main(int argc, char *argv[]) {
     int opt;
     int f_binary_file=0;
     int f_without_header=0;
+    int f_assembly_output=0;
     int file_count=0;
     int port=PORT;
 
     //parse options if any
-	while((opt = getopt(argc, argv, "p:bw")) != -1) 
+	while((opt = getopt(argc, argv, "p:bwd")) != -1) 
 	{ 
 		switch(opt) 
 		{ 
@@ -301,6 +318,9 @@ int main(int argc, char *argv[]) {
             case 'p':
                 port=atoi(optarg);
                 break;
+            case 'd':
+                f_assembly_output = 1;
+                break;
             default:
                 fprintf (stderr, "Unknown option `-%c'.\n", optopt);
                 return 1;
@@ -309,29 +329,14 @@ int main(int argc, char *argv[]) {
 	
     //load data files
     sd = LoadSymbolTable("cmu2sp0.symbols");
-    dictionary = BuildCMUTree();
+    dictionary = BuildCMUTree("cmudict-0.7b");
     
     //get input text
-    printf("Text to SPO256a converter by Brian Chiha\n");
-    printf("----------------------------------------\n");
+    printf("Text to SPO256-AL2 converter by Brian Chiha\n");
+    printf("-------------------------------------------\n");
     printf("Type in a sentence to convert...(EOF for FF, PP for 200ms Pause, C-d to exit)\n\n> ");
     
     while(fgets(input_text,MAX_INPUT_SIZE,stdin)) {
-    	//open file if binary output selected
-    	if (f_binary_file) {
-    		sprintf(bin_file_name,"speech%03d.bin",file_count++);
-    		fout = fopen(bin_file_name,"wb");
-    		if (!f_without_header)
-            {
-                //modify port
-                if (port == 0)
-                    port = PORT;
-                test_code_z80[9] = port;
-    			for (int address = 0; address < 16; address++)
-				    fprintf(fout,"%c",test_code_z80[address]);
-            }
-    	} 
-
 	    /* remove new line character*/
 	    char *newline = strchr(input_text, '\n');
 	    *newline = 0;
@@ -347,7 +352,25 @@ int main(int argc, char *argv[]) {
 	        	while (curr_symbol) {
 	        		for (sd_index=0; strcmp(sd[sd_index]->cmu,curr_symbol->symbol) != 0; sd_index++)
 	        			;
-	        		printf("%s ",sd[sd_index]->sp0);
+                    sp0 = sd[sd_index]->sp0;
+                    // add pauses before certian allophones
+                    if (strcmp(sp0,"BB1") == 0 ||
+                        strcmp(sp0,"DD2") == 0 ||
+                        strcmp(sp0,"GG3") == 0 ||
+                        strcmp(sp0,"JH") == 0)
+                    {
+                        printf("PA2 ");
+                        input_hex[hex_index++] = 0x01; 
+                    }
+                    if (strcmp(sp0,"CH") == 0 ||
+                        strcmp(sp0,"KK2") == 0 ||
+                        strcmp(sp0,"PP") == 0 ||
+                        strcmp(sp0,"TT2") == 0)
+                    {
+                        printf("PA3 ");
+                        input_hex[hex_index++] = 0x02; 
+                    }
+                    printf("%s ",sp0);
 	        		input_hex[hex_index++] = sd[sd_index]->hex; 
 	        		curr_symbol = curr_symbol->next;
 	        	}
@@ -356,14 +379,32 @@ int main(int argc, char *argv[]) {
 			}
 			else 
 			    if (strcmp(token,"EOF") == 0)
-			    	input_hex[hex_index++] = 0xFF;
+			    	input_hex[hex_index++] = 0x0FF;
 			    else if (strcmp(token,"PP") == 0)
 			    	input_hex[hex_index++] = 0x04;
 			    else
 			     printf("?? . "); //no word found
 		}
-		printf("\n");
-		// display hex data stored in input_hex
+
+        //open file if binary output selected
+        if (f_binary_file) {
+            sprintf(bin_file_name,"speech%03d.bin",file_count++);
+            fout = fopen(bin_file_name,"wb");
+            if (!f_without_header)
+            {
+                //modify port
+                if (port == 0)
+                    port = PORT;
+                test_code_z80[4] = port;
+                //modify size
+                test_code_z80[5] = hex_index-1;
+                for (int address = 0; address < 11; address++)
+                    fprintf(fout,"%c",test_code_z80[address]);
+            }
+        } 
+
+        printf("\n");
+        // display hex data stored in input_hex
 		for (int i = 0; i < hex_index ; i++) {
 			if ((i % 8) == 0)
 				printf("\n%03X> ",i);
@@ -371,6 +412,24 @@ int main(int argc, char *argv[]) {
 			if (f_binary_file)
 				fprintf(fout,"%c",input_hex[i]);
 		}
+
+        // display hex data as Z80 Assembly DB format
+        if (f_assembly_output)
+        {
+            printf("\n");
+            for (int i = 0; i < hex_index ; i++) {
+                if ((i % 8) == 0)
+                    printf("\nDB ");
+                if ((i % 8) == 7 || i == hex_index -1 )
+                    if (input_hex[i] == 0xFF)
+                        printf("%03XH",input_hex[i]);
+                    else
+                        printf("%02XH",input_hex[i]);
+                else
+                    printf("%02XH,",input_hex[i]);
+            }
+        }
+
 		//reset indexes and close file
 		hex_index=0;
 		if (fout)
