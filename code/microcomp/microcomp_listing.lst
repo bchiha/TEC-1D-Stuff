@@ -1,0 +1,1288 @@
+# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/microcomp_listing.z80
+0000			;TALKING ELECTRONICS MICROCOMP EPROM LISTING 
+0000			;------------------------------------------- 
+0000			;CODE WRITTEN BY COLIN MITCHELL (PROBABLY) 
+0000			;ANNOTATION BY BRIAN CHIHA 
+0000			 
+0000			;FILES: microcomp_2k.rom        <- THIS LISTING 
+0000			;       microcomp_variant.rom   <- SEE ADDENDUM 
+0000			 
+0000			;THE MICROCOMP IS A 3-CHIP Z80 COMPUTER DEVELOPED BY COLIN MITCHELL FOR TALKING 
+0000			;ELECTRONICS.  IT WAS FEATURED IN ISSUES 13 AND 14 OF THE TALKING ELECTRONICS 
+0000			;MAGAZINE PUBLISHED IN THE LATE 80'S.  ADD ON AND OTHER PROGRAMS WERE MENTIONED 
+0000			;IN THE BD679 BOOK.  IT SOLD FOR $55.75 INCLUDING PARTS AND CASE.  KEN STONE 
+0000			;HAD A SMALL INVOLVEMENT IN THE DESIGN OF THE BOARD. 
+0000			 
+0000			;THERE WERE A FEW ADD-ON THAT WERE ADVERTISED, BUT MOST WERN'T WIDELY KNOWN AND 
+0000			;SOME WERN'T PUBLISHED. 
+0000			 
+0000			;THE MICROCOMP WAS SOLD AS A Z80 LEARNING DEVICE THOUGH IT HAS LIMITATIONS. 
+0000			;FIRSTLY, TO PROGRAM THE EPROM ANOTHER COMPUTER WAS NEEDED, THE BOARD HAD NO 
+0000			;RAM AND NO KEYBOARD.  ONLY AN INPUT DIP SWITCH WAS PROVIDED AND SOME BUTTONS 
+0000			;TO INTERFACE WITH THE EPROM.  THERE WERE SOME CLEVER DESIGN FEATURES TO OVER 
+0000			;COME THE LACK OF CHIPS.  BIT 7 ON THE OUTPUT LATCH WAS USED TO SELECT WHICH 
+0000			;SEVEN SEGMENT DISPLAY TO USE, TRANSISTOR LOGIC WAS USED TO DRIVE THE INPUT 
+0000			;OUTPUT REQUEST AND AN AUDIBLE PROBE WAS USED TO 'HEAR' THE Z80 LINES. 
+0000			 
+0000			;THE DEFINITIONS BELOW WILL HELP WITH UNDERSTANDING THE IO ROUTINES. 
+0000			 
+0000			;THE INPUT LATCH IS THE 8 DIP SWITCHES THAT IS ONLY ACTIVE WHEN AN "IN A,(01)" 
+0000			;IS CALLED.  THIS PLACES THE 8 BITS ONTO THE DATA BUS FOR READING. 
+0000			 
+0000			;THE DISPLAYS ARE THE 2 SEVEN SEGMENT DISPLAYS, THE 4X4 LED MATRIX AND THE 8 
+0000			;DATA LINE LEDS.  THEY ARE ALL WIRED TOGETHER AND TO THE SAME OUTPUT PORT. 
+0000			;THEY ARE ALSO WIRED DIFFERENTLY TO EACH OTHER. 
+0000			 
+0000			;THE OUTPUT LATCH DRIVES THE 2 SEVEN SEGMENT DISPLAYS, THE 4X4 LED MATRIX AND 
+0000			;THE 8 DATA LINE LEDS.  YOU CAN'T CONTROL THESE INDIVIDUALLY AS THEY ARE ALL 
+0000			;CONNECTED TOGETHER TO THE ONE LATCH.  PROGRAMS FOR THE 4X4 MATRIX WILL STILL 
+0000			;DISPLAY ON THE SEVEN SEGMENT DISPLAYS BUT WILL BE MEANINGLESS, AND VICE VERSA. 
+0000			;TO SEND DATA TO THE OUTPUT, USE "OUT (02),A".  BIT 7 OF REGISTER A IS A SPECIAL 
+0000			;CASE WHERE IF SET WILL ACTIVATE THE LEFT SEVEN SEGMENT DISPLAY AND IF NOT SET 
+0000			;WILL ACTIVATE THE RIGHT SEVEN SEGMENT DISPLAY.  THE OTHER BITS ARE USED TO 
+0000			;LIGHT UP THE INDIVIDUAL SEGMENTS.  THE 4X4 MATRIX AND 8 DATA LINE LEDS USE BIT 
+0000			;7 AS NORMAL. 
+0000			 
+0000			; CODING TIPS 
+0000			; ----------- 
+0000			 
+0000			;IF DEVELOPING YOUR OWN PROGRAMS, SOME CONSIDERATIONS ARE NEEDED.  FIRSTLY AS 
+0000			;THERE IS NO RAM, THE STACK CAN'T BE USED.  YOU CAN'T USE ANY COMMANDS THAT 
+0000			;UTILISE THE STACK, IE: PUSH, POP, CALL, RET, RST AND SOME SP OP CODES.  ALSO, 
+0000			;THE PROGRAM MUST USE A JUMP AT THE END TO CONTINUALLY LOOP IT.  IF YOU REQUIRE 
+0000			;A ROUTINE TO BE 'CALLED' AND RETURNED, USE JP (HL), OR JP (IX) WHERE YOU CAN 
+0000			;SET HL/IX TO THE RETURN ADDRESS: IE: 
+0000			 
+0000			;    CALL PROG   ;JUMP TO PROG: 
+0000			 
+0000			;CONT: 
+0000			;    ... 
+0000			;PROG: 
+0000			;    ...         ;DO SOMETHING 
+0000			;    RET         ;JUMP BACK TO CONT: 
+0000			; 
+0000			;IS THE SAME AS 
+0000			; 
+0000			;    LD HL,CONT 
+0000			;    JP PROG 
+0000			;CONT: 
+0000			;    ... 
+0000			;PROG: 
+0000			;    ...         ;DO SOMETHING 
+0000			;    JP (HL)     ;JUMP BACK TO CONT: 
+0000			 
+0000			;YOU CAN USE THE SP REGISTER FOR STORAGE ONLY. 
+0000			 
+0000			; LIST OF PROGRAMS AND TABLES ON THE ROM 
+0000			; -------------------------------------- 
+0000			;ADDR    DIP TYPE    NAME 
+0000			;0000    00  P       JUMP ROUTINE 
+0000			;0010    01  P       TONE 
+0000			;0020    02  P       QUICK DRAW 
+0000			;0080    08  P       RUNNING NAMES 
+0000			;00D0    0D  U       RUNNING LETTER ROUTINE 
+0000			;00F5    --  D       QUICK DRAW ANIMATION TABLE 
+0000			;0100    --  D       LIST OF NAMES TABLE 
+0000			;0200    20  P       LOOKING AT DATA 
+0000			;0290    29  P       FROM INPUT TO 8 LEDS 
+0000			;02A0    2A  P       INCREMENT VIA BUTTON A 
+0000			;02C0    2C  P       AUTO INCREMENT (FAST) 
+0000			;02D0    2D  P       AUTO INCREMENT (VARIABLE) 
+0000			;02E0    2E  P       AUTO DECREMENT 
+0000			;02F0    2F  P       AUTO DECREMENT (VARIABLE) 
+0000			;0300    30  P       4X4 LED EFFECTS 
+0000			;0370    37  P       0 - 9 COUNTER 
+0000			;0390    39  P       0 - F COUNTER 
+0000			;03A0    3A  P       A - Z, 0 - F COUNTER 
+0000			;03F0    --  U       VERY LONG DELAY (PART 1) 
+0000			;0400    40  P       00 - 99 COUNTER 
+0000			;045A    --  U       VERY LONG DELAY (PART 2) 
+0000			;0470    47  P       DICE 
+0000			;0520    52  P       EPROM IN BINARY 
+0000			;0530    53  P       POKER 
+0000			;0630    63  P       BINARY CLOCK 
+0000			;06C0    6C  P       ONE MINUTE TIMER 
+0000			;06D0    6D  P       3 MINUTE TIMER 
+0000			;06E0    6E  P       1 HOUR TIMER 
+0000			;06F0    6F  P       ADJUSTABLE TIMER 
+0000			;0740    --  U       1 MINUTE DELAY 
+0000			;0765    --  D       ADJUSTABLE TIMER DATA TABLE 
+0000			;07A0    7A  P       FINAL MESSAGE 
+0000			 
+0000			;KEY: 
+0000			;    ADDR = ADDRESS LOCATION ON ROM 
+0000			;    DIP  = INPUT LATCH DIP SETTING 
+0000			;    TYPE = P - PROGRAM TO RUN, U - UTILITY, D - DATA TABLE LOOKUP 
+0000			;    NAME = NAME OF PROGRAM OR TABLE 
+0000			 
+0000			; START OF LISTING 
+0000			; ---------------- 
+0000			;JUMP PROGRAM ROUTINE IS USED EVERY TIME YOU WANT TO ACCESS ONE OF THE PROGRAMS. 
+0000			;WHEN AN ADDRESS IS SET ON THE INPUT LATCH AND RESET IS PRESSED IT WILL SHIFT 
+0000			;THE ADDRESS TO THE LEFT BY ONE BYTE AND JUMP TO THAT LOCATION.  IE: IF 0X02 IS 
+0000			;ON THE LATCH, IT WILL JUMP TO LOCATION 0X0020, AND IF 0X47 IS ON THE LATCH 
+0000			;IT WILL JUMP TO 0X0470.  WITH THIS IN MIND, THE START LOCATION OF EACH PROGRAM 
+0000			;MUST HAVE ITS LAST BYTE AS ZERO.  IF THE ROM ONLY HAS ONE PROGRAM THEN THIS 
+0000			;ROUTINE ISN'T NEEDED.  (SEE THE ADDENDUM FOR THE ALTERNATE JUMP PROGRAM) 
+0000			 
+0000			            ORG    $0000  
+0000			 
+0000 06 00		            LD      B,0x00             ;RESET B TO ZERO, TO BE USED AFTER THE JUMP 
+0002 db 01		            IN      A,(01)             ;READ THE INPUT LATCH 
+0004 21 00 00		            LD      HL,0x0000          ;RESET HL 
+0007 6f			            LD      L,A                ;LOAD THE BITS SET ON THE LATCH TO L 
+0008 29			            ADD     HL,HL              ;MULTIPLY   HL  BY 10 TO SHIFT  THE FOUR BYTE 
+0009 29			            ADD     HL,HL              ;REGISTER   HL  TO THE LEFT BY  ONE BYTE 
+000a 29			            ADD     HL,HL              ;IE: IF HL = 0X0047 IT WILL  NOW BE 0X0470 
+000b 29			            ADD     HL,HL              ;  
+000c e9			            JP      (HL)               ;JUMP TO THE ADDRESS ON HL 
+000d 00 00 00		            DB      0x00,0x00,0x00     ;FILL 
+0010			 
+0010			;TONE ROUTINE TO OSCILLATE D7 OR TERMINAL 80.  THIS IS USED TO TEST THE PROBE. 
+0010			;WHEN USED WITH THE 'PROBE', TOUCHING TERMINAL 80 WILL PRODUCE A SOUND THAT 
+0010			;WILL CHANGE FREQUENCY WHEN THE CLOCK SPEED IS MODIFIED.  IT ALSO LIGHTS UP 
+0010			;SEGMENT 'A' ON THE LEFT DISPLAY.  NOTE: WHEN D7 IS SET THE LEFT DISPLAY WILL 
+0010			;ACTIVATE, WHEN NOT SET THE RIGHT DISPLAY WILL ACTIVATE. 
+0010			 
+0010 af			L0010:      XOR     A                  ;RESET  A TO ZERO 
+0011 d3 02		            OUT     (02),A             ;BLANK  ALL DISPLAYS 
+0013 3e 81		            LD      A,0x81             ;LOAD 0X81 TO A (SETS D0 AND D7 TO HIGH) 
+0015 d3 02		            OUT     (02),A             ;OUTPUT A TO THE DISPLAYS 
+0017 af			            XOR     A                  ;RESET A TO ZERO 
+0018 d3 02		            OUT     (02),A             ;BLANK ALL DISPLAYS 
+001a 3e 81		            LD      A,0x81             ;LOAD 0X81 TO A (SETS D0 AND D7 TO HIGH) 
+001c d3 02		            OUT     (02),A             ;OUTPUT A TO THE DISPLAYS 
+001e 18 f0		            JR      L0010              ;JUMP TO START OF TONE ROUTINE 
+0020			 
+0020			;QUICK DRAW ROUTINE IS A REACTION GAME FOR TWO PLAYERS.  WHEN THE SEVEN 
+0020			;SEGMENTS DISPLAY C AND BACK C, THE FIRST PERSON TO PRESS THEIR BUTTON (A OR B) 
+0020			;WINS.  PRESS RESET TO START AGAIN.  THIS PROGRAM IS SPLIT INTO THREE PARTS, 
+0020			;AN ANIMATION, A DELAY WITH BLANK SCREEN AND THE REACTION SCREEN. 
+0020			 
+0020 0e 02		L0020:      LD      C,0x02             ;ANIMATE THE SEGMENTS TWICE 
+0022 16 08		L0022:      LD      D,0x08             ;EIGHT SEGMENTS SEQUENCE 
+0024 21 f5 00		            LD      HL,SEG_TBL         ;SEGMENT LOOK UP TABLE 
+0027 7e			L0027:      LD      A,(HL)             ;LOAD SEGMENT DATA TO A 
+0028 d3 02		            OUT     (02),A             ;OUTPUT TO SEVEN SEGMENTS 
+002a 10 fe		L002A:      DJNZ    L002A              ;SHORT DELAY 
+002c 23			            INC     HL                 ;MOVE TO NEXT DATA 
+002d 15			            DEC     D                  ;DECREASE SEQUENCE LEFT 
+002e 20 f7		            JR      NZ,L0027           ;DISPLAY THE NEXT SEGMENT UNTIL ALL DONE 
+0030 0d			            DEC     C                  ;DECREASE REPEAT SEGMENT 
+0031 20 ef		            JR      NZ,L0022           ;DO SEGMENT LOOP TWICE 
+0033 3e 00		            LD      A,0x00             ;RESET A TO ZERO 
+0035 d3 02		            OUT     (02),A             ;BLANK OUTPUT 
+0037 11 02 06		            LD      DE,0x0602          ;LOAD DE WITH DELAY FOR BLANK SCREEN 
+003a 1b			L003A:      DEC     DE                 ;DECREASE DELAY COUNT 
+003b 7a			            LD      A,D                ;LOAD D WITH A 
+003c b3			            OR      E                  ;COMPARE A WITH E 
+003d 20 fb		            JR      NZ,L003A           ;IF D AND E DOESN'T EQUAL ZERO DECREASE AGAIN 
+003f db 01		            IN      A,(01)             ;CHECK IF A BUTTON HAS BEEN PRESSED TOO EARLY 
+0041 cb 77		            BIT     6,A                ;IS BUTTON B PRESSED? 
+0043 c2 20 00		            JP      NZ,L0020           ;RESTART GAME IF PRESSED 
+0046 cb 7f		            BIT     7,A                ;IS BUTTON A PRESSED? 
+0048 c2 20 00		            JP      NZ,L0020           ;RESTART GAME IF PRESSED 
+004b 3e 0f		L004B:      LD      A,0x0F             ;LOAD A WITH A BACKWARD "C" FOR DISPLAY 
+004d d3 02		            OUT     (02),A             ;OUTPUT TO SEVEN SEGMENTS 
+004f 06 08		            LD      B,0x08             ;LOAD B WITH SHORT DELAY 
+0051 10 fe		L0051:      DJNZ    L0051              ;DELAY 
+0053 3e b9		            LD      A,0xB9             ;LOAD A WITH A "C" FOR DISPLAY 
+0055 d3 02		            OUT     (02),A             ;OUTPUT TO SEVEN SEGMENTS 
+0057 db 01		            IN      A,(01)             ;CHECK FOR BUTTON INPUT 
+0059 cb 77		            BIT     6,A                ;HAS BUTTON B BEEN PRESSED? 
+005b 20 09		            JR      NZ,L0066           ;JUMP IF IT HAS 
+005d cb 7f		            BIT     7,A                ;HAS BUTTON A BEEN PRESSED? 
+005f 28 ea		            JR      Z,L004B            ;IF NO BUTTON PRESSED JUMP TO LOOP DISPLAY 
+0061 3e b0		            LD      A,0xB0             ;LOAD A WITH A "1" FOR DISPLAY ON LEFT 
+0063 d3 02		            OUT     (02),A             ;OUTPUT TO LEFT SEVEN SEGMENT, A WINS 
+0065 76			            HALT                       ;HALT CPU 
+0066 cb 7f		L0066:      BIT     7,A                ;CHECK IF BUTTON A WAS ALSO PRESSED FOR DRAW 
+0068 28 0a		            JR      Z,L0074            ;NO DRAW, JUMP TO PLAYER B AS WINNER 
+006a 3e 06		L006A:      LD      A,0x06             ;DRAW, LOAD A WITH A "1" FOR DISPLAY ON RIGHT 
+006c d3 02		            OUT     (02),A             ;OUTPUT TO SEVEN SEGMENT ON RIGHT 
+006e 3e b0		            LD      A,0xB0             ;LOAD A WITH A "1" FOR DISPLAY ON LEFT 
+0070 d3 02		            OUT     (02),A             ;OUTPUT TO SEVEN SEGMENT ON RIGHT 
+0072 18 f6		            JR      L006A              ;REPEAT DRAW OUTPUT 
+0074 3e 06		L0074:      LD      A,0x06             ;LOAD A WITH A "1" FOR DISPLAY ON RIGHT 
+0076 d3 02		            OUT     (02),A             ;OUTPUT TO SEVEN SEGMENT ON RIGHT, B WINS 
+0078 76			            HALT                       ;HALT CPU 
+0079 00 00 00 00 00 00 00	            DB      0x00,0x00,0x00,0x00,0x00,0x00,0x00 ;FILL 
+0080			 
+0080			;RUNNING NAMES ROUTINE.  THIS PROGRAM SCROLLS TEXT ACROSS THE TWO SEVEN SEGMENTS 
+0080			;DISPLAYS.  IT HAS THREE COMPONENTS, IN INTRO TEXT, A NAME WHICH IS USER DEFINED 
+0080			;AND A COPYRIGHT TEXT.  IT WORKS BY POINTING TO A ASCII DATA TABLE, AND CALLING 
+0080			;SCROLL ROUTINE THAT MULTIPLEXES THE DISPLAY.  WHEN AN 'FF' IS REACHED THE 
+0080			;PROGRAM GOES TO THE NEXT COMPONENT. 
+0080			 
+0080 dd 21 00 01	L0080:      LD      IX,NAME_TBL        ;LOOKUP TABLE FOR INTRO TEXT 
+0084 21 8a 00		            LD      HL,0x008A          ;STORE THE RETURN ADDRESS 008A IN HL 
+0087 c3 d0 00		            JP      L00D0              ;JUMP TO RUNNING LETTER ROUTINE 
+008a 0e 00		            LD      C,0x00             ;LOAD C WITH ZERO FOR NAME INDEX COUNTER 
+008c dd 21 14 01	            LD      IX,FIRST_NAME      ;LOAD IX WITH POSITION OF FIRST NAME IN TABLE 
+0090 db 01		            IN      A,(01)             ;CHECK INPUT LATCH 
+0092 fe 00		            CP      0x00               ;IF ITS ZERO 
+0094 28 13		            JR      Z,L00A9            ;SKIP INDEXING AND DISPLAY FIRST NAME 
+0096 57			            LD      D,A                ;SAVE INPUT DATA IN D 
+0097 dd 7e 00		L0097:      LD      A,(IX+0)           ;LOAD A WITH DATA AT IX 
+009a fe ff		            CP      0xFF               ;IF IT'S FF, THEN END NAME FOUND 
+009c 28 04		            JR      Z,L00A2            ;JUMP TO COMPARE INDEX TO INPUT 
+009e dd 23		L009E:      INC     IX                 ;NO END OF NAME FOUND, MOVE TO NEXT CHARACTER 
+00a0 18 f5		            JR      L0097              ;LOOP UNTIL END OF NAME FOUND 
+00a2 0c			L00A2:      INC     C                  ;INCREASE NAME INDEX 
+00a3 79			            LD      A,C                ;LOAD A INTO C 
+00a4 ba			            CP      D                  ;COMPARE INDEX TO INPUT LATCH 
+00a5 20 f7		            JR      NZ,L009E           ;IF DIFFERENT, LOOP TO CHECK THE NEXT NAME 
+00a7 18 02		            JR      L00AB              ;INDEX FOUND, JUMP TO DISPLAY NAME 
+00a9 dd 2b		L00A9:      DEC     IX                 ;BACK IX IF INPUT IS ZERO 
+00ab 21 b3 00		L00AB:      LD      HL,0x00B3          ;STORE THE RETURN ADDRESS 00B3 IN HL 
+00ae dd 23		            INC     IX                 ;MOVE TO FIRST CHARACTER AS IX IS ON "FF" 
+00b0 c3 d0 00		            JP      L00D0              ;JUMP TO RUNNING LETTER ROUTINE 
+00b3 0e 08		            LD      C,0x08             ;LOAD C WITH 8 TO REPEAT 8 TIMES 
+00b5 3e 58		L00B5:      LD      A,0x58             ;LOAD A WITH SMALL "c" FOR COPYRIGHT 
+00b7 d3 02		            OUT     (02),A             ;OUTPUT SEVEN SEGMENT 
+00b9 10 fe		L00B9:      DJNZ    L00B9              ;DELAY 
+00bb 3e 00		            LD      A,0x00             ;LOAD A WITH ZERO TO BLANK SCREEN 
+00bd d3 02		            OUT     (02),A             ;OUTPUT SEVEN SEGMENT 
+00bf 10 fe		L00BF:      DJNZ    L00BF              ;DELAY 
+00c1 0d			            DEC     C                  ;DECREASE C 
+00c2 20 f1		            JR      NZ,L00B5           ;IF C ISN'T ZERO, LOOP COPYRIGHT OUTPUT 
+00c4 dd 21 f8 01	            LD      IX,TXT_1985        ;LOAD IX WITH LOOKUP TABLE FOR 1985 DATE 
+00c8 21 80 00		            LD      HL,0x0080          ;STORE THE RETURN ADDRESS 0080 IN HL 
+00cb c3 d0 00		            JP      L00D0              ;JUMP TO RUNNING LETTER ROUTINE 
+00ce 00 00		            DB      0x00,0x00          ;FILL 
+00d0			 
+00d0			;RUNNING LETTER ROUTINE.  WILL SCROLL TEXT ACROSS THE TWO SEVEN SEGMENTS UNTIL 
+00d0			;AN "FF" IS FOUND.  REQUIRES IX TO POINT TO DATA TABLE AND HL TO STORE THE 
+00d0			;RETURN ADDRESS. 
+00d0			 
+00d0 0e 0b		L00D0:      LD      C,0x0B             ;EACH LETTER APPEARS 11 TIMES 
+00d2 dd 7e 00		L00D2:      LD      A,(IX+0)           ;LOAD A WITH FIRST LETTER 
+00d5 cb ff		            SET     7,A                ;SET BIT 7 TO DISPLAY ON LEFT SEGMENT 
+00d7 d3 02		            OUT     (02),A             ;OUTPUT TO LEFT SEGMENT 
+00d9 06 20		            LD      B,0x20             ;LOAD B WITH DELAY 
+00db 10 fe		L00DB:      DJNZ    L00DB              ;DELAY 
+00dd dd 7e 01		            LD      A,(IX+1)           ;LOAD A WITH SECOND LETTER 
+00e0 d3 02		            OUT     (02),A             ;OUTPUT TO RIGHT SEGMENT 
+00e2 06 20		            LD      B,0x20             ;LOAD B WITH DELAY 
+00e4 10 fe		L00E4:      DJNZ    L00E4              ;DELAY 
+00e6 0d			            DEC     C                  ;DECREASE COUNTER 
+00e7 20 e9		            JR      NZ,L00D2           ;REDISPLAY TO TWO LETTERS UNTIL C IS ZERO 
+00e9 dd 23		            INC     IX                 ;MOVE TO NEXT LETTER IN TABLE 
+00eb 0e 0c		            LD      C,0x0C             ;LOAD C WITH 12 (NO NEEDED IF JUMPED TO D0?) 
+00ed dd 7e 01		            LD      A,(IX+1)           ;CHECK FOR NEXT LETTER 
+00f0 fe ff		            CP      0xFF               ;IS IT "FF"? 
+00f2 20 de		            JR      NZ,L00D2           ;NO THEN REPEAT SCROLL 
+00f4 e9			            JP      (HL)               ;NO MORE LETTERS JUMP BACK TO CALLING ROUTINE 
+00f5			 
+00f5			;SEGMENT LOOKUP TABLE FOR QUICKDRAW.  THE EIGHT BYTES WHEN OUTPUTTED TO THE 
+00f5			;SEVEN SEGMENT DISPLAYS WILL LIGHT UP AROUND THE TWO SEVEN SEGMENT DISPLAYS 
+00f5			 
+00f5			SEG_TBL:              
+00f5 01 02 04 08 88 90 a0 81	            DB      0x01,0x02,0x04,0x08,0x88,0x90,0xA0,0x81 ;OUTER SEQUENTIAL SEGMENTS 
+00fd 00 00 00		            DB      0x00,0x00,0x00                          ;FILL 
+0100			 
+0100			;RUNNING NAMES LOOKUP TABLE.  CONTAINS THE INTRO MESSAGE, NAME TABLE AND 
+0100			;COPYRIGHT DATE.  DATA IS FOR RIGHT SEGMENT, BIT 7 IS SET TO DISPLAY ON LEFT 
+0100			;SEGMENT.  SEGMENTS ON DISPLAY IS ASSUMED AS: 
+0100			;A = 01, B = 02, C = 04, D = 08, E = 10, F = 20, G = 40 
+0100			;A COMBINATION OF THESE BITS SET WILL DISPLAY THE DESIRED CHARACTER. AN "FF" 
+0100			;REPRESENTS THE END OF THE WORD(S) 
+0100			 
+0100			NAME_TBL:             
+0100 4f 40 39 76 06 73 00 1c	            DB      0x4F,0x40,0x39,0x76,0x06,0x73,0x00,0x1C      ;3-CHIP_uP_BUILT_BY_ 
+0108 73 00 7c 3e 06 38 78 00	            DB      0x73,0x00,0x7C,0x3E,0x06,0x38,0x78,0x00      ;  
+0110 7c 6e 00 ff	            DB      0x7C,0x6E,0x00,0xFF                          ;  
+0114			 
+0114			FIRST_NAME:           
+0114 77 37 5e 6e ff	            DB      0x77,0x37,0x5E,0x6E,0xFF                     ;ANDY (INDEX=0) 
+0119 7c 77 6d 06 38 ff	            DB      0x7C,0x77,0x6D,0x06,0x38,0xFF                ;BASIL 
+011f 7c 79 33 78 ff	            DB      0x7C,0x79,0x33,0x78,0xFF                     ;BERT 
+0124 7c 06 38 38 ff	            DB      0x7C,0x06,0x38,0x38,0xFF                     ;BILL 
+0129 7c 3f 7c ff	            DB      0x7C,0x3F,0x7C,0xFF                          ;BOB 
+012d 7c 33 3e 39 79 ff	            DB      0x7C,0x33,0x3E,0x39,0x79,0xFF                ;BRUCE 
+0133 39 77 33 38 ff	            DB      0x39,0x77,0x33,0x38,0xFF                     ;CARL 
+0138 39 76 77 33 38 79 6d ff	            DB      0x39,0x76,0x77,0x33,0x38,0x79,0x6D,0xFF      ;CHARLES 
+0140 00 00 79 37 78 79 33 00	            DB      0x00,0x00,0x79,0x37,0x78,0x79,0x33,0x00      ;ENTER_    INDEX=8 (INITIAL MESSAGE) 
+0148 06 37 73 3e 78 00 1c 77	            DB      0x06,0x37,0x73,0x3E,0x78,0x00,0x1C,0x77      ;INPUT_VA 
+0150 38 3e 79 00 00 00 00 00 ff	            DB      0x38,0x3E,0x79,0x00,0x00,0x00,0x00,0x00,0xFF ;LUE 
+0159 39 38 06 71 71 ff	            DB      0x39,0x38,0x06,0x71,0x71,0xFF                ;CLIFF 
+015f 39 38 06 3e 79 ff	            DB      0x39,0x38,0x06,0x3E,0x79,0xFF                ;CLIVE 
+0165 39 33 06 6d ff	            DB      0x39,0x33,0x06,0x6D,0xFF                     ;CRIS 
+016a 39 3f 38 06 37 ff	            DB      0x39,0x3F,0x38,0x06,0x37,0xFF                ;COLIN 
+0170 39 33 77 06 3d ff	            DB      0x39,0x33,0x77,0x06,0x3D,0xFF                ;CRAIG 
+0176 5e 77 3e 06 5e ff	            DB      0x5E,0x77,0x3E,0x06,0x5E,0xFF                ;DAVID 
+017c 5e 3f 3e 3d ff	            DB      0x5E,0x3F,0x3E,0x3D,0xFF                     ;DOUG 
+0181 79 5e ff		            DB      0x79,0x5E,0xFF                               ;ED 
+0184 79 3e 77 37 ff	            DB      0x79,0x3E,0x77,0x37,0xFF                     ;EVAN 
+0189 3d 79 3f 33 3d 79 ff	            DB      0x3D,0x79,0x3F,0x33,0x3D,0x79,0xFF           ;GEORGE 
+0190 3d 38 79 37 ff	            DB      0x3D,0x38,0x79,0x37,0xFF                     ;GLEN 
+0195 3d 33 79 3d ff	            DB      0x3D,0x33,0x79,0x3D,0xFF                     ;GREG 
+019a 06 77 37 ff	            DB      0x06,0x77,0x37,0xFF                          ;IAN 
+019e 1e 3f 76 37 ff	            DB      0x1E,0x3F,0x76,0x37,0xFF                     ;JOHN 
+01a3 73 77 78 ff	            DB      0x73,0x77,0x78,0xFF                          ;PAT 
+01a7 73 79 78 79 33 ff	            DB      0x73,0x79,0x78,0x79,0x33,0xFF                ;PETER 
+01ad 73 76 06 38 06 73 ff	            DB      0x73,0x76,0x06,0x38,0x06,0x73,0xFF           ;PHILIP 
+01b4 33 77 38 73 76 ff	            DB      0x33,0x77,0x38,0x73,0x76,0xFF                ;RALPH 
+01ba 33 3f 6e ff	            DB      0x33,0x3F,0x6E,0xFF                          ;ROY 
+01be 6d 39 3f 78 78 ff	            DB      0x6D,0x39,0x3F,0x78,0x78,0xFF                ;SCOTT 
+01c4 6d 78 77 37 ff	            DB      0x6D,0x78,0x77,0x37,0xFF                     ;STAN 
+01c9 78 3f 37 6e ff	            DB      0x78,0x3F,0x37,0x6E,0xFF                     ;TONY 
+01ce 38 06 78 78 38 79 00 3f	            DB      0x38,0x06,0x78,0x78,0x38,0x79,0x00,0x3F      ;LITTLE_OL_I 
+01d6 38 00 06 ff	            DB      0x38,0x00,0x06,0xFF                          ;  
+01da 53 53 53 ff	            DB      0x53,0x53,0x53,0xFF                          ;??? 
+01de 40 40 40 3d 3e 79 6d 6d	            DB      0x40,0x40,0x40,0x3D,0x3E,0x79,0x6D,0x6D      ;---GUESS--- 
+01e6 40 40 40 ff	            DB      0x40,0x40,0x40,0xFF                          ;  
+01ea 77 37 00 3f 38 5e 00 73	            DB      0x77,0x37,0x00,0x3F,0x38,0x5E,0x00,0x73      ;AN_OLD_PRO (INDEX=22) 
+01f2 33 3f 00		            DB      0x33,0x3F,0x00                               ;(SHOULD HAVE FF INSTEAD OF 00!) 
+01f5 00 00 00		            DB      0x00,0x00,0x00                               ;FILL 
+01f8			TXT_1985:             
+01f8 06 6f 7f 6d 00 00 ff	            DB      0x06,0x6F,0x7F,0x6D,0x00,0x00,0xFF           ;1985 
+01ff 00			            DB      0x00                                         ;FILL 
+0200			 
+0200			;LOOKING AT DATA PROGRAM.  THIS IS A CLEVER PROGRAM THAT DISPLAYS THE CONTENT 
+0200			;OF THE EPROM.  THE FIRST VALUE DISPLAYED IS THE ADDRESS LOCATION BASED ON THE 
+0200			;PAGE IT IS VIEWING AND THE SECOND VALUE IS THE DATA.  TO ADVANCE THE ADDRESS 
+0200			;PRESS BUTTON 'A', IT WILL DISPLAY THE ADDRESS LOCATION THEN THE DATA. TO JUMP 
+0200			;8 BYTES FORWARD PRESS BUTTON 'B' WHEN VIEWING THE DATA.  TO DISTINGUISH 
+0200			;BETWEEN DATA AND ADDRESS, THE ADDRESS VALUE WILL BE 'DULLER' IN APPEARANCE. 
+0200			;THIS DULLNESS IS ACHIEVED BY CREATING A LONGER DELAY IN THE MULTIPLEXING. 
+0200			;THE PAGES CAN BE SELECTED BY CHANGING THE INPUT LATCH BETWEEN 00 AND 07. 
+0200			;00 TO FF BYTES ARE SHOWN PER PAGE AND THIS WILL LOOP.  HL STORES THE 0-F 
+0200			;ASCII TABLE ADDRESS, DE STORES THE CURRENT ADDRESS BEING EXAMINED. 
+0200			 
+0200 0e 00		L0200:      LD      C,0x00             ;C IS USED TO CHECK IF BUTTON "A" IS PRESSED 
+0202 1e 00		            LD      E,0x00             ;DEFAULT START LSB ADDRESS LOCATION 
+0204 db 01		L0204:      IN      A,(01)             ;READ INPUT LATCH FOR PAGE SETTING 
+0206 e6 07		            AND     0x07               ;ONLY BITS 0,1,2 ARE  USED 
+0208 57			            LD      D,A                ;SAVE MSB ADDRESS IN D, DE STORES CURRENT ADR 
+0209 7b			            LD      A,E                ;LOAD LSB ADDRESS IN  A 
+020a			 
+020a e6 0f		            AND     0x0F               ;MASK OFF HIGH NIBBLE FOR RIGHT DISPLAY 
+020c 21 80 02		            LD      HL,SSEG_TBL        ;POINT HL TO 0-F ASCII LOOKUP TABLE 
+020f 85			            ADD     A,L                ;INDEX L BASED ON 
+0210 6f			            LD      L,A                ;VALUE OF A 
+0211 3e 00		            LD      A,0x00             ;SET A TO ZERO 
+0213 d3 02		            OUT     (02),A             ;BLANK THE SEGMENTS 
+0215 06 10		            LD      B,0x10             ;LOAD 10 TO B FOR 
+0217 10 fe		L0217:      DJNZ    L0217              ;DELAY TO DULL DISPLAY 
+0219 7e			            LD      A,(HL)             ;LOAD ASCII VALUE TO A FOR DISPLAY 
+021a d3 02		            OUT     (02),A             ;OUTPUT LOW NIBBLE ON RIGHT DISPLAY 
+021c 7b			            LD      A,E                ;RELOAD A WITH LSB ADDRESS 
+021d 1f			            RRA                        ;SHIFT A FOUR TIMES TO SWAP LOWER NIBBLE WITH 
+021e 1f			            RRA                        ;UPPER NIBBLE 
+021f 1f			            RRA                        ;  
+0220 1f			            RRA                        ;  
+0221 e6 0f		            AND     0x0F               ;MASK OFF HIGH NIBBLE FOR LEFT DISPLAY 
+0223 21 80 02		            LD      HL,SSEG_TBL        ;POINT HL TO 0-F ASCII LOOKUP TABLE 
+0226 85			            ADD     A,L                ;INDEX L BASED ON 
+0227 6f			            LD      L,A                ;VALUE OF A 
+0228 3e 00		            LD      A,0x00             ;SET A TO ZERO 
+022a d3 02		            OUT     (02),A             ;BLANK THE SEGMENTS 
+022c 06 10		            LD      B,0x10             ;LOAD 10 TO B FOR 
+022e 10 fe		L022E:      DJNZ    L022E              ;DELAY 
+0230 7e			            LD      A,(HL)             ;LOAD ASCII VALUE TO A FOR DISPLAY 
+0231 cb ff		            SET     7,A                ;SET BIT 7 ON A TO DISPLAY ON LEFT DISPLAY 
+0233 d3 02		            OUT     (02),A             ;OUTPUT HIGH NIBBLE ON LEFT DISPLAY 
+0235 db 01		            IN      A,(01)             ;READ INPUT LATCH 
+0237 cb 7f		            BIT     7,A                ;HAS BUTTON "A" BEEN PRESSED? 
+0239 28 08		            JR      Z,L0243            ;JUMP IF NOT PRESSED 
+023b cb c9		            SET     1,C                ;SET BIT 1 TO INDICATE BUTTON "A" PRESSED 
+023d cb 51		            BIT     2,C                ;CHECK BIT 2 SET (ADDRESS OR DATA DISPLAY) 
+023f 20 c3		            JR      NZ,L0204           ;IF SET REPEAT ADDRESS DISPLAY 
+0241 18 0b		            JR      L024E              ;JUMP TO DATA DISPLAY 
+0243 cb 91		L0243:      RES     2,C                ;RESET BIT 2 
+0245 cb 77		            BIT     6,A                ;CHECK IF BUTTON "B" PRESSED 
+0247 28 bb		            JR      Z,L0204            ;IF NOT PRESSED REPEAT ADDRESS DISPLAY 
+0249 1c			            INC     E                  ;MOVE TO NEXT ADDRESS 
+024a 00 00		            DB      0x00,0x00          ;FILL 
+024c 18 b6		            JR      L0204              ;REPEAT ADDRESS DISPLAY 
+024e 21 80 02		L024E:      LD      HL,SSEG_TBL        ;POINT HL TO 0-F ASCII LOOKUP TABLE 
+0251 1a			            LD      A,(DE)             ;LOAD A WITH THE DATA POINTING TO DE 
+0252 e6 0f		            AND     0x0F               ;MASK OFF HIGH NIBBLE FOR RIGHT DISPLAY 
+0254 85			            ADD     A,L                ;INDEX L BASED ON 
+0255 6f			            LD      L,A                ;VALUE OF A 
+0256 7e			            LD      A,(HL)             ;LOAD ASCII VALUE TO A FOR DISPLAY 
+0257 d3 02		            OUT     (02),A             ;OUTPUT LOW NIBBLE ON RIGHT DISPLAY 
+0259 1a			            LD      A,(DE)             ;RELOAD A WITH DATA POINTING TO DE 
+025a 1f			            RRA                        ;SHIFT A FOUR TIMES TO SWAP LOWER NIBBLE WITH 
+025b 1f			            RRA                        ;UPPER NIBBLE 
+025c 1f			            RRA                        ;  
+025d 1f			            RRA                        ;  
+025e e6 0f		            AND     0x0F               ;MASK OFF HIGH NIBBLE FOR LEFT DISPLAY 
+0260 21 80 02		            LD      HL,SSEG_TBL        ;POINT HL TO 0-F ASCII LOOKUP TABLE 
+0263 85			            ADD     A,L                ;INDEX L BASED ON 
+0264 6f			            LD      L,A                ;VALUE OF A 
+0265 7e			            LD      A,(HL)             ;LOAD ASCII VALUE TO A FOR DISPLAY 
+0266 cb ff		            SET     7,A                ;SET BIT 7 ON A TO DISPLAY ON LEFT DISPLAY 
+0268 d3 02		            OUT     (02),A             ;OUTPUT HIGH NIBBLE ON LEFT DISPLAY 
+026a db 01		            IN      A,(01)             ;READ INPUT LATCH 
+026c cb 7f		            BIT     7,A                ;HAS BUTTON "A" BEEN PRESSED? 
+026e 28 0b		            JR      Z,L027B            ;NO, THEN JUMP 
+0270 cb d1		            SET     2,C                ;SET BIT 2 TO INDICATE "DATA" DISPLAY 
+0272 cb 49		            BIT     1,C                ;CHECK IF BIT 1 (BUTTON "A") IS PRESSED 
+0274 20 d8		            JR      NZ,L024E           ;REPEAT DATA DISPLAY 
+0276 1c			            INC     E                  ;INCREMENT ADDRESS 
+0277 00 00		            DB      0x00,0x00          ;FILL 
+0279 18 89		            JR      L0204              ;JUMP TO ADDRESS DISPLAY 
+027b cb 89		L027B:      RES     1,C                ;RESET BIT 1 AS BUTTON "A" WASN'T PRESSED 
+027d 18 cf		            JR      L024E              ;REPEAT DATA DISPLAY 
+027f 00			            DB      0x00               ;FILL 
+0280			 
+0280			;LOOKUP TABLE FOR LOOK AT DATA SEVEN SEGMENT DISPLAY 
+0280			SSEG_TBL:             
+0280 3f 06 5b 4f 66 6d 7d 07	            DB      0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07 ;0-7 
+0288 7f 67 77 7c 39 5e 79 71	            DB      0x7F,0x67,0x77,0x7C,0x39,0x5E,0x79,0x71 ;8-F 
+0290			 
+0290			;FROM INPUT LATCH TO 8 LED ROUTINE.  THIS SIMPLY OUTPUTS WHAT IN ON THE INPUT 
+0290			;LATCH TO THE OUTPUT LATCH.  ITS A GOOD WAY TO CHECK WHAT VALUES ARE NEEDED TO 
+0290			;DRIVE THE OUTPUT CORRECTLY.  IE: HOW TO LIGHT UP THE 4X4, OR SEVEN SEGMENT 
+0290			;DISPLAY TO THE WAY YOU WANT IT.  LATCH IS COPIED TO THE 8 BIT LEDS TOO. 
+0290			 
+0290 db 01		L0290:      IN      A,(01)             ;READ INPUT LATCH TO A 
+0292 d3 02		            OUT     (02),A             ;SEND A TO OUTPUT DISPLAYS 
+0294 18 fa		            JR      L0290              ;REPEAT FROM START 
+0296			 
+0296 00 00 00 00 00 00 00 00	            DB      0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 ;FILL 
+029e 00 00		            DB      0x00,0x00                               ;FILL 
+02a0			 
+02a0			;INCREMENT VIA BUTTON A ROUTINE.  THIS OUTPUTS THE BYTE VALUE FROM 00 TO FF 
+02a0			;ON THE DISPLAYS.  BUTTON 'A' INCREMENTS THE COUNTER.  AS EACH DISPLAY WILL SHOW 
+02a0			;ITS UNIQUE WAY OF DISPLAYING THE VALUE. 
+02a0			 
+02a0 3e 00		L02A0:      LD      A,0x00             ;RESET A TO ZERO 
+02a2 4f			            LD      C,A                ;STORE A IN C AS THE CURRENT BYTE COUNT 
+02a3 db 01		L02A3:      IN      A,(01)             ;CHECK  THE INPUT LATCH 
+02a5 cb 7f		            BIT     7,A                ;FOR BUTTON "A" PRESSED 
+02a7 28 fa		            JR      Z,L02A3            ;IF NOT PRESSED, REPEAT INPUT LATCH CHECK" 
+02a9 79			            LD      A,C                ;LOAD CURRENT COUNT TO A 
+02aa 3c			            INC     A                  ;INCREMENT A 
+02ab 4f			            LD      C,A                ;STORE CURRENT COUNT BACK TO C 
+02ac d3 02		            OUT     (02),A             ;OUTPUT BYTE VALUE 
+02ae db 01		L02AE:      IN      A,(01)             ;CHECK FOR INPUT LATCH 
+02b0 cb 7f		            BIT     7,A                ;FOR BUTTON "A" PRESSED 
+02b2 20 fa		            JR      NZ,L02AE           ;IF STILL PRESSED, REPEAT INPUT LATCH CHECK 
+02b4 18 ed		            JR      L02A3              ;IF RELEASED, GO TO START 
+02b6 00 00 00 00 00 00 00 00	            DB      0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 ;FILL 
+02be 00 00		            DB      0x00,0x00                               ;FILL 
+02c0			 
+02c0			;AUTO INCREMENT (FAST) ROUTINE IS THE SAME AS THE ABOVE PROGRAM BUT THE 
+02c0			;INCREMENT IS AUTOMATIC.  THREE FULL 8 BIT DELAYS ARE USED TO SLOW THE UPDATE. 
+02c0			 
+02c0 3e 00		L02C0:      LD      A,0x00             ;RESET A TO ZERO FOR INITIAL COUNT 
+02c2 3c			L02C2:      INC     A                  ;INCREMENT A 
+02c3 d3 02		            OUT     (02),A             ;OUTPUT BYTE VALUE 
+02c5 10 fe		L02C5:      DJNZ    L02C5              ;DELAY 
+02c7 10 fe		L02C7:      DJNZ    L02C7              ;DELAY 
+02c9 10 fe		L02C9:      DJNZ    L02C9              ;DELAY 
+02cb 18 f5		            JR      L02C2              ;JUMP BACK TO NEXT INCREMENT 
+02cd 00 00 00		            DB      0x00,0x00,0x00     ;FILL 
+02d0			 
+02d0			;AUTO INCREMENT (VARIABLE) ROUTINE IS THE SAME AS THE ABOVE ROUTINE BUT THE 
+02d0			;DELAY IS SET BY THE VALUE ON THE INPUT LATCH. 
+02d0			 
+02d0 16 01		L02D0:      LD      D,0x01             ;LOAD D WITH INTIAL BYTE VALUE 
+02d2 db 01		L02D2:      IN      A,(01)             ;READ INPUT LATCH FOR DELAY VALUE 
+02d4 4f			            LD      C,A                ;STORE DELAY VALUE IN C 
+02d5 7a			            LD      A,D                ;LOAD A WITH BYTE VALUE 
+02d6 d3 02		            OUT     (02),A             ;OUTPUT BYTE VALUE 
+02d8 0d			L02D8:      DEC     C                  ;DECREASE DELAY 
+02d9 20 fd		            JR      NZ,L02D8           ;REPEAT DELAY IF NOT ZERO 
+02db 14			            INC     D                  ;INCREMENT BYTE VALUE 
+02dc 18 f4		            JR      L02D2              ;JUMP BACK TO START 
+02de 00 00		            DB      0x00,0x00          ;FILL 
+02e0			 
+02e0			;AUTO DECREMENT ROUTINE IS THE OPPOSITE TO THE AUTO INCREMENT ROUTINE EXCEPT 
+02e0			;THAT VALUES DISPLAYED ARE DECREMENTED. 
+02e0			 
+02e0 3e 00		L02E0:      LD      A,0x00             ;RESET A TO ZERO FOR INITIAL COUNT 
+02e2 3d			L02E2:      DEC     A                  ;DECREMENT A 
+02e3 d3 02		            OUT     (02),A             ;OUTPUT BYTE VALUE 
+02e5 10 fe		L02E5:      DJNZ    L02E5              ;DELAY 
+02e7 10 fe		L02E7:      DJNZ    L02E7              ;DELAY 
+02e9 10 fe		L02E9:      DJNZ    L02E9              ;DELAY 
+02eb 18 f5		            JR      L02E2              ;JUMP BACK TO NEXT DECREMENT 
+02ed 00 00 00		            DB      0x00,0x00,0x00     ;FILL 
+02f0			 
+02f0			;AUTO DECREMENT (VARIABLE) IS NOT ACTUALLY VARIABLE!  IT DECREMENTS THE 
+02f0			;DISPLAY BYTE WHEN BUTTON 'A' IS PRESSED.  FOR SOME REASON THEY CALL IT 
+02f0			;VARIABLE IN THE MAGAZINE! 
+02f0			 
+02f0 1e ff		L02F0:      LD      E,0xFF             ;SET E TO FF 
+02f2 7b			L02F2:      LD      A,E                ;LOAD COUNTER TO A 
+02f3 d3 02		            OUT     (02),A             ;OUTPUT BYTE VALUE 
+02f5 10 fe		L02F5:      DJNZ    L02F5              ;DELAY 
+02f7 db 01		            IN      A,(01)             ;CHECK INPUT LATCH 
+02f9 cb 7f		            BIT     7,A                ;HAS BUTTON "A" BEEN PRESSED? 
+02fb 28 f5		            JR      Z,L02F2            ;NO, JUMP BACK TO DISPLAY 
+02fd 1d			            DEC     E                  ;YES, DECREASE E 
+02fe 18 f2		            JR      L02F2              ;JUMP BACK TO DISPLAY 
+0300			 
+0300			;4X4 LED EFFECTS ROUTINE.  THIS PROGRAM CYCLES THROUGH TWO SEQUENCES OF 4X4 
+0300			;LED PATTERNS.  IT WILL PRODUCE ALMOST NO INTERPRETABLE EFFECTS ON EITHER OF 
+0300			;THE OTHER DISPLAYS.  BOTH SEQUENCES USE SIMILAR CODE, JUST POINT TO DIFFERENT 
+0300			;TABLES AND USE DIFFERENT LENGTHS. 
+0300			;THE MAGAZINE TALKS BIG ABOUT THE USES OF THE 4X4.  HERE IS AN EXCERPT... 
+0300			;"OUR 4X4 CAN BE MULTIPLIED-UP MANY TIMES TO PRODUCE AN ENORMOUS 
+0300			;ARRAY OF LEDS OR GLOBES AND OBVIOUSLY THE ULTIMATE IS TO PRODUCE A VIDEO 
+0300			;SCREEN WITH COLOURED GLOBES TO DUPLICATE A TV. BUT THE COST OF THIS KIND OF 
+0300			;VENTURE IS ENORMOUS AS THE PARTS ALONE WOULD COST A FORTUNE AND THE TIME TAKEN 
+0300			;TO WIRE IT UP WOULD BE TOO MUCH FOR AN INDIVIDUAL CONSTRUCTOR." 
+0300			 
+0300			;FIRST SEQUENCE 
+0300 06 08		L0300:      LD      B,0x08             ;DO THE FULL SEQUENCE 8 TIMES 
+0302 21 38 03		L0302:      LD      HL,LED_SEQ1        ;LOAD HL WITH 4X4 DATA TABLE 
+0305			 
+0305 0e 18		            LD      C,0x18             ;LOAD C WITH DATA TABLE SIZE 
+0307 0d			L0307:      DEC     C                  ;DECREASE C 
+0308 28 0e		            JR      Z,L0318            ;IF ZERO EXIT TO REPEAT ROUTINE 
+030a 7e			            LD      A,(HL)             ;LOAD A WITH SEQUENCE VALUE 
+030b d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 DISPLAYS 
+030d 23			            INC     HL                 ;MOVE TO NEXT SEQUENCE VALUE 
+030e 11 80 00		            LD      DE,0x0080          ;DO A 
+0311 1b			L0311:      DEC     DE                 ;SMALL 
+0312 7a			            LD      A,D                ;DELAY 
+0313 b3			            OR      E                  ;BEFORE DISPLAYING THE 
+0314 20 fb		            JR      NZ,L0311           ;NEXT VALUE 
+0316 18 ef		            JR      L0307              ;REPEAT FOR NEXT VALUE 
+0318 10 e8		L0318:      DJNZ    L0302              ;REPEAT TOTAL SEQUENCE EIGHT TIMES 
+031a			;SECOND  SEQUENCE 
+031a 06 08		            LD      B,0x08             ;DO THE FULL SEQUENCE 8 TIMES 
+031c 21 50 03		L031C:      LD      HL,LED_SEQ2        ;LOAD HL WITH 4X4 DATA TABLE 
+031f 0e 20		            LD      C,0x20             ;LOAD C WITH DATA TABLE SIZE 
+0321 0d			L0321:      DEC     C                  ;DECREASE C 
+0322 28 0e		            JR      Z,L0332            ;IF ZERO EXIT TO REPEAT ROUTINE 
+0324 7e			            LD      A,(HL)             ;LOAD A WITH SEQUENCE VALUE 
+0325 d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 DISPLAYS 
+0327 23			            INC     HL                 ;MOVE TO NEXT SEQUENCE VALUE 
+0328 11 80 00		            LD      DE,0x0080          ;DO A 
+032b 1b			L032B:      DEC     DE                 ;SMALL 
+032c 7a			            LD      A,D                ;DELAY 
+032d b3			            OR      E                  ;BEFORE DISPLAYING THE 
+032e 20 fb		            JR      NZ,L032B           ;NEXT VALUE 
+0330 18 ef		            JR      L0321              ;REPEAT FOR NEXT VALUE 
+0332 10 e8		L0332:      DJNZ    L031C              ;REPEAT TOTAL SEQUENCE EIGHT TIMES 
+0334 18 ca		            JR      L0300              ;GO BACK TO THE START AGAIN. 
+0336			 
+0336 00 00		            DB      0x00,0x00          ;FILL 
+0338			 
+0338			;DATA TABLE FOR 4X4 LED SEQUENCE 
+0338			LED_SEQ1:             
+0338 01 02 04 08 ef df bf 7f	            DB      0x01,0x02,0x04,0x08,0xEF,0xDF,0xBF,0x7F ;FIRST 4X4 LED SEQUENCE 
+0340 03 0c 03 0c cf 3f cf 3f	            DB      0x03,0x0C,0x03,0x0C,0xCF,0x3F,0xCF,0x3F ;  
+0348 96 ff 96 ff 33 cc c3 3c	            DB      0x96,0xFF,0x96,0xFF,0x33,0xCC,0xC3,0x3C ;  
+0350			 
+0350			LED_SEQ2:             
+0350 0f ff 0f ff 0f ff 0f ff	            DB      0x0F,0xFF,0x0F,0xFF,0x0F,0xFF,0x0F,0xFF ;SECOND 4X4 LED SEQUENCE 
+0358 71 72 74 78 b8 d8 e8 e4	            DB      0x71,0x72,0x74,0x78,0xB8,0xD8,0xE8,0xE4 ;  
+0360 e2 e1 d1 b1 71 72 74 b4	            DB      0xE2,0xE1,0xD1,0xB1,0x71,0x72,0x74,0xB4 ;  
+0368 d4 d2 b2 b4 d4 d2 b2 b4	            DB      0xD4,0xD2,0xB2,0xB4,0xD4,0xD2,0xB2,0xB4 ;  
+0370			  
+0370			;0 - 9 COUNTER ROUTINE. THIS PROGRAM WILL COUNT FROM 0-9 AND REPEAT WHEN 
+0370			;BUTTON 'A' IS PRESSED.  NUMBERS WILL BE DISPLAYED ON THE SEVEN SEGMENT DISPLAY 
+0370			 
+0370 0e 0a		L0370:      LD      C,0x0A             ;LOAD C WITH 10 
+0372 11 df 03		            LD      DE,NUM_TBL-1       ;LOAD DE WITH START OF 0-9 ASCII TABLE LESS 1 
+0375 db 01		L0375:      IN      A,(01)             ;READ INPUT LATCH 
+0377 cb 7f		            BIT     7,A                ;IS BUTTON "A" PRESSED? 
+0379 28 fa		            JR      Z,L0375            ;REPEAT READ UNTIL BUTTON HAS BEEN PRESSED 
+037b 13			            INC     DE                 ;MOVE TO NEXT LOCATION 
+037c 1a			            LD      A,(DE)             ;LOAD ASCII VALUE TO A 
+037d d3 02		            OUT     (02),A             ;OUTPUT TO RIGHT SEVEN SEGMENT 
+037f db 01		L037F:      IN      A,(01)             ;READ INPUT LATCH 
+0381 cb 7f		            BIT     7,A                ;IS BUTTON "A" STILL PRESSED? 
+0383 20 fa		            JR      NZ,L037F           ;REPEAT READ UNTIL BUTTON IS RELEASED 
+0385 0d			            DEC     C                  ;DECREASE COUNTER 
+0386 28 e8		            JR      Z,L0370            ;IF ZERO REPEAT FROM START 
+0388 18 eb		            JR      L0375              ;DISPLAY NEXT NUMBER 
+038a			 
+038a 00 00 00 00 00 00	            DB      0x00,0x00,0x00,0x00,0x00,0x00 ;FILL 
+0390			 
+0390			;0 - F COUNTER ROUTINE USES THE DISPLAY AND KEY PRESS ROUTINE IN THE FULL 
+0390			;COUNTER BUT ONLY FOR 0-F 
+0390			 
+0390 0e 10		L0390:      LD      C,0x10             ;16 DIGITS TO DISPLAY 
+0392 11 df 03		            LD      DE,NUM_TBL-1       ;DATA TABLE LOCATION FOR 0-F 
+0395 21 90 03		            LD      HL,L0390           ;RETURN LOCATION FOR JUMP ROUTINE 
+0398 18 0e		            JR      L03A8              ;DISPLAY AND INPUT ROUTINE JUMP 
+039a			 
+039a 00 00 00 00 00 00	            DB      0x00,0x00,0x00,0x00,0x00,0x00 ;FILL 
+03a0			 
+03a0			;A - Z, 0 - F COUNTER.  SIMILAR TO THE ABOVE BUT TABLE LOOKUP FOR FULL TABLE 
+03a0			 
+03a0 0e 2a		L03A0:      LD      C,0x2A             ;FULL TABLE COUNT OF 42 CHARACTERS 
+03a2 11 c5 03		            LD      DE,ASC_TBL-1       ;START OF ASCII CHARACTER TABLE 
+03a5 21 a0 03		            LD      HL,0x03A0          ;RETURN ADDRESS FROM JUMP 
+03a8 db 01		L03A8:      IN      A,(01)             ;READ INPUT LATCH 
+03aa cb 7f		            BIT     7,A                ;HAS BUTTON "A" BEEN PRESSED? 
+03ac 28 fa		            JR      Z,L03A8            ;NO, REPEAT READ LATCH 
+03ae 13			            INC     DE                 ;YES, MOVE TO NEXT CHARACTER 
+03af 1a			            LD      A,(DE)             ;LOAD CHARCTER IN A 
+03b0 d3 02		            OUT     (02),A             ;OUTPUT TO SEVEN SEGMENT 
+03b2 db 01		L03B2:      IN      A,(01)             ;READ INPUT LATCH 
+03b4 cb 7f		            BIT     7,A                ;HAS BUTTON "A" BEEN RELEASED? 
+03b6 20 fa		            JR      NZ,L03B2           ;JUMP TO READ UNTIL RELEASED 
+03b8 0d			            DEC     C                  ;MOVE COUNTER TO NEXT CHARACTER 
+03b9 28 02		            JR      Z,L03BD            ;IF ZERO, RETURN TO START 
+03bb 18 eb		            JR      L03A8              ;DISPLAY NEXT CHARACTER 
+03bd e9			L03BD:      JP      (HL)               ;JUMP BACK TO START ADDRESS 
+03be			 
+03be 00 00 00 00 00 00 00 00	            DB      0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 ;FILL 
+03c6			 
+03c6			;ASCII CHARACTER LOOKUP TABLE FOR SEVEN SEGMENT DISPLAY 
+03c6			ASC_TBL:              
+03c6 77			            DB      0x77 ;A 
+03c7 7c			            DB      0x7C ;B 
+03c8 39			            DB      0x39 ;C 
+03c9 5e			            DB      0x5E ;D 
+03ca 79			            DB      0x79 ;E 
+03cb 71			            DB      0x71 ;F 
+03cc 3d			            DB      0x3D ;G 
+03cd 76			            DB      0x76 ;H 
+03ce 06			            DB      0x06 ;I 
+03cf 1e			            DB      0x1E ;J 
+03d0 72			            DB      0x72 ;K 
+03d1 38			            DB      0x38 ;L 
+03d2 47			            DB      0x47 ;M 
+03d3 37			            DB      0x37 ;N 
+03d4 3f			            DB      0x3F ;O 
+03d5 73			            DB      0x73 ;P 
+03d6 67			            DB      0x67 ;Q 
+03d7 33			            DB      0x33 ;R 
+03d8 6d			            DB      0x6D ;S 
+03d9 78			            DB      0x78 ;T 
+03da 3e			            DB      0x3E ;U 
+03db 1c			            DB      0x1C ;V 
+03dc 4e			            DB      0x4E ;W 
+03dd 4c			            DB      0x4C ;X 
+03de 6e			            DB      0x6E ;Y 
+03df 1b			            DB      0x1B ;Z 
+03e0			NUM_TBL:              
+03e0 3f			            DB      0x3F ;0 
+03e1 06			            DB      0x06 ;1 
+03e2 5b			            DB      0x5B ;2 
+03e3 4f			            DB      0x4F ;3 
+03e4 66			            DB      0x66 ;4 
+03e5 6d			            DB      0x6D ;5 
+03e6 7d			            DB      0x7D ;6 
+03e7 07			            DB      0x07 ;7 
+03e8 7f			            DB      0x7F ;8 
+03e9 67			            DB      0x67 ;9 
+03ea 77			            DB      0x77 ;A 
+03eb 7c			            DB      0x7C ;B 
+03ec 39			            DB      0x39 ;C 
+03ed 5e			            DB      0x5E ;D 
+03ee 79			            DB      0x79 ;E 
+03ef 71			            DB      0x71 ;F 
+03f0			 
+03f0			;VERY LONG DELAY (PART 1) ROUTINE ISN'T USED ANYWHERE! BUT IS THERE AS AN 
+03f0			;EXAMPLE.  IT IS IN TWO PARTS (I ASSUME TO FILL IN GAPS IN MEMORY).  THIS PART 
+03f0			;DOES A FULL 16 BIT DELAY AND WHEN COMPLETE OUTPUTS A COUNTER TO THE DISPLAYS. 
+03f0			;THEN THE PROCESS IS REPEATED AGAIN.  NOT REALLY USEFUL AS DELAYS ARE ALL 
+03f0			;THROUGH THE CODE THAT CAN BE USED. 
+03f0			 
+03f0 3e 01		L03F0:      LD      A,0x01             ;LOAD COUNTER TO A 
+03f2 ed 47		            LD      I,A                ;STORE IT IN THE INDEX REGISTER FOR LATER 
+03f4 11 ff ff		L03F4:      LD      DE,0xFFFF          ;LOAD DE WITH ALL BITS SET 
+03f7 21 ff ff		L03F7:      LD      HL,0xFFFF          ;LOAD HL WITH ALL BITS SET 
+03fa 2b			L03FA:      DEC     HL                 ;DECREASE HL 
+03fb 7c			            LD      A,H                ;AND SET ZERO FLAG 
+03fc b5			            OR      L                  ;IF H AND L BOTH EQUAL ZERO 
+03fd c3 5a 04		            JP      L045A              ;JUMP TO SECOND PART OF DELAY (SEE BELOW) 
+0400			 
+0400			;00 - 99 COUNTER ROUTINE.  THIS PROGRAM IS A BIT MORE COMPLICATED THAN THE 
+0400			;SINGLE COUNTERS AS IT USES BOTH SEGMENT DISPLAYS, WHICH MEANS IT MUST USE 
+0400			;MULTIPLEXING TO DISPLAY BOTH DIGITS AT THE SAME TIME.  IT WORKS BY STORING 
+0400			;THE COUNT IN E AND USE DAA TO CONVERT THE HEX VALUE TO DECIMAL.  THEN EACH 
+0400			;NIBBLE IS SEPARATED AND DISPLAYED IN EACH SEVEN SEGMENT.  WHEN BUTTON 'A' IS 
+0400			;PRESSED, THE VALUE INCREASED.  WHEN BUTTON 'B' IS PRESSED THE VALUE DECREASES 
+0400			;IT REPEATS WHEN COUNTER HITS 99. 
+0400			 
+0400 1e 00		L0400:      LD      E,0x00             ;LOAD E WITH  ZERO FOR THE INTIAL COUNT 
+0402 7b			L0402:      LD      A,E                ;LOAD A WITH  E 
+0403 e6 0f		            AND     0x0F               ;MASK OFF UPPER NIBBLE 
+0405 21 e0 03		            LD      HL,NUM_TBL         ;LOAD HL WITH 0-9 ASCII TABLE 
+0408 85			            ADD     A,L                ;INDEX A WITH BASE OF TABLE 
+0409 6f			            LD      L,A                ;INDEX TABLE WITH A 
+040a 7e			            LD      A,(HL)             ;LOAD A WITH DIGIT IN ASCII TABLE 
+040b d3 02		            OUT     (02),A             ;OUTPUT IT TO THE RIGHT SEGMENT 
+040d 7b			            LD      A,E                ;RELOAD A WITH THE ORIGINAL E 
+040e 1f			            RRA                        ;SWAP UPPER 
+040f 1f			            RRA                        ;NIBBLE WITH 
+0410 1f			            RRA                        ;THE LOWER 
+0411 1f			            RRA                        ;NIBBLE IN A 
+0412 e6 0f		            AND     0x0F               ;MASK OFF UPPER NIBBLE 
+0414 21 e0 03		            LD      HL,NUM_TBL         ;LOAD HL WITH 0-9 ASCII TABLE 
+0417 85			            ADD     A,L                ;INDEX A WITH BASE OF TABLE 
+0418			 
+0418 6f			            LD      L,A                ;INDEX TABLE WITH A 
+0419 7e			            LD      A,(HL)             ;LOAD A WITH DIGIT IN   ASCII TABLE 
+041a cb ff		            SET     7,A                ;SET BIT 7 TO DISPLAY IT ON LEFT SEGMENT 
+041c d3 02		            OUT     (02),A             ;OUTPUT IT TO THE LEFT SEGMENT 
+041e db 01		            IN      A,(01)             ;READ INPUT LATCH 
+0420 cb 7f		            BIT     7,A                ;HAS BUTTON "A" BEEN PRESSED? 
+0422			 
+0422 28 06		            JR      Z,L042A            ;NO, CHECK OTHER BUTTON 
+0424 7b			            LD      A,E                ;LOAD COUNTER IN A 
+0425 3c			            INC     A                  ;INCREASE A 
+0426 27			            DAA                        ;CONVERT A TO DECIMAL IF GONE INTO  A-F 
+0427 5f			            LD      E,A                ;LOAD A BACK INTO E 
+0428 18 08		            JR      L0432              ;CONTINUE PROGRAM 
+042a cb 77		L042A:      BIT     6,A                ;HAS BUTTON "B" BEEN PRESSED? 
+042c 28 d4		            JR      Z,L0402            ;NO, JUMP BACK TO START AND REPEAT  DISPLAY 
+042e 7b			            LD      A,E                ;LOAD COUNTER IN A 
+042f 3d			            DEC     A                  ;DECREASE A 
+0430 27			            DAA                        ;CONVERT A TO DECIMAL IF GONE INTO  A-F 
+0431			 
+0431 5f			            LD      E,A                ;LOAD A BACK INTO E 
+0432			;REPEAT DISPLAY ROUTINE? (NOT NEEDED AS IT COULD HAVE JUST JUMPED UP??) 
+0432 7b			L0432:      LD      A,E                ;RELOAD A WITH THE ORIGINAL E 
+0433 e6 0f		            AND     0x0F               ;MASK OFF UPPER NIBBLE 
+0435 21 e0 03		            LD      HL,NUM_TBL         ;LOAD HL WITH 0-9 ASCII TABLE 
+0438 85			            ADD     A,L                ;INDEX A WITH BASE OF TABLE 
+0439 6f			            LD      L,A                ;INDEX TABLE WITH A 
+043a 7e			            LD      A,(HL)             ;LOAD A WITH DIGIT IN ASCII TABLE 
+043b d3 02		            OUT     (02),A             ;OUTPUT IT TO THE RIGHT SEGMENT 
+043d 7b			            LD      A,E                ;RELOAD A WITH THE ORIGINAL E 
+043e			 
+043e 1f			            RRA                        ;SWAP UPPER 
+043f 1f			            RRA                        ;NIBBLE WITH 
+0440 1f			            RRA                        ;THE LOWER 
+0441 1f			            RRA                        ;NIBBLE IN A 
+0442 e6 0f		            AND     0x0F               ;MASK OFF UPPER NIBBLE 
+0444 21 e0 03		            LD      HL,NUM_TBL         ;LOAD HL WITH 0-9 ASCII TABLE 
+0447 85			            ADD     A,L                ;INDEX A WITH BASE OF TABLE 
+0448 6f			            LD      L,A                ;INDEX TABLE WITH A 
+0449 7e			            LD      A,(HL)             ;LOAD A WITH DIGIT IN   ASCII TABLE 
+044a			 
+044a cb ff		            SET     7,A                ;SET BIT 7 TO DISPLAY IT ON LEFT SEGMENT 
+044c d3 02		            OUT     (02),A             ;OUTPUT IT TO THE LEFT SEGMENT 
+044e db 01		            IN      A,(01)             ;READ INPUT LATCH 
+0450 cb 7f		            BIT     7,A                ;IS BUTTON "A" STILL PRESSED? 
+0452 20 de		            JR      NZ,L0432           ;YES JUMP TO DISPLAY ROUTINE 
+0454 cb 77		            BIT     6,A                ;IS BUTTON "B" STILL PRESSED? 
+0456 20 da		            JR      NZ,L0432           ;YES JUMP TO DISPLAY ROUTINE 
+0458 18 a8		            JR      L0402              ;BUTTON RELEASE, REPEAT FROM START 
+045a			 
+045a			;VERY LONG DELAY (PART 1) CONTINUES THE DELAY ROUTINE.  WHEN DELAY IS DONE A 
+045a			;COUNTER BYTE IS OUTPUTTED TO THE DISPLAY. 
+045a			 
+045a c2 fa 03		L045A:      JP      NZ,L03FA           ;IF H AND L ARE NOT ZERO DECREASE AGAIN 
+045d 1b			            DEC     DE                 ;DECREASE DE 
+045e 7a			            LD      A,D                ;AND SET ZERO FLAG 
+045f b3			            OR      E                  ;IF D AND E BOTH EQUAL ZERO 
+0460 c2 f7 03		            JP      NZ,L03F7           ;IF D AND L ARE NOT ZERO DECREASE AGAIN 
+0463 ed 57		            LD      A,I                ;LOAD COUNTER BACK TO A 
+0465 d3 02		            OUT     (02),A             ;OUTPUT TO DISPLAYS 
+0467 3c			            INC     A                  ;INCREASE COUNTER 
+0468 ed 47		            LD      I,A                ;SAVE COUNTER BACK TO I 
+046a c3 f4 03		            JP      L03F4              ;REPEAT LONG DELAY AGAIN 
+046d			 
+046d ff ff ff		            DB      0xFF,0xFF,0xFF     ;FILL 
+0470			 
+0470			;DICE ROUTINE.  THIS IS ONE OF THE MORE COMPLEX PROGRAMS THAT COMBINES MANY 
+0470			;DIFFERENT TECHNIQUES.  IT STARTS WITH AN ANIMATION LOOP AND WHEN A KEY IS 
+0470			;PRESSED, FLASHES THE SCREEN AND DISPLAYS A DICE VALUE THAT IS MULTIPLEXED. IT 
+0470			;ALSO HAS A RANDOM FUNCTION TO GENERATE A UNIQUE DICE ROLL. 
+0470			 
+0470			;PART 1 
+0470 16 0c		L0470:      LD      D,0x0C             ;LOAD D WITH 12 FOR LED SEQUENCE 
+0472 21 d3 04		            LD      HL,DICE_TBL        ;LOAD HL WITH LED DATA TABLE 
+0475 7e			L0475:      LD      A,(HL)             ;LOAD A WITH LED DATA 
+0476 d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 LEDS 
+0478 23			            INC     HL                 ;GET NEXT LED DATA SEQUENCE 
+0479 06 15		            LD      B,0x15             ;LOAD B WITH BUTTON TIMER FOR RANDOM NUMBER 
+047b 0e 06		L047B:      LD      C,0x06             ;LOAD C WITH RANDOM DICE VALUE 
+047d db 01		L047D:      IN      A,(01)             ;READ INPUT LATCH 
+047f cb 7f		            BIT     7,A                ;HAS BUTTON "A" BEEN PRESSED? 
+0481 20 0a		            JR      NZ,L048D           ;YES, JUMP TO DICE ROLE 
+0483 0d			            DEC     C                  ;DECREASE C 
+0484 20 f7		            JR      NZ,L047D           ;RE READ INPUT LATCH 
+0486 10 f3		            DJNZ    L047B              ;COUNTDOWN REPEAT BUTTON CHECK 
+0488 15			            DEC     D                  ;MOVE COUNTER TO NEXT LED SEQUENCE 
+0489 28 e5		            JR      Z,L0470            ;LOOP BACK TO FIRST SEQUENCE 
+048b 18 e8		            JR      L0475              ;PRINT THE NEXT LED SEQUENCE 
+048d			;PART 2 
+048d 16 06		L048D:      LD      D,0x06             ;LOAD D WITH 6 FOR LED SEQUENCE REPEAT 
+048f 3e 0f		L048F:      LD      A,0x0F             ;LOAD A WITH 0F (BLANK ALL 4X4 LEDS) 
+0491 d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 
+0493 10 fe		L0493:      DJNZ    L0493              ;DELAY 
+0495 3e ff		            LD      A,0xFF             ;LOAD A WITH FF (LIGHT ALL 4X4 LEDS) 
+0497 d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 
+0499 10 fe		L0499:      DJNZ    L0499              ;DELAY 
+049b 15			            DEC     D                  ;DECREASE D 
+049c 20 f1		            JR      NZ,L048F           ;REPEAT PART 2 
+049e			;PART 3 
+049e 16 80		            LD      D,0x80             ;OUTPUT THE DICE FOR 80 CYCLES 
+04a0 79			            LD      A,C                ;LOAD A WITH DICE ROLL VALUE 
+04a1 21 e0 04		            LD      HL,DICE_VALUE      ;LOAD HL WITH TABLE TO  DISPLAY 1 
+04a4 fe 01		            CP      0x01               ;IS ROLL  1? 
+04a6 ca f5 04		            JP      Z,L04F5            ;JUMP TO DICE DISPLAY 
+04a9 21 e3 04		            LD      HL,DICE_VALUE+3    ;LOAD HL WITH TABLE TO DISPLAY 2 
+04ac fe 02		            CP      0x02               ;IS ROLL 2? 
+04ae ca f5 04		            JP      Z,L04F5            ;JUMP TO DICE DISPLAY 
+04b1 21 e6 04		            LD      HL,DICE_VALUE+6    ;LOAD HL WITH TABLE TO DISPLAY 3 
+04b4 fe 03		            CP      0x03               ;IS ROLL 3? 
+04b6 ca f5 04		            JP      Z,L04F5            ;JUMP TO DICE DISPLAY 
+04b9 21 e9 04		            LD      HL,DICE_VALUE+9    ;LOAD HL WITH TABLE TO DISPLAY 4 
+04bc fe 04		            CP      0x04               ;IS ROLL 4? 
+04be ca f5 04		            JP      Z,L04F5            ;JUMP TO DICE DISPLAY 
+04c1 21 ec 04		            LD      HL,DICE_VALUE+12   ;LOAD HL WITH TABLE TO DISPLAY 5 
+04c4 fe 05		            CP      0x05               ;IS ROLL 5? 
+04c6 ca f5 04		            JP      Z,L04F5            ;JUMP TO DICE DISPLAY 
+04c9 21 ef 04		            LD      HL,DICE_VALUE+15   ;LOAD HL WITH TABLE TO DISPLAY 6 
+04cc fe 06		            CP      0x06               ;IS ROLL 6? 
+04ce ca f5 04		            JP      Z,L04F5            ;JUMP TO DICE DISPLAY 
+04d1 ff ff		            DB      0xFF,0xFF          ;FILL 
+04d3			 
+04d3			;DICE LED SEQUENCE THAT MOVES AROUND THE 4X4 DISPLAY 
+04d3			DICE_TBL:             
+04d3 71 72 74 78 b8 d8 e8 e4	            DB      0x71,0x72,0x74,0x78,0xB8,0xD8,0xE8,0xE4 ;4X4 LED SEQUENCE 
+04db e2 e1 d1 b1	            DB      0xE2,0xE1,0xD1,0xB1 ;  
+04df			 
+04df ff			            DB      0xFF ;FILL 
+04e0			 
+04e0			;DICE DISPLAY MULTIPLEX.  THE FOLLOWING 3 BYTES PER DICE ROLL ARE THE LEDS 
+04e0			;NEEDED TO DISPLAY THE DICE VALUE.  EACH BYTE IS SHOWN ONE AT A TIME AND ARE 
+04e0			;MULTIPLEXED TO CREATE THE ILLUSION THAT ALL BYTES ARE SHOWN AT THE SAME TIME. 
+04e0			 
+04e0			DICE_VALUE:           
+04e0 b4 00 00		            DB      0xB4,0x00,0x00 ;ONE 
+04e3 d2 00 78		            DB      0xD2,0x00,0x78 ;TWO 
+04e6 72 b4 d8		            DB      0x72,0xB4,0xD8 ;THREE 
+04e9 52 00 58		            DB      0x52,0x00,0x58 ;FOUR 
+04ec 52 b4 58		            DB      0x52,0xB4,0x58 ;FIVE 
+04ef 52 54 58		            DB      0x52,0x54,0x58 ;SIX 
+04f2			 
+04f2 ff ff ff		            DB      0xFF,0xFF,0xFF ;FILL 
+04f5			 
+04f5			;DICE DISPLAY ROUTINE TAKES IN THE THREE BYTES TO REPRESENT THE LEDS AND 
+04f5			;MULTIPLEXES THEM.  ONCE 80 DISPLAY CYCLES ARE UP, AND BUTTON "A" IS RELEASED, 
+04f5			;THE PROGRAM STARTS AGAIN. 
+04f5			 
+04f5 7e			L04F5:      LD      A,(HL)             ;LOAD A WITH FIRST VALUE OF DICE LED VALUE 
+04f6 d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 LEDS 
+04f8 06 0a		            LD      B,0x0A             ;LOAD B WITH SMALL DELAY 
+04fa 10 fe		L04FA:      DJNZ    L04FA              ;DELAY 
+04fc 23			            INC     HL                 ;MOVE TO NEXT DICE LED VALUE 
+04fd 7e			            LD      A,(HL)             ;LOAD A WITH SECOND VALUE OF DICE LED VALUE 
+04fe d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 LEDS 
+0500 06 0a		            LD      B,0x0A             ;LOAD B WITH SMALL DELAY 
+0502 10 fe		L0502:      DJNZ    L0502              ;DELAY 
+0504 23			            INC     HL                 ;MOVE TO NEXT DICE LED VALUE 
+0505 7e			            LD      A,(HL)             ;LOAD A WITH THRID VALUE OF DICE LED VALUE 
+0506 d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 LEDS 
+0508 06 0a		            LD      B,0x0A             ;LOAD B WITH SMALL DELAY 
+050a 10 fe		L050A:      DJNZ    L050A              ;DELAY 
+050c 2b			            DEC     HL                 ;MOVE HL BACK TO 
+050d 2b			            DEC     HL                 ;START OF DICE LED VALUE 
+050e 15			            DEC     D                  ;REDUCE DELAY CYCLE BY ONE 
+050f 20 e4		            JR      NZ,L04F5           ;REPEAT DICE DISPLAY IF NOT ZERO 
+0511 af			            XOR     A                  ;SET A TO ZERO TO BLANK DISPLAY 
+0512 d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 LEDS 
+0514 db 01		L0514:      IN      A,(01)             ;READ INPUT LATCH 
+0516 cb 7f		            BIT     7,A                ;IS BUTTON "A" STILL PRESSED? 
+0518 20 fa		            JR      NZ,L0514           ;RE READ INPUT IF TRUE 
+051a c3 70 04		            JP      L0470              ;RESTART DICE ROUTINE 
+051d			 
+051d ff ff ff		            DB      0xFF,0xFF,0xFF ;FILL 
+0520			 
+0520			 
+0520			 
+0520			;NOTE: THE FOLLOWING CODE IS UNDOCUMENTED IN THE TEC MAGAZINES ISSUE 13 AND 14 
+0520			;BUT CAN BE FOUND IN THE BD679 BOOK. 
+0520			 
+0520			;EPROM IN BINARY ROUTINE DISPLAYS THE CONTENTS OF THE EPROM STARTING AT LOCATION 
+0520			;0X0000.  IT IS ONLY USEFUL VIEWING ON THE 8 LED DATA BITS. 
+0520			 
+0520 21 00 00		L0520:      LD      HL,0x0000          ;SET HL TO START OF EPROM 
+0523 7e			L0523:      LD      A,(HL)             ;LOAD THE CONTENTS OF HL INTO A 
+0524 23			            INC     HL                 ;MOVE TO NEXT ADDRESS LOCATION 
+0525 d3 02		            OUT     (02),A             ;OUTPUT DATA TO 8 DATA BITS DISPLAY 
+0527 10 fe		L0527:      DJNZ    L0527              ;FULL DELAY 
+0529 10 fe		L0529:      DJNZ    L0529              ;FULL DELAY 
+052b 10 fe		L052B:      DJNZ    L052B              ;FULL DELAY 
+052d 18 f4		            JR      L0523              ;JUMP BACK TO START FOR NEXT VALUE 
+052f			              
+052f 00			            DB      0x00               ;FILL 
+0530			 
+0530			 
+0530			;POKER ROUTINE.  THIS IS A GAME WHERE EACH COLUMN OF THE 4X4 HAS AN INDIVIDUAL 
+0530			;LED THAT MOVES FROM THE TOP TO THE BOTTOM AND REPEATS.  THIS IS TO SIMULATE A 
+0530			;POKER JACKPOT MACHINE.  THESE LEDS FALL AT DIFFERENT RATES.  WHEN BUTTON 'A' IS 
+0530			;PRESSED THE LEDS STOP FALLING FOR A SMALL MOMENT AND FALL RATE OF ONE OF THE 
+0530			;LEDS WILL CHANGE.  THE AIM IS TO PRESS BUTTON 'A' WHEN ALL FOUR LEDS ARE LINED 
+0530			;UP ON THE SECOND ROW.  AS THERE IS NO WAY TO CHECK THE RATE OF FALL WHEN THE 
+0530			;BUTTON IS PRESSED, THIS GAME SEEMS TO BE MOSTLY RANDOM.  AS RAM ISN’T 
+0530			;AVAILABLE, THIS PROGRAM USES MOST REGISTERS TO STORE DATA. 
+0530			;  O O O O 
+0530			;  * * * * <- PRESS BUTTON 'A' TO WIN WHEN ALL LEDS ARE HERE 
+0530			;  O O O O    IF YOU STOP PRESSING BUTTON ‘A’ SOME LEDS WILL STOP! 
+0530			;  O O O O 
+0530			 
+0530 11 ca 05		L0530:      LD      DE,POKER_1C        ;POINT  DE  TO  FIRST COLUMN TABLE OF 4X4 
+0533 21 dd 05		            LD      HL,POKER_2C        ;POINT  HL  TO  SECOND COLUMN TABLE OF 4X4 
+0536 dd 21 f0 05	            LD      IX,POKER_3C        ;POINT  IX  TO  THIRD COLUMN TABLE OF 4X4 
+053a fd 21 0a 06	            LD      IY,POKER_4C        ;POINT  IY  TO  FOURTH COLUMN TABLE OF 4X4 
+053e 0e 20		L053E:      LD      C,0x20             ;LOAD C WITH 20, IT'S USED TO MAKE LEDS  FALL 
+0540 1a			L0540:      LD      A,(DE)             ;LOAD A WITH FIRST COLUMN LED VALUE 
+0541 d3 02		            OUT     (02),A             ;OUTPUT TO FIRST COLUMN OF 4X4 
+0543 7e			            LD      A,(HL)             ;LOAD A WITH SECOND COLUMN LED VALUE 
+0544 d3 02		            OUT     (02),A             ;OUTPUT TO SECOND COLUMN OF 4X4 
+0546 dd 7e 00		            LD      A,(IX+0)           ;LOAD A WITH THIRD COLUMN LED VALUE 
+0549 d3 02		            OUT     (02),A             ;OUTPUT TO THIRD COLUMN OF 4X4 
+054b fd 7e 00		            LD      A,(IY+0)           ;LOAD A WITH FOURTH COLUMN LED VALUE 
+054e d3 02		            OUT     (02),A             ;OUTPUT TO FOURTH COLUMN OF 4X4 
+0550 db 01		            IN      A,(01)             ;READ INPUT LATCH 
+0552 cb 7f		            BIT     7,A                ;IS BUTTON "A" PRESSED? 
+0554 20 05		            JR      NZ,L055B           ;YES!, JUMP TO USE C FOR FALL RATE 
+0556 0d			            DEC     C                  ;NO, JUST DECREASE C 
+0557 20 e7		            JR      NZ,L0540           ;IF C ISN'T ZERO, RE DISPLAY LEDS 
+0559 18 03		            JR      L055E              ;IF C IS ZERO, FALL USING OLD RATE 
+055b 79			L055B:      LD      A,C                ;LOAD A WITH C 
+055c ed 47		            LD      I,A                ;LOAD A TO INDEX REGISTER 
+055e ed 57		L055E:      LD      A,I                ;LOAD INDEX REGISTER TO A 
+0560 1f			            RRA                        ;BIT ROTATE A ONE BIT TO THE RIGHT 
+0561 3c			            INC     A                  ;INCREASE A SO IT ISN'T ZERO 
+0562 ed 47		            LD      I,A                ;STORE A IN INDEX REGISTER 
+0564 e6 07		            AND     0x07               ;MASK OFF TOP 5 BITS 
+0566 fe 05		            CP      0x05               ;IS A EQUAL TO 5? 
+0568 ca cf 05		            JP      Z,L05CF            ;MAKE COLUMN 1 DROP BY ONE 
+056b fe 02		            CP      0x02               ;IS A EQUAL TO 2? 
+056d ca e2 05		            JP      Z,L05E2            ;MAKE COLUMN 2 DROP BY ONE 
+0570 fe 03		            CP      0x03               ;IS A EQUAL TO 3? 
+0572 ca f5 05		            JP      Z,L05F5            ;MAKE COLUMN 3 DROP BY ONE 
+0575 fe 04		            CP      0x04               ;IS A EQUAL TO 4? 
+0577 ca 0f 06		            JP      Z,L060F            ;MAKE COLUMN 4 DROP BY ONE 
+057a db 01		            IN      A,(01)             ;READ INPUT LATCH 
+057c cb 7f		            BIT     7,A                ;HAS BUTTON "A" BEEN PRESSED? 
+057e ca 3e 05		            JP      Z,L053E            ;NO, JUMP BACK TO DISPLAY AT THE BEGINNING 
+0581 0e 03		            LD      C,0x03             ;YES, LOAD C WITH 3 
+0583 06 00		            LD      B,0x00             ;LOAD B WITH 00 FOR FULL DELAY 
+0585 1a			L0585:      LD      A,(DE)             ;DISPLAY THE 
+0586 d3 02		            OUT     (02),A             ;CURRENT 
+0588 7e			            LD      A,(HL)             ;LEDS 
+0589 d3 02		            OUT     (02),A             ;AND 
+058b dd 7e 00		            LD      A,(IX+0)           ;PAUSE 
+058e d3 02		            OUT     (02),A             ;FOR 
+0590 fd 7e 00		            LD      A,(IY+0)           ;THREE 
+0593 d3 02		            OUT     (02),A             ;FULL 
+0595 10 ee		            DJNZ    L0585              ;BYTE 
+0597 0d			            DEC     C                  ;DELAYS 
+0598 20 eb		            JR      NZ,L0585           ;REPEAT DISPLAY 
+059a			;CHECK FOR WIN 
+059a 1a			            LD      A,(DE)             ;LOAD FIRST COLUMN VALUE 
+059b fe b1		            CP      0xB1               ;IS IT ON THE SECOND ROW? 
+059d c2 3e 05		            JP      NZ,L053E           ;NO, JUMP TO START 
+05a0 7e			            LD      A,(HL)             ;LOAD SECOND COLUMN VALUE 
+05a1 fe b2		            CP      0xB2               ;IS IT ON THE SECOND ROW? 
+05a3 c2 3e 05		            JP      NZ,L053E           ;NO, JUMP TO START 
+05a6 dd 7e 00		            LD      A,(IX+0)           ;LOAD THRID COLUMN VALUE 
+05a9 fe b4		            CP      0xB4               ;IS IT ON THE SECOND ROW? 
+05ab c2 3e 05		            JP      NZ,L053E           ;NO, JUMP TO START 
+05ae fd 7e 00		            LD      A,(IY+0)           ;LOAD FOURTH COLUMN VALUE 
+05b1 fe b8		            CP      0xB8               ;IS IT ON THE SECOND ROW? 
+05b3 c2 3e 05		            JP      NZ,L053E           ;NO, JUMP TO START 
+05b6			;DISPLAY WIN BY FLASHING ALL LEDS 
+05b6 3e 0f		L05B6:      LD      A,0x0F             ;LOAD A WITH ALL LEDS OFF 
+05b8 d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 
+05ba 10 fe		L05BA:      DJNZ    L05BA              ;DELAY 
+05bc 10 fe		L05BC:      DJNZ    L05BC              ;DELAY 
+05be 3e ff		            LD      A,0xFF             ;LOAD A WITH ALL LEDS ON 
+05c0 d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 
+05c2 10 fe		L05C2:      DJNZ    L05C2              ;DELAY 
+05c4 10 fe		L05C4:      DJNZ    L05C4              ;DELAY 
+05c6 18 ee		            JR      L05B6              ;JUMP TO REPEAT WIN 
+05c8 00 00		            DB      0x00,0x00          ;FILL 
+05ca			 
+05ca			;POKER LED MOVE DOWN ROUTINES FOR COLUMNS 1,2,3 AND 4 
+05ca			POKER_1C:             
+05ca b1 d1 e1 71 ff	            DB      0xB1,0xD1,0xE1,0x71,0xFF ;4X4 LED VALUES FOR FIRST COLUMN 
+05cf 13			L05CF:      INC     DE                 ;INCREASE INDEX BY ONE 
+05d0 1a			            LD      A,(DE)             ;LOAD A WITH INDEX VALUE 
+05d1 fe ff		            CP      0xFF               ;IS IT FF? 
+05d3 c2 3e 05		            JP      NZ,L053E           ;NO, EXIT ROUTINE 
+05d6 1b			            DEC     DE                 ;YES, 
+05d7 1b			            DEC     DE                 ;MOVE INDEX 
+05d8 1b			            DEC     DE                 ;BACK TO 
+05d9 1b			            DEC     DE                 ;START 
+05da c3 3e 05		            JP      L053E              ;EXIT ROUTINE 
+05dd			 
+05dd			POKER_2C:             
+05dd 72 b2 d2 e2 ff	            DB      0x72,0xB2,0xD2,0xE2,0xFF ;4X4 LED VALUES FOR SECOND COLUMN 
+05e2 23			L05E2:      INC     HL                 ;INCREASE INDEX BY ONE 
+05e3 7e			            LD      A,(HL)             ;LOAD A WITH INDEX VALUE 
+05e4 fe ff		            CP      0xFF               ;IS IT FF? 
+05e6 c2 3e 05		            JP      NZ,L053E           ;NO, EXIT ROUTINE 
+05e9 2b			            DEC     HL                 ;YES, 
+05ea 2b			            DEC     HL                 ;MOVE INDEX 
+05eb 2b			            DEC     HL                 ;BACK TO 
+05ec 2b			            DEC     HL                 ;START 
+05ed c3 3e 05		            JP      L053E              ;EXIT ROUTINE" 
+05f0			 
+05f0			POKER_3C:             
+05f0 d4 e4 74 b4 ff	            DB      0xD4,0xE4,0x74,0xB4,0xFF ;4X4 LED VALUES FOR THRID 
+05f5 dd 23		L05F5:      INC     IX                 ;INCREASE INDEX BY ONE" COLUMN 
+05f7 dd 7e 00		            LD      A,(IX+0)           ;LOAD A WITH INDEX VALUE 
+05fa fe ff		            CP      0xFF               ;IS IT FF? 
+05fc c2 3e 05		            JP      NZ,L053E           ;NO, EXIT ROUTINE 
+05ff dd 2b		            DEC     IX                 ;YES, 
+0601 dd 2b		            DEC     IX                 ;MOVE INDEX 
+0603 dd 2b		            DEC     IX                 ;BACK TO 
+0605 dd 2b		            DEC     IX                 ;START 
+0607 c3 3e 05		            JP      L053E              ;EXIT ROUTINE 
+060a			 
+060a			POKER_4C:             
+060a e8 78 b8 d8 ff	            DB      0xE8,0x78,0xB8,0xD8,0xFF ;4X4 LED VALUES FOR FOURTH  COLUMN 
+060f fd 23		L060F:      INC     IY                 ;INCREASE INDEX BY ONE 
+0611 fd 7e 00		            LD      A,(IY+0)           ;LOAD A WITH INDEX VALUE 
+0614 fe ff		            CP      0xFF               ;IS IT FF? 
+0616 c2 3e 05		            JP      NZ,L053E           ;NO, EXIT ROUTINE 
+0619 fd 2b		            DEC     IY                 ;YES, 
+061b fd 2b		            DEC     IY                 ;MOVE INDEX 
+061d fd 2b		            DEC     IY                 ;BACK TO 
+061f fd 2b		            DEC     IY                 ;START 
+0621 c3 3e 05		            JP      L053E              ;EXIT ROUTINE 
+0624 00 00 00 00 00 00 00 00	            DB      0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 ;FILL 
+062c 00 00 00 00	            DB      0x00,0x00,0x00,0x00                     ;FILL 
+0630			 
+0630			;BINARY CLOCK ROUTINE DISPLAYS A BINARY CLOCK USING THE 4X4 LED DISPLAY.  THE 
+0630			;CLOCK USES MULTIPLEXING TO DISPLAY MULTIPLE VALUES ON THE 4X4.  BINARY VALUES 
+0630			;ARE DISPLAYED BOTTOM TO TOP AND TIME FROM RIGHT TO LEFT.   TIME IS SPLIT IN 
+0630			;LOW MINUTES, MINUTES, HOURS AND TENS OF HOURS.  THE INITIAL TIME IS 0100.  IF 
+0630			;BUTTON 'A' IS PRESSED IT WILL AUTO INCREMENT THE CLOCK, OTHERWISE IT WILL 
+0630			;INCREMENT AUTOMATICALLY BASED ON THE VALUE ON THE INPUT LATCH. 
+0630			;    O O O O 
+0630			;    O O O O  (T)EN HOURS 
+0630			;    O O O O  (H)OURS 
+0630			;    O O O O  (M)INUTES 
+0630			;    ^ ^ ^ ^  (L)OW MINUTES 
+0630			;    T H M L 
+0630			 
+0630 11 00 01		L0630:      LD      DE,0x0100          ;START TIME OF 0100 IE:1PM 
+0633 31 d0 09		L0633:      LD      SP,0x09D0          ;MINUTE TIMER STORED IN SP REGISTER 
+0636 21 a0 06		L0636:      LD      HL,BIN_SEC         ;POINT HL TO SECONDS TABLE 
+0639 7b			            LD      A,E                ;INDEX A WITH MINUTES 
+063a e6 0f		            AND     0x0F               ;MASK OFF TENS OF SECONDS 
+063c 85			            ADD     A,L                ;INDEX A WITH L 
+063d 6f			            LD      L,A                ;INDEX TABLE WITH A 
+063e 7e			            LD      A,(HL)             ;LOAD LED VALUE TO A 
+063f d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 
+0641 21 aa 06		            LD      HL,BIN_MIN         ;POINT HL TO TENS OF MINUTES TABLE 
+0644 7b			            LD      A,E                ;INDEX A WITH MINUTES 
+0645 1f			            RRA                        ;SWAP LOW 
+0646 1f			            RRA                        ;NIBBLE WITH 
+0647 1f			            RRA                        ;HIGH 
+0648 1f			            RRA                        ;NIBBLE 
+0649 e6 0f		            AND     0x0F               ;MASK OFF LOW MINUTES 
+064b 85			            ADD     A,L                ;INDEX A WITH L 
+064c 6f			            LD      L,A                ;INDEX TABLE WITH A 
+064d 7e			            LD      A,(HL)             ;LOAD LED VALUE TO A 
+064e d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 
+0650 21 b0 06		            LD      HL,BIN_HRS         ;POINT HL TO LOW HOURS TABLE 
+0653 7a			            LD      A,D                ;INDEX A WITH HOURS 
+0654 e6 0f		            AND     0x0F               ;MASK OFF TENS OF HOURS 
+0656 85			            ADD     A,L                ;INDEX A WITH L 
+0657 6f			            LD      L,A                ;INDEX TABLE WITH A 
+0658 7e			            LD      A,(HL)             ;LOAD LED VALUE TO A 
+0659 d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 
+065b 21 ba 06		            LD      HL,BIN_TNS         ;POINT HL TO TENS OF HOURS TABLE 
+065e 7a			            LD      A,D                ;INDEX A WITH HOURS 
+065f 1f			            RRA                        ;SWAP LOW 
+0660 1f			            RRA                        ;NIBBLE WITH 
+0661 1f			            RRA                        ;HIGH 
+0662 1f			            RRA                        ;NIBBLE 
+0663 e6 0f		            AND     0x0F               ;MASK OFF LOW HOURS 
+0665 85			            ADD     A,L                ;INDEX A WITH L 
+0666 6f			            LD      L,A                ;INDEX TABLE WITH A 
+0667 7e			            LD      A,(HL)             ;LOAD LED VALUE TO A 
+0668 d3 02		            OUT     (02),A             ;OUTPUT TO 4X4 
+066a db 01		            IN      A,(01)             ;READ INPUT LATCH 
+066c cb 7f		            BIT     7,A                ;CHECK IF BUTTON "A" IS PRESSED 
+066e 28 04		            JR      Z,L0674            ;NOT PRESSED JUMP TO AUTO INCREMENT 
+0670 10 fe		L0670:      DJNZ    L0670              ;BUTTON PRESSED SO DELAY 
+0672 18 14		            JR      L0688              ;AND JUMP TO TIME INCREMENT 
+0674 3b			L0674:      DEC     SP                 ;AUTO INCREMENT TIMER BY DECREASING SP 
+0675 21 00 00		            LD      HL,0x0000          ;LOAD HL WITH ZEROS 
+0678 39			            ADD     HL,SP              ;ADD HL TO SP 
+0679 7d			            LD      A,L                ;CHECK IF L 
+067a b4			            OR      H                  ;EQUALS H AND EQUALS ZERO 
+067b c2 36 06		            JP      NZ,L0636           ;NOT ZERO, RE DISPLAY TIME 
+067e db 01		            IN      A,(01)             ;READ INPUT LATCH FOR CLOCK UPDATE DELAY 
+0680 47			            LD      B,A                ;LOAD VALUE TO B 
+0681 0e ff		            LD      C,0xFF             ;LOAD C WITH FF 
+0683 0b			L0683:      DEC     BC                 ;DECREASE BC 
+0684 79			            LD      A,C                ;CHECK IF B 
+0685 b0			            OR      B                  ;EQUALS C EQUALS ZERO 
+0686 20 fb		            JR      NZ,L0683           ;REPEAT DELAY IF NOT ZERO 
+0688 7b			L0688:      LD      A,E                ;LOAD MINUTES TO A 
+0689 3c			            INC     A                  ;INCREASE MINUTES 
+068a 27			            DAA                        ;CONVERT TO DECIMAL 
+068b 5f			            LD      E,A                ;LOAD DECIMAL VALUE BACK TO E 
+068c fe 60		            CP      0x60               ;COMPARE A WITH 60 MINUTES 
+068e c2 33 06		            JP      NZ,L0633           ;SKIP 
+0691 1e 00		            LD      E,0x00             ;LOAD 
+0693 7a			            LD      A,D                ;LOAD 
+0694 3c			            INC     A                  ;INCREASE HOURS 
+0695 27			            DAA                        ;CONVERT TO DECIMAL 
+0696 57			            LD      D,A                ;LOAD DECIMAL VALUE BACK TO D 
+0697 fe 13		            CP      0x13               ;COMPARE A WITH 13 HOURS 
+0699 c2 33 06		            JP      NZ,L0633           ;NOT 13 THEN JUMP TO DISPLAY UPDATE 
+069c c3 30 06		            JP      L0630              ;RESTART COUNTER BACK TO 0100 
+069f 00			            DB      0x00               ;FILL 
+06a0			 
+06a0			;BINARY CLOCK 4X4 LED SEQUENCE.  EACH VALUE IS INDEXED BASED ON CLOCK VALUE 
+06a0 f8 e8 d8 c8 b8 a8 98 88 78 68	BIN_SEC:    DB      0xF8,0xE8,0xD8,0xC8,0xB8,0xA8,0x98,0x88,0x78,0x68 ;SECONDS 
+06aa f4 e4 d4 c4 b4 a4	BIN_MIN:    DB      0xF4,0xE4,0xD4,0xC4,0xB4,0xA4 ;MINUTES 
+06b0 f2 e2 d2 c2 b2 a2 92 82 72 62	BIN_HRS:    DB      0xF2,0xE2,0xD2,0xC2,0xB2,0xA2,0x92,0x82,0x72,0x62 ;HOURS (ONES) 
+06ba f1 e1		BIN_TNS:    DB      0xF1,0xE1 ;HOURS (TENS) 
+06bc			 
+06bc 00 ff 00 ff	            DB      0x00,0xFF,0x00,0xFF ;FILL 
+06c0			 
+06c0			 
+06c0			;ONE MINTUE TIMER ROUTINE.  TAKES IN THE INPUT LATCH VALUE OF 6C AND SETS 
+06c0			;'A' WITH ONE, CALLS THE ONE MINUTE TIMER SUB ROUTINE. 
+06c0			 
+06c0 db 01		L06C0:      IN      A,(01)             ;READINPUT LATCH 
+06c2 47			            LD      B,A                ;SAVE VALUE IN B 
+06c3 3e 01		            LD      A,0x01             ;LOAD A WITH ONE MINUTE 
+06c5 dd 21 c0 06	            LD      IX,0x06C0          ;LOAD IX WITH JUMP RETURN ADDRESS 
+06c9 c3 40 07		            JP      L0740              ;CALL ONE MINUTE DELAY SUB ROUTINE 
+06cc 00 00 00 00	            DB      0x00,0x00,0x00,0x00 ;FILL 
+06d0			 
+06d0			;THREE MINTUE TIMER ROUTINE.  TAKES IN THE INPUT LATCH VALUE OF 6D AND SETS 
+06d0			;"A" WITH THREE, CALLS THE ONE MINUTE TIMER SUB ROUTINE. 
+06d0			 
+06d0 db 01		L06D0:      IN      A,(01)             ;READ INPUT LATCH 
+06d2 47			            LD      B,A                ;SAVE VALUE IN B 
+06d3 3e 03		            LD      A,0x03             ;LOAD A WITH THREE MINUTES 
+06d5 dd 21 d0 06	            LD      IX,0x06D0          ;LOAD IX WITH JUMP RETURN ADDRESS 
+06d9 c3 40 07		            JP      L0740              ;CALL ONE MINUTE DELAY SUB ROUTINE 
+06dc 00 00 00 00	            DB      0x00,0x00,0x00,0x00 ;FILL 
+06e0			 
+06e0			;ONE HOUR TIMER ROUTINE.  TAKES IN THE INPUT LATCH VALUE OF 6E AND SETS 
+06e0			;"A" WITH 60, CALLS THE ONE MINUTE TIMER SUB ROUTINE. 
+06e0			 
+06e0 db 01		L06E0:      IN      A,(01)             ;READ INPUT LATCH 
+06e2 47			            LD      B,A                ;SAVE VALUE IN B 
+06e3 3e 3c		            LD      A,0x3C             ;LOAD A WITH SIXTY MINUTES 
+06e5 dd 21 e0 06	            LD      IX,0x06E0          ;LOAD IX WITH JUMP RETURN ADDRESS 
+06e9 c3 40 07		            JP      L0740              ;CALL ONE MINUTE DELAY SUB ROUTINE 
+06ec 00 00 00 00	            DB      0x00,0x00,0x00,0x00 ;FILL 
+06f0			 
+06f0			;ADJUSTABLE TIMER ROUTINE WILL USE THE INPUT LATCH TO SET THE TIMER REQUIRED. IT 
+06f0			;USES THE RUNNING LETTER ROUTINE TO DISPLAY INSTRUCTIONS ON WHEN TO SET HE INPUT 
+06f0			;LATCH.  ASCII FOR THE INSTRUCTIONS ARE FOUND AT 0X0765.  IT FIRST ASK TO SET 
+06f0			;THE INPUT LATCH TO ZERO, THEN TO PUSH BUTTON 'B', THEN TO SET DELAY VALUE AND 
+06f0			;PRESS BUTTON 'A'.  THEN IT WILL CALL THE ONE MINUTE DELAY ROUTINE WITH THE 
+06f0			;INPUTTED DELAY VALUE IN MINUTES. DELAY CAN BE BETWEEN 0 AND 127 MINUTES 
+06f0			 
+06f0 dd 21 65 07	L06F0:      LD      IX,TIMER1_TBL      ;LOAD IX WITH FIRST ASCII DATA TABLE 
+06f4 21 fa 06		            LD      HL,0x06FA          ;LOAD HL WITH JUMP RETURN ADDRESS 
+06f7 c3 d0 00		            JP      L00D0              ;CALL RUNNING LETTER ROUTINE 
+06fa db 01		            IN      A,(01)             ;READ INPUT LATCH 
+06fc fe 00		            CP      0x00               ;CHECK FOR IT TO BE ZERO 
+06fe 20 f0		            JR      NZ,L06F0           ;IF NOT ZERO REPEAT FIRST MESSAGE 
+0700 dd 21 78 07	L0700:      LD      IX,TIMER2_TBL      ;LOAD IX WITH SECOND ASCII DATA TABLE 
+0704 21 0a 07		            LD      HL,0x070A          ;LOAD HL WITH JUMP RETURN ADDRESS 
+0707 c3 d0 00		            JP      L00D0              ;CALL RUNNING LETTER ROUTINE 
+070a db 01		            IN      A,(01)             ;READ INPUT LATCH 
+070c cb 77		            BIT     6,A                ;CHECK IF BUTTON "B" IS PRESSED 
+070e 28 f0		            JR      Z,L0700            ;IF NOT REPEAT SECOND MESSAGE 
+0710 dd 21 82 07	L0710:      LD      IX,TIMER3_TBL      ;LOAD IX WITH THIRD ASCII DATA TABLE 
+0714 21 1a 07		            LD      HL,0x071A          ;LOAD HL WITH JUMP RETURN ADDRESS 
+0717 c3 d0 00		            JP      L00D0              ;CALL RUNNING LETTER ROUTINE 
+071a db 01		            IN      A,(01)             ;READ INPUT LATCH 
+071c cb 7f		            BIT     7,A                ;CHECK IF BUTTON "A" IS PRESSED 
+071e 28 f0		            JR      Z,L0710            ;IF NOT REPEAT THIRD MESSAGE 
+0720 06 80		            LD      B,0x80             ;LOAD B WITH 80 
+0722 3e 81		L0722:      LD      A,0x81             ;LOAD A LEFT TOP SEGMENT 
+0724 d3 02		            OUT     (02),A             ;OUTPUT TO SEVEN SEGMENT DISPLAY 
+0726 3e 00		            LD      A,0x00             ;LOAD A WITH ZERO 
+0728 d3 02		            OUT     (02),A             ;BLANK OUTPUT 
+072a 10 f6		            DJNZ    L0722              ;REPEAT DISPLAY 80 TIMES 
+072c 06 80		            LD      B,0x80             ;LOAD B WITH 80 
+072e db 01		            IN      A,(01)             ;READ INPUT LATCH 
+0730 e6 7f		            AND     0x7F               ;MASK OUT BIT 7 
+0732 ed 47		            LD      I,A                ;LOAD INDEX REGISTER WITH MINUTES 
+0734 dd 21 2a 07	            LD      IX,0x072A          ;LOAD IX WITH RETURN ADDRESS 
+0738 c3 40 07		            JP      L0740              ;CALL ONE MINUTE DELAY SUB ROUTINE 
+073b 00 00 00 00 00	            DB      0x00,0x00,0x00,0x00,0x00 ;FILL 
+0740			 
+0740			;1 MINUTE DELAY SUB ROUTINE WILL COUNT DOWN FROM A STARTING VALUE TO ZERO. 
+0740			;WHEN ZERO, THE TOP SEGMENT ON THE LEFT DISPLAY WILL LIGHT UP.  IF BUTTON 'A' 
+0740			;IS PRESSED, THE TIMER WILL REPEAT.  THE VALUE IN REGISTER A IS SET IN THE 
+0740			;CALLING ROUTINE THAT REPRESENTS THE NUMBER OF MINUTES TO COUNT DOWN.  IX 
+0740			;IS THE RETURN ADDRESS.  REGISTER B SET EXTERNALLY IS ANOTHER COUNTER. 
+0740			;OBVIOUSLY THE TIMER DEPENDS ON THE CLOCK SPEED SO SPEED 
+0740			;IS TO BE SET BASED ON AN EXTERNAL CLOCK. 
+0740			 
+0740 ed 47		L0740:      LD      I,A                ;SAVE NUMBER OF MINUTES IN THE INDEX REGISTER 
+0742 11 ff 8b		            LD      DE,0x8BFF          ;LOAD DE WITH A LONG DELAY 
+0745 1b			L0745:      DEC     DE                 ;DECREASE DE 
+0746 7b			            LD      A,E                ;WHEN D 
+0747 b2			            OR      D                  ;AND E BOTH EQUAL ZERO 
+0748 20 fb		            JR      NZ,L0745           ;CONTINUE 
+074a ed 57		            LD      A,I                ;RELOAD A WITH NUMBER OF MINUTES 
+074c 3d			            DEC     A                  ;DECREASE A 
+074d 20 f1		            JR      NZ,L0740           ;LOOP COUNTER AGAIN 
+074f 10 fe		L074F:      DJNZ    L074F              ;DELAY ON B 
+0751 3e 81		L0751:      LD      A,0x81             ;LOAD A WITH LEFT TOP SEGMENT 
+0753 d3 02		            OUT     (02),A             ;OUTPUT TO SEVEN SEGMENTS 
+0755 3e 00		            LD      A,0x00             ;LOAD A WITH ZERO 
+0757 d3 02		            OUT     (02),A             ;BLANK OUTPUT 
+0759 db 01		            IN      A,(01)             ;READ INPUT LATCH 
+075b cb 7f		            BIT     7,A                ;HAS BUTTON "A" BEEN PRESSED? 
+075d 28 f2		            JR      Z,L0751            ;RE DISPLAY IF NOT PRESSED 
+075f dd e9		            JP      (IX)               ;PRESSED, REPEAT TIMER 
+0761 00 00 00 00	            DB      0x00,0x00,0x00,0x00 ;FILL 
+0765			 
+0765			;ADJUSTABLE TIMER MESSAGE LOOKUP TABLE, 3 MESSAGES 
+0765			TIMER1_TBL:            
+0765 00 6d 79 78 00	            DB      0x00,0x6D,0x79,0x78,0x00           ;SET 
+076a 77 38 38 00	            DB      0x77,0x38,0x38,0x00                ;ALL 
+076e 78 3f 00		            DB      0x78,0x3F,0x00                     ;TO 
+0771 1b 79 33 3f 00 00 ff	            DB      0x1B,0x79,0x33,0x3F,0x00,0x00,0xFF ;ZERO 
+0778			TIMER2_TBL: 
+0778 00 73 3e 6d 76 00 7c	            DB      0x00,0x73,0x3E,0x6D,0x76,0x00,0x7C ;PUSH B 
+077f 00 00 ff		            DB      0x00,0x00,0xFF                     ; 
+0782			TIMER3_TBL:  
+0782 00 6d 79 78 00	            DB      0x00,0x6D,0x79,0x78,0x00           ;SET 
+0787 5e 79 38 77 6e 00	            DB      0x5E,0x79,0x38,0x77,0x6E,0x00      ;DELAY 
+078d 1c 77 38 3e 79 00	            DB      0x1C,0x77,0x38,0x3E,0x79,0x00      ;VALUE 
+0793 40 00		            DB      0x40,0x00                          ; - 
+0795 73 3e 6d 76 00 77	            DB      0x73,0x3E,0x6D,0x76,0x00,0x77      ;PUSH A 
+079b 00 00 ff		            DB      0x00,0x00,0xFF                     ;  
+079e 00 00		            DB      0x00,0x00 ;FILL 
+07a0			 
+07a0			;FINAL MESSAGE ROUTINE.  IT CALLS THE RUNNING LETTER ROUTINE, BUT AS OPPOSED TO 
+07a0			;THE RUNNING NAMES, THERE IS NO VARIABLE TEXT.  THIS IS A SOMEWHAT HIDDEN TEXT 
+07a0			;MESSAGE.  BUT I'VE DISASSEMBLED IT SO HERE IT IS!! 
+07a0			 
+07a0 dd 21 aa 07	L07A0:      LD      IX,MESSAGE_TBL     ;POINT IX TO ASCII DATA TABLE 
+07a4 21 a0 07		            LD      HL,0x07A0          ;POINT HL TO RETURN ADDRESS FROM JUMP 
+07a7 c3 d0 00		            JP      L00D0              ;CALL RUNNING LETTER ROUTINE 
+07aa			 
+07aa			;FINAL MESSAGE LOOKUP TABLE 
+07aa			MESSAGE_TBL:          
+07aa 00 33 3f 47 00	            DB      0x00,0x33,0x3F,0x47,0x00           ;ROM 
+07af 79 37 5e 6d 00	            DB      0x79,0x37,0x5E,0x6D,0x00           ;ENDS 
+07b4 77 78 00		            DB      0x77,0x78,0x00                     ;AT 
+07b7 3f 07 71 71 00	            DB      0x3F,0x07,0x71,0x71,0x00           ;07FF 
+07bc 39 76 77 37 3d 79 00	            DB      0x39,0x76,0x77,0x37,0x3D,0x79,0x00 ;CHANGE 
+07c3 38 79 77 5e 00	            DB      0x38,0x79,0x77,0x5E,0x00           ;LEAD 
+07c8 71 3f 33 00	            DB      0x71,0x3F,0x33,0x00                ;FOR 
+07cc 3e 73 73 79 33 00	            DB      0x3E,0x73,0x73,0x79,0x33,0x00      ;UPPER 
+07d2 76 77 38 71 00	            DB      0x76,0x77,0x38,0x71,0x00           ;HALF 
+07d7 77 37 5e 00	            DB      0x77,0x37,0x5E,0x00                ;AND 
+07db 3e 6d 79 00	            DB      0x3E,0x6D,0x79,0x00                ;USE 
+07df 71 3f 33 00	            DB      0x71,0x3F,0x33,0x00                ;FOR 
+07e3 6e 3f 3e 33 00	            DB      0x6E,0x3F,0x3E,0x33,0x00           ;YOUR 
+07e8 3f 4e 37 00	            DB      0x3F,0x4E,0x37,0x00                ;OWN 
+07ec 06 5e 79 77 6d 00	            DB      0x06,0x5E,0x79,0x77,0x6D,0x00      ;IDEAS 
+07f2 39 76 79 79 33 6d 00	            DB      0x39,0x76,0x79,0x79,0x33,0x6D,0x00 ;CHEERS 
+07f9 39 3f 38 06 37 00 ff	            DB      0x39,0x3F,0x38,0x06,0x37,0x00,0xFF ;COLIN 
+0800			 
+0800			 
+0800			;<END OF ROM> 
+# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/microcomp/microcomp_listing.z80
+0800
