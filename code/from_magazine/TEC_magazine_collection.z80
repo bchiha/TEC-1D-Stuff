@@ -1231,7 +1231,8 @@ CHKSHIFT:
             JR      NZ,CHKS1 ;Exit if shift not pressed
             AND     1FH      ;Mask unwanted bits
             CP      12H      ;"GO" pressed
-            JR      NZ,CHKS1       
+            JR      NZ,CHKS1
+            POP     AF       ;Restore Stack
             POP     BC       ;Fake POP to remove PC as we aren't returning
             JP      MENU     ;GOTO Menu
 CHKS1:
@@ -1369,4 +1370,4 @@ MENU_DA_TBL:        ; Menu Display for DATA LEDs
             DB      0xC6,0xCD ; "t2"
             DB      0xC6,0xAD ; "t3"
 
-            DB      0xFF,0xFF,0xFF,0xFF   ;EOF Buffer to make 2K
+            DB      0xFF,0xFF,0xFF   ;EOF Buffer to make 2K

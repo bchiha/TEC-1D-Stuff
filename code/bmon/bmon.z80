@@ -120,7 +120,7 @@ B4800:	    EQU	    0x1B                                ;BAUD 4800
 B9600:	    EQU	    0x0B                                ;BAUD 9600
 DEF_BAUD:   EQU     B4800                               ;DEFAULT BAUD TO 4800
 
-REG_TBL:    EQU     0794H - 2                           ;BASE OF REGISTER NAME TABLE
+REG_TBL:    EQU     0797H - 2                           ;BASE OF REGISTER NAME TABLE
 DISP_BUFF:  EQU     3F00H                               ;Current displayed Address Buffer
 DISP_DBUFF: EQU     3F04H                               ;Current displayed Data Buffer
 DISP_D2BUF: EQU     3F05H                               ;Character #2 of the Data Display Buffer
@@ -198,7 +198,7 @@ JMON_JUMP:  EQU     381EH                               ;START OF THE JUMP TABLE
 
 J_MINT:     EQU     0800H                               ;MINT LOCATION FOR BMON
 J_BASIC:    EQU     1000H                               ;TINY BASIC LOCATION FOR BMON
-J_GAMES:    EQU     1800H                               ;GAMES LOCATION FOR BMON
+J_GAMES:    EQU     18E0H                               ;GAMES LOCATION FOR BMON
 
 ;IO Port ASSIGNMENTS
 KEYBOARD:   EQU     0x00                                ;KEYBOARD ENCODER

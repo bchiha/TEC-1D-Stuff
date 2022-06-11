@@ -121,7 +121,7 @@
 0000			B9600:	    EQU	    0x0B                                ;BAUD 9600  
 0000			DEF_BAUD:   EQU     B4800                               ;DEFAULT BAUD TO 4800  
 0000			  
-0000			REG_TBL:    EQU     0794H - 2                           ;BASE OF REGISTER NAME TABLE  
+0000			REG_TBL:    EQU     0797H - 2                           ;BASE OF REGISTER NAME TABLE  
 0000			DISP_BUFF:  EQU     3F00H                               ;Current displayed Address Buffer  
 0000			DISP_DBUFF: EQU     3F04H                               ;Current displayed Data Buffer  
 0000			DISP_D2BUF: EQU     3F05H                               ;Character #2 of the Data Display Buffer  
@@ -199,7 +199,7 @@
 0000			  
 0000			J_MINT:     EQU     0800H                               ;MINT LOCATION FOR BMON  
 0000			J_BASIC:    EQU     1000H                               ;TINY BASIC LOCATION FOR BMON  
-0000			J_GAMES:    EQU     1800H                               ;GAMES LOCATION FOR BMON  
+0000			J_GAMES:    EQU     18E0H                               ;GAMES LOCATION FOR BMON  
 0000			  
 0000			;IO Port ASSIGNMENTS  
 0000			KEYBOARD:   EQU     0x00                                ;KEYBOARD ENCODER  
@@ -941,7 +941,7 @@
 036b c5			            PUSH    BC                                  ;PUT NEXT DISPLAY BUFFER  
 036c d1			            POP     DE                                  ;LOCATION INTO DE(stination)  
 036d 01 02 00		            LD      BC, 0x0002                          ;BC IS THE NUMBER OF DATA DISPLAYS  
-0370 21 92 07		            LD      HL, REG_TBL                         ;HL=THE BASE OF THE NAME TABLE (MINUS 2)  
+0370 21 95 07		            LD      HL, REG_TBL                         ;HL=THE BASE OF THE NAME TABLE (MINUS 2)  
 0373 09			L0373:      ADD     HL, BC                              ;ADD TO HL 2 FOR EACH  
 0374 3d			            DEC     A                                   ;REGISTER NUMBER TO ACCESS THE  
 0375 20 fc		            JR      NZ, L0373                           ;CURRENT REGISTER NAME  
@@ -1737,7 +1737,7 @@
 070c c3 b5 05		            JP      J_MSG_SCRL                         ;MESSAGE SCROLL ROUTINE  
 070f c3 00 08		            JP      J_MINT                             ;MINT PROGRAMMING LANGUAGE  
 0712 c3 00 10		            JP      J_BASIC                            ;TINY BASIC PROGRAMMING LANGUAGE  
-0715 c3 00 18		            JP      J_GAMES                            ;GAMES FOR THE TEC-1F  
+0715 c3 e0 18		            JP      J_GAMES                            ;GAMES FOR THE TEC-1F  
 0718			  
 0718			;BELOW ARE THE JMON DEFAULT RESET VARIABLES (A ZERO IS THE ACTIVE RAM  
 0718			;STATE UNLESS OTHERWISE STATED). LOCATION  
