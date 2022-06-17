@@ -294,8 +294,8 @@
 004d c3 1b 05		L004D:      JP      RXCHAR                              ;RECIEVE BYTE  
 0050 c3 a3 04		L0050:      JP      PERI_SFT                            ;SOFT PERIMETER HANDLER ENTRY  
 0053 c3 48 05		L0053:      JP      BITIME                              ;BIT TIME DELAY  
-0056 ff ff ff ff ff ff ff	            DB      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF  ;SPARE  
-005d ff			            DB      0xFF                                ;SPARE  
+0056 c3 bd 05		L0056:      JP      ASCII_SCRL                          ;ASCII SCROLL ROUTINE  
+0059 ff ff ff ff ff	            DB      0xFF,0xFF,0xFF,0xFF,0xFF            ;SPARE  
 005e			  
 005e			;SHIFT-2 ROUTINE  
 005e			;THIS STORES THE CURRENT EDIT LOCATION IN THE "NEXT PC" BUFFER. THE INTERRUPTS ARE THEN  
@@ -1463,57 +1463,60 @@
 0595 08 ed e6 c4 ec cf 47 af	            DB      0x08, 0xED, 0xE6, 0xC4, 0xEC, 0xCF, 0x47, 0xAF ;` a b c d e f g  
 059d 66 40 a0 67 42 60 64 e4	            DB      0x66, 0x40, 0xA0, 0x67, 0x42, 0x60, 0x64, 0xE4 ;h i j k l m n o  
 05a5 4f 2f 44 a7 c6 e0 e0 60	            DB      0x4F, 0x2F, 0x44, 0xA7, 0xC6, 0xE0, 0xE0, 0x60 ;p q r s t u v w  
-05ad 6e ae cd 2c 42 46 01 00	            DB      0x6E, 0xAE, 0xCD, 0x2C, 0x42, 0x46, 0x01, 0x00 ;x y z { | } ~    
-05b5			  
-05b5			;THIS ROUTINE DISPLAYS ASCII CHARACTERS ON THE SEVEN SEGMENTS AND SCROLLS THE MESSAGE   
-05b5			;FROM RIGHT TO LEFT.  TO CREATE A MESSAGE, ENTER IN ASCII IN HEXADECIMAL AND ONCE  
-05b5			;COMPLETE, TERMINATE WITH A CARRIAGE RETURN (0x0D), THEN CALL THIS ROUTINE AND   
-05b5			;ENTER THE START ADDRESS OF THE ASCII DATA.  HIT 'GO' AND THE ASCII  
-05b5			;WILL BE DISPLAYED AND SCROLLED.  THE MESSAGE WILL REPEAT ONCE A CARRIAGE RETURN IS  
-05b5			;SEEN.  THIS IS 0x0D.  
-05b5			J_MSG_SCRL:  
-05b5 21 be 05		            LD      HL, ASCII_SCRL                      ;SET THE PERIMITER GO CALL  
-05b8 22 88 3f		            LD      (PERI_J_ADR), HL                    ;SAVE PERIMETER CALL  
-05bb c3 44 00		            JP      0044H                               ;CALL PERIMETER TO GET START/END  
-05be			  
-05be			ASCII_SCRL:  
-05be 21 00 3f		            LD      HL, DISP_BUFF                       ;PUT DISPLAY BUFFER AT 3F00  
-05c1 22 2c 3f		            LD      (V_DISPLAY), HL  
-05c4 af			            XOR     A                                   ;RESET A TO BLANK  
-05c5 06 06		            LD      B, 06H                              ;ALL SIX DISPLAYS  
-05c7			SL1:  
-05c7 77			            LD      (HL), A                             ;CLEAR DISPLAY  
-05c8 23			            INC     HL                                  ;MOVE TO NEXT DISPLAY  
-05c9 10 fc		            DJNZ    SL1                                 ;REPEAT SIX FIVE TIMES  
-05cb			  
-05cb 2a 98 3f		            LD      HL, (SIO_START)                     ;GET START ADDRESS  
-05ce			ASCII_SHIFT:  
-05ce 06 05		            LD      B,05H                               ;SHIFT DOWN DISPLAY  
-05d0 dd 21 00 3f	            LD      IX, DISP_BUFF                       ;POINT IX TO DISPLAY BUFFER START  
-05d4			SL2:  
-05d4 dd 7e 01		            LD      A,(IX+1)                            ;GET THE NEXT VALUE TO THE RIGHT   
-05d7 dd 77 00		            LD      (IX+0),A                            ;PLACE IT IN THE POSITION TO THE LEFT  
-05da dd 23		            INC     IX                                  ;MOVE TO NEXT SEGMENT  
-05dc 10 f6		            DJNZ    SL2                                 ;REPEAT SO THAT ALL FIVE SEGMENTS HAVE MOVE   
-05de 7e			            LD      A,(HL)                              ;GET THE NEXT ASCII VALUE  
-05df fe 0d		            CP      0x0D                                ;IS IT A CARRIAGE RETURN?  
-05e1 28 db		            JR      Z, ASCII_SCRL                       ;YES, GO BACK TO START AND REPEAT MESSAGE  
-05e3 d6 20		            SUB     0x20                                ;ADJUST FOR ASCII TABLE LOOKUP  
-05e5 11 55 05		            LD      DE, ASCII_SEG_TBL                   ;POINT DE TO BASE OF TABLE  
-05e8 83			            ADD     A, E                                ;INDEX E REGISTER WITH ASCII VALUE  
-05e9 5f			            LD      E, A                                ;UPDATE E WITH INDEXED VALUE  
-05ea 1a			            LD      A, (DE)                             ;RETRIEVE ASCII VALUE FOR SEVEN SEGMENT  
-05eb 32 05 3f		            LD      (DISP_BUFF + 5), A                  ;PLACE IN RIGHT MOST SPOT IN THE DISPLAY  
-05ee e5			            PUSH    HL                                  ;SAVE HL TO RETAIN ASCII INDEX POSITION  
-05ef 06 ff		            LD      B, 0xFF                             ;DELAY TO SLOW DOWN SCROLL  
-05f1			SL3:  
-05f1 c5			            PUSH    BC                                  ;SAVE BC  
-05f2 cd 36 3f		            CALL    LED_SCAN                            ;CALL SEGMENT SCAN ROUTINE  
-05f5 c1			            POP     BC                                  ;RESTORE BC FOR DELAY  
-05f6 10 f9		            DJNZ    SL3                                 ;REPEAT SCAN  
-05f8 e1			            POP     HL                                  ;RESTORE ASCII INDEX POSITION  
+05ad 6e ae cd 2c 42 46 01	            DB      0x6E, 0xAE, 0xCD, 0x2C, 0x42, 0x46, 0x01       ;x y z { | } ~    
+05b4			  
+05b4			;THIS ROUTINE DISPLAYS ASCII CHARACTERS ON THE SEVEN SEGMENTS AND SCROLLS THE MESSAGE   
+05b4			;FROM RIGHT TO LEFT.  TO CREATE A MESSAGE, ENTER IN ASCII IN HEXADECIMAL AND ONCE  
+05b4			;COMPLETE, TERMINATE WITH A CARRIAGE RETURN (0x0D), THEN CALL THIS ROUTINE AND   
+05b4			;ENTER THE START ADDRESS OF THE ASCII DATA.  HIT 'GO' AND THE ASCII  
+05b4			;WILL BE DISPLAYED AND SCROLLED.  THE MESSAGE WILL REPEAT ONCE A CARRIAGE RETURN IS  
+05b4			;SEEN.  THIS IS 0x0D.  
+05b4			J_MSG_SCRL:  
+05b4 21 bd 05		            LD      HL, ASCII_SCRL                      ;SET THE PERIMITER GO CALL  
+05b7 22 88 3f		            LD      (PERI_J_ADR), HL                    ;SAVE PERIMETER CALL  
+05ba c3 44 00		            JP      0044H                               ;CALL PERIMETER TO GET START/END  
+05bd			  
+05bd			ASCII_SCRL:  
+05bd 21 00 3f		            LD      HL, DISP_BUFF                       ;PUT DISPLAY BUFFER AT 3F00  
+05c0 22 2c 3f		            LD      (V_DISPLAY), HL  
+05c3 af			            XOR     A                                   ;RESET A TO BLANK  
+05c4 06 06		            LD      B, 06H                              ;ALL SIX DISPLAYS  
+05c6			SL1:  
+05c6 77			            LD      (HL), A                             ;CLEAR DISPLAY  
+05c7 23			            INC     HL                                  ;MOVE TO NEXT DISPLAY  
+05c8 10 fc		            DJNZ    SL1                                 ;REPEAT SIX FIVE TIMES  
+05ca			  
+05ca 2a 98 3f		            LD      HL, (SIO_START)                     ;GET START ADDRESS  
+05cd			ASCII_SHIFT:  
+05cd 06 05		            LD      B,05H                               ;SHIFT DOWN DISPLAY  
+05cf dd 21 00 3f	            LD      IX, DISP_BUFF                       ;POINT IX TO DISPLAY BUFFER START  
+05d3			SL2:  
+05d3 dd 7e 01		            LD      A,(IX+1)                            ;GET THE NEXT VALUE TO THE RIGHT   
+05d6 dd 77 00		            LD      (IX+0),A                            ;PLACE IT IN THE POSITION TO THE LEFT  
+05d9 dd 23		            INC     IX                                  ;MOVE TO NEXT SEGMENT  
+05db 10 f6		            DJNZ    SL2                                 ;REPEAT SO THAT ALL FIVE SEGMENTS HAVE MOVE   
+05dd 7e			            LD      A,(HL)                              ;GET THE NEXT ASCII VALUE  
+05de fe 0d		            CP      0x0D                                ;IS IT A CARRIAGE RETURN?  
+05e0 28 db		            JR      Z, ASCII_SCRL                       ;YES, GO BACK TO START AND REPEAT MESSAGE  
+05e2 d6 20		            SUB     0x20                                ;ADJUST FOR ASCII TABLE LOOKUP  
+05e4 11 55 05		            LD      DE, ASCII_SEG_TBL                   ;POINT DE TO BASE OF TABLE  
+05e7 83			            ADD     A, E                                ;INDEX E REGISTER WITH ASCII VALUE  
+05e8 5f			            LD      E, A                                ;UPDATE E WITH INDEXED VALUE  
+05e9 1a			            LD      A, (DE)                             ;RETRIEVE ASCII VALUE FOR SEVEN SEGMENT  
+05ea 32 05 3f		            LD      (DISP_BUFF + 5), A                  ;PLACE IN RIGHT MOST SPOT IN THE DISPLAY  
+05ed e5			            PUSH    HL                                  ;SAVE HL TO RETAIN ASCII INDEX POSITION  
+05ee 0e ff		            LD      C, 0xFF                             ;DELAY TO SLOW DOWN SCROLL  
+05f0			SL3:  
+05f0 df			            RST     18H                                 ;CALL SEGMENT SCAN/KEY ROUTINE  
+05f1 28 04		            JR      Z,SL4                               ;KEY PRESS, SO EXIT  
+05f3 0d			            DEC     C                                   ;DECREASE C  
+05f4 20 fa		            JR      NZ,SL3                              ;REPEAT SCAN  
+05f6 0c			            INC     C                                   ;MAKE NON ZERO  
+05f7			SL4:  
+05f7 e1			            POP     HL                                  ;RESTORE ASCII INDEX POSITION  
+05f8 c8			            RET     Z                                   ;IF KEY HIT THEN EXIT  
 05f9 23			            INC     HL                                  ;MOVE TO NEXT ASCII CHARACTER  
-05fa 18 d2		            JR      ASCII_SHIFT                         ;LOOP TO SCROLL MESSAGE  
+05fa 18 d1		            JR      ASCII_SHIFT                         ;LOOP TO SCROLL MESSAGE  
 05fc			  
 05fc			;THIS ROUTINE USES THE SERIAL IO TO RECIEVE AN INTEL HEX FILE.  CONNECT THE SERIAL TERMINAL  
 05fc			;AS 4800-8-N-2. INTEL HEX FILE FORMAT IS A STRING OF ASCII WITH THE FOLLOWING PARTS  
@@ -1734,7 +1737,7 @@
 0703 c3 26 04		            JP      J_SIO_TRANS                        ;SIO TRANSFER OUT  
 0706 c3 fc 05		            JP      J_INTEL_IN                         ;SIO INTEL HEX FILE INPUT  
 0709 c3 6a 06		            JP      J_ALT_KEY                          ;SWITCH BETWEEN ALTERNATE KEYBOARD LAYOUT  
-070c c3 b5 05		            JP      J_MSG_SCRL                         ;MESSAGE SCROLL ROUTINE  
+070c c3 b4 05		            JP      J_MSG_SCRL                         ;MESSAGE SCROLL ROUTINE  
 070f c3 00 08		            JP      J_MINT                             ;MINT PROGRAMMING LANGUAGE  
 0712 c3 00 10		            JP      J_BASIC                            ;TINY BASIC PROGRAMMING LANGUAGE  
 0715 c3 e0 18		            JP      J_GAMES                            ;GAMES FOR THE TEC-1F  

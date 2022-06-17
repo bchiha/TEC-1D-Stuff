@@ -293,8 +293,8 @@ L004A:      JP      TXCHAR                              ;TRANSMIT BYTE
 L004D:      JP      RXCHAR                              ;RECIEVE BYTE
 L0050:      JP      PERI_SFT                            ;SOFT PERIMETER HANDLER ENTRY
 L0053:      JP      BITIME                              ;BIT TIME DELAY
-            DB      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF  ;SPARE
-            DB      0xFF                                ;SPARE
+L0056:      JP      ASCII_SCRL                          ;ASCII SCROLL ROUTINE
+            DB      0xFF,0xFF,0xFF,0xFF,0xFF            ;SPARE
 
 ;SHIFT-2 ROUTINE
 ;THIS STORES THE CURRENT EDIT LOCATION IN THE "NEXT PC" BUFFER. THE INTERRUPTS ARE THEN
@@ -1462,7 +1462,7 @@ ASCII_SEG_TBL:
             DB      0x08, 0xED, 0xE6, 0xC4, 0xEC, 0xCF, 0x47, 0xAF ;` a b c d e f g
             DB      0x66, 0x40, 0xA0, 0x67, 0x42, 0x60, 0x64, 0xE4 ;h i j k l m n o
             DB      0x4F, 0x2F, 0x44, 0xA7, 0xC6, 0xE0, 0xE0, 0x60 ;p q r s t u v w
-            DB      0x6E, 0xAE, 0xCD, 0x2C, 0x42, 0x46, 0x01, 0x00 ;x y z { | } ~  
+            DB      0x6E, 0xAE, 0xCD, 0x2C, 0x42, 0x46, 0x01       ;x y z { | } ~  
 
 ;THIS ROUTINE DISPLAYS ASCII CHARACTERS ON THE SEVEN SEGMENTS AND SCROLLS THE MESSAGE 
 ;FROM RIGHT TO LEFT.  TO CREATE A MESSAGE, ENTER IN ASCII IN HEXADECIMAL AND ONCE
@@ -1504,13 +1504,16 @@ SL2:
             LD      A, (DE)                             ;RETRIEVE ASCII VALUE FOR SEVEN SEGMENT
             LD      (DISP_BUFF + 5), A                  ;PLACE IN RIGHT MOST SPOT IN THE DISPLAY
             PUSH    HL                                  ;SAVE HL TO RETAIN ASCII INDEX POSITION
-            LD      B, 0xFF                             ;DELAY TO SLOW DOWN SCROLL
+            LD      C, 0xFF                             ;DELAY TO SLOW DOWN SCROLL
 SL3:
-            PUSH    BC                                  ;SAVE BC
-            CALL    LED_SCAN                            ;CALL SEGMENT SCAN ROUTINE
-            POP     BC                                  ;RESTORE BC FOR DELAY
-            DJNZ    SL3                                 ;REPEAT SCAN
+            RST     18H                                 ;CALL SEGMENT SCAN/KEY ROUTINE
+            JR      Z,SL4                               ;KEY PRESS, SO EXIT
+            DEC     C                                   ;DECREASE C
+            JR      NZ,SL3                              ;REPEAT SCAN
+            INC     C                                   ;MAKE NON ZERO
+SL4:
             POP     HL                                  ;RESTORE ASCII INDEX POSITION
+            RET     Z                                   ;IF KEY HIT THEN EXIT
             INC     HL                                  ;MOVE TO NEXT ASCII CHARACTER
             JR      ASCII_SHIFT                         ;LOOP TO SCROLL MESSAGE
 
