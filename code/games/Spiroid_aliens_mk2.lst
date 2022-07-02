@@ -1,0 +1,291 @@
+# File /Users/slarti/Documents/TEC1x/TEC-1D-Stuff/code/games/Spiroid_aliens_mk2.z80
+0000			; Spiriod Aliens Mark 2 
+0000			; --------------------- 
+0000			; 
+0000			; Game Written by Brian Chiha for the TEC  
+0000			; brian.chiha@gmail.com  -- June 2022 
+0000			; based off Spiriod Aliens games published in the Talking Electroincs Magazine 
+0000			; issue #12 by M Allison.  This is a full rewrite so in can be used in a ROM 
+0000			; and to clean up the code as its very messy!  As it is stand alone, I have included 
+0000			; the utility routines, Music, Message and Scan.   
+0000			; 
+0000			; The game consists of unusual shaped aliens passing across the display. Each game consists 
+0000			; of 16 passes and you must shoot down the arrivals by pressing buttons 0 to 3. To win 
+0000			; you must shoot down at least 11. 
+0000			; In the initial stages of the game, you must acquaint yourself with the connection betweeen 
+0000			; the spiroid shapes and buttons 0-3. After this you will be ready to launch an attack. 
+0000			 
+0000			 
+0000			;Memory Locations 
+0000			DELAYSP:    EQU     3D00H 	        ;Game Delay Speed 
+0000			TUNEADR:    EQU     3D01H           ;Tune address 
+0000			MESGADR:    EQU     3D03H           ;Message address 
+0000			RANDNO:     EQU     3D05H           ;Random number 
+0000			DISP_BUFF:  EQU     3D06H           ;Display buffer for message 
+0000			 
+0000			            ORG     2000H           ;Start Location of Code 
+2000			SPIALIEN: 
+2000 01 00 10		            LD      BC,1000H        ;Sixteen rounds / Zero hit 
+2003			START: 
+2003 c5			            PUSH    BC               
+2004 3e f0		            LD      A,0F0H 
+2006 32 00 3d		            LD      (DELAYSP),A     ;Initial Delay speed 
+2009			;Get Random Alien 
+2009 cd 99 20		            CALL    RANDOM          ;RNG 
+200c e6 03		            AND     03H             ;Mask out last three bits 
+200e			;Get Alien 
+200e 57			            LD      D,A             ;Save Alien Key match 
+200f 1e 01		            LD      E,01H           ;Scan Port 
+2011 21 d6 20		            LD      HL,ALIENS       ;Load HL with Alien Table 
+2014 85			            ADD     A,L             ;Index HL with A 
+2015 6f			            LD      L,A 
+2016 7e			            LD      A,(HL)          ;Get Alian Glyph 
+2017			;Game Loop 
+2017 d3 02		            OUT     (02),A          ;Send Glyph to Segments 
+2019			SP2: 
+2019 7b			            LD      A,E             ;Get Scan Port 
+201a d3 01		            OUT     (01),A          ;Turn on Segment 
+201c cd 8d 20		            CALL    DELAY           ;Pause for a bit 
+201f cd 48 21		            CALL    BEEP            ;Play a sound 
+2022			;Check Key Hit 
+2022			                                    ;Replace RST 20/NOP to LD A,I if JMON isn't used 
+2022 e7			            RST     20H             ;JMON No Wait Key handler 
+2023 00			            NOP  
+2024 fe ff		            CP      0FFH            ;If FF then no key hit 
+2026 28 03		            JR      Z, SP3          ;Continue with game 
+2028 ba			            CP      D               ;Compare key with alien key 
+2029 28 0b		            JR      Z, SP4          ;Its a Hit, 
+202b			SP3: 
+202b			;Move Segment 
+202b cb 03		            RLC     E               ;Move Segment left one 
+202d cb 73		            BIT     6,E  
+202f 28 e8		            JR      Z,SP2           ;No, display again 
+2031			;Miss/Hit Setup 
+2031 21 e6 20		            LD      HL,AMTABLE+6    ;Set to Miss Graphic 
+2034 18 03		            JR      SP5             ;Animate 
+2036			SP4: 
+2036 21 e0 20		            LD      HL,AHTABLE+6    ;Set To Hit Graphic 
+2039			SP5:                                ;Animate Hit/Miss 
+2039 0e 01		            LD      C,01H           ;First Segment 
+203b			SP6: 
+203b 3e fa		            LD      A,0FAH          ;Minus 6 
+203d 85			            ADD     A,L             ;Fix HL to point 
+203e 6f			            LD      L,A             ;To start of table 
+203f 06 06		            LD      B,06H           ;Six Segments 
+2041			SP7: 
+2041 7e			            LD      A,(HL)          ;Get Segment 
+2042 d3 02		            OUT     (02),A          ;Light Segment 
+2044 79			            LD      A,C             ;Get Scan Bit 
+2045 d3 01		            OUT     (01),A          ;Turn on Segment 
+2047 e5			            PUSH    HL              ;Save HL 
+2048 c5			            PUSH    BC              ;Save BC 
+2049 cd 8d 20		            CALL    DELAY           ;Wait 
+204c cd 4d 21		            CALL    PLAYTONE        ; 
+204f 21 00 3d		            LD      HL,DELAYSP      ;Get Delay Speed 
+2052 06 07		            LD      B,07H           ;Get Subtraction 
+2054 35			SP8:        DEC     (HL)            ;Take 7 off 
+2055 10 fd		            DJNZ    SP8     
+2057 c1			            POP     BC              ;Restore 
+2058 e1			            POP     HL              ;Restore 
+2059 23			            INC     HL              ;Get next Segment 
+205a 10 e5		            DJNZ    SP7             ;Repeat until all segments printed 
+205c cb 01		            RLC     C               ;Move to next segment 
+205e 0c			            INC     C               ;Increase E 
+205f cb 71		            BIT     6,C             ;It it passed all segments 
+2061 28 d8		            JR      Z,SP6           ;Do next segment 
+2063 c1			            POP     BC              ;Restore Score/Rounds 
+2064 3e 80		            LD      A,80H           ;Check for hit/miss 
+2066 be			            CP      (HL)            ;If 01H, then must be a hit 
+2067 20 01		            JR      NZ,SP9          ;Skip score update 
+2069 0c			            INC     C               ;Add to score 
+206a			SP9: 
+206a 10 97		            DJNZ    START           ;Do next Round with new Alien 
+206c			GAMEOVER:    
+206c 21 e6 20		            LD      HL,WINTUNE 
+206f 11 f7 20		            LD      DE,WINMESG 
+2072 79			            LD      A,C             ;Load # hits in A 
+2073 fe 0b		            CP      0BH             ;Has atleast 11 been hit? 
+2075 30 06		            JR      NC,SP11 
+2077 21 f0 20		            LD      HL,LOSTUNE 
+207a 11 09 21		            LD      DE,LOSMESG 
+207d			SP11: 
+207d 22 01 3d		            LD      (TUNEADR),HL 
+2080 ed 53 03 3d	            LD      (MESGADR),DE 
+2084 cd 17 21		            CALL    PLAYTUNE 
+2087 cd 60 21		            CALL    ASCII_SCRL 
+208a c3 00 20		            JP      SPIALIEN     
+208d			DELAY: 
+208d 3a 00 3d		            LD      A,(DELAYSP) 
+2090 67			            LD      H,A 
+2091 2e 00		            LD      L,00H 
+2093			SP10: 
+2093 2b						DEC     HL 
+2094 7c						LD      A,H 
+2095 b5						OR      L 
+2096 20 fb					JR      NZ,SP10 
+2098 c9						RET 
+2099			 
+2099			RANDOM: 
+2099 ed 5f		            LD      A,R 
+209b 47			            LD      B,A 
+209c 3a 05 3d		            LD      A,(RANDNO) 
+209f a8			            XOR     B 
+20a0 87			            ADD     A,A 
+20a1 a8			            XOR     B 
+20a2 32 05 3d		            LD      (RANDNO),A 
+20a5 c9			            RET 
+20a6			 
+20a6			;frequency table, contains wavelength and frequency combined sequentially 
+20a6 fc 59 f3 5a ec 5c e5 5d	FREQTBL:    DB      0FCH,59H,0F3H,5AH,0ECH,5CH,0E5H,5DH 
+20ae e0 5e d7 60 d2 63 cc 65	            DB      0E0H,5EH,0D7H,60H,0D2H,63H,0CCH,65H 
+20b6 c7 67 c2 69 be 6c b8 6e	            DB      0C7H,67H,0C2H,69H,0BEH,6CH,0B8H,6EH 
+20be b5 71 b1 73 ac 77 a9 7a	            DB      0B5H,71H,0B1H,73H,0ACH,77H,0A9H,7AH 
+20c6 a6 7d a2 81 9f 85 9c 89	            DB      0A6H,7DH,0A2H,81H,09FH,85H,09CH,89H 
+20ce 9a 8d 97 92 95 97 93 9c	            DB      09AH,8DH,097H,92H,095H,97H,093H,9CH 
+20d6			 
+20d6 0f 26 61 c9	ALIENS:     DB      0FH,26H,61H,0C9H 
+20da			 
+20da 01 09 29 a9 e9 eb	AHTABLE:    DB      01H,09H,29H,0A9H,0E9H,0EBH    ;Hit Animation 
+20e0 80 64 6b 64 80 00	AMTABLE:    DB      80H,64H,6BH,64H,80H,00H      ;Miss Animation 
+20e6			 
+20e6 04 00 04 00 04 00 01 01 01 1f	WINTUNE:    DB      04H,00H,04H,00H,04H,00H,01H,01H,01H,1FH 
+20f0 01 18 01 18 01 18 1f	LOSTUNE:    DB      01H,18H,01H,18H,01H,18H,1FH 
+20f7 .. 0d		WINMESG:    DB      "ALIENS DESTROYED!",0DH 
+2109 .. 0d		LOSMESG:    DB      "END OF EARTH!",0DH 
+2117			 
+2117			;----------------------- CUT HERE -------------------------- 
+2117			;------------------ FOR MON 1 UTILITIES -------------------- 
+2117			PLAYTUNE:        
+2117 ed 5b 01 3d	            LD      DE,(TUNEADR)    ;de = address of tune 
+211b 1a			PTLOOP1:    LD      A,(DE)          ;a = (de); a = note 
+211c 13			            INC     DE              ;de++ 
+211d fe 1f		            CP      1FH             ;if (a == ENDOFTUNE) 
+211f c8			            RET     Z               ;    return 
+2120 fe 1e		            CP      1EH             ;if (a == REPEATTUNE) 
+2122 28 f3		            JR      Z,PLAYTUNE      ;  goto PLAYTUNE 
+2124 fe 19		            CP      19H             ;if out of range 
+2126 30 16		            JR      NC,PTSILENCE    ;  goto PTSILENCE 
+2128 b7			            OR      A               ;if (a == SILENCE) 
+2129 28 13		            JR      Z,PTSILENCE     ;  goto PTSILENCE 
+212b 21 a6 20		            LD      HL,FREQTBL      ;hl = frequency table 
+212e 3d			            DEC     A               ;fix for indexing 
+212f 87			            ADD     A,A             ;double a for correct index 
+2130 85			            ADD     A,L             ;a = offset 
+2131 6f			            LD      L,A             ;l = index 
+2132 7e			            LD      A,(HL)          ;a = table + offset 
+2133 4f			            LD      C,A             ;c = wave length 
+2134 23			            INC     HL              ;h1 = frequency num cycles 
+2135 7e			            LD      A,(HL)          ; 
+2136 6f			            LD      L,A             ;l = num cycles 
+2137 26 00		            LD      H,00H            
+2139 cd 4d 21		            CALL    PLAYTONE        ;c and hl 
+213c 18 dd		            JR      PTLOOP1         ;play next note 
+213e 21 00 40		PTSILENCE:  LD      HL,4000H        ;delay count = 1000 
+2141 2b			PTLOOP2:    DEC     HL              ;hl-- 
+2142 7c			            LD      A,H 
+2143 b5			            OR      L               ;if (hl != 0) 
+2144 20 fb		            JR      NZ,PTLOOP2      ;  goto PTLOOP2 
+2146 18 d3		            JR      PTLOOP1         ;play next note 
+2148			 
+2148 21 20 00		BEEP:       LD     HL,0020H         ;get delay 
+214b 0e 40		            LD     C,40H            ;wavylength 
+214d			 
+214d			;The Play tone routine can be called from anywhere.  Use HL as the  
+214d			;duration and C as the wavelength.  Duration's maximum is 7FH. 
+214d 29			PLAYTONE:   ADD     HL,HL           ;hl = hl + h1 
+214e af			            XOR     A               ;a = 0 
+214f d5			            PUSH    DE 
+2150 11 01 00		            LD      DE,0001H 
+2153 d3 01		MTLOOP:     OUT     (01),A          ;toggle speaker bit 
+2155 41			            LD      B,C             ;b = c 
+2156 10 fe		MTDELAY:    DJNZ    MTDELAY         ;delay? 
+2158 ee 80		            XOR     80H             ;invert bit 7 of a 
+215a ed 52		            SBC     HL,DE           ;hl = hl - 1 
+215c 20 f5		            JR      NZ,MTLOOP       ;repeat until l = 0 
+215e d1			            POP     DE 
+215f c9			            RET 
+2160			 
+2160			;ASCII SCROLL ROUTINE 
+2160			ASCII_SCRL: 
+2160 21 06 3d		            LD      HL, DISP_BUFF                       ;PUT DISPLAY BUFFER AT 3F00 
+2163 af			            XOR     A                                   ;RESET A TO BLANK 
+2164 06 06		            LD      B, 06H                              ;ALL SIX DISPLAYS 
+2166			SL1: 
+2166 77			            LD      (HL), A                             ;CLEAR DISPLAY 
+2167 23			            INC     HL                                  ;MOVE TO NEXT DISPLAY 
+2168 10 fc		            DJNZ    SL1                                 ;REPEAT SIX FIVE TIMES 
+216a			 
+216a 2a 03 3d		            LD      HL, (MESGADR)                       ;GET START ADDRESS 
+216d			ASCII_SHIFT: 
+216d 06 05		            LD      B,05H                               ;SHIFT DOWN DISPLAY 
+216f dd 21 06 3d	            LD      IX, DISP_BUFF                       ;POINT IX TO DISPLAY BUFFER START 
+2173			SL2: 
+2173 dd 7e 01		            LD      A,(IX+1)                            ;GET THE NEXT VALUE TO THE RIGHT  
+2176 dd 77 00		            LD      (IX+0),A                            ;PLACE IT IN THE POSITION TO THE LEFT 
+2179 dd 23		            INC     IX                                  ;MOVE TO NEXT SEGMENT 
+217b 10 f6		            DJNZ    SL2                                 ;REPEAT SO THAT ALL FIVE SEGMENTS HAVE MOVE  
+217d 7e			            LD      A,(HL)                              ;GET THE NEXT ASCII VALUE 
+217e fe 0d		            CP      0x0D                                ;IS IT A CARRIAGE RETURN? 
+2180 28 de		            JR      Z, ASCII_SCRL                       ;YES, GO BACK TO START AND REPEAT MESSAGE 
+2182 d6 20		            SUB     0x20                                ;ADJUST FOR ASCII TABLE LOOKUP 
+2184 11 a3 21		            LD      DE, ASCII_SEG_TBL                   ;POINT DE TO BASE OF TABLE 
+2187 83			            ADD     A, E                                ;INDEX E REGISTER WITH ASCII VALUE 
+2188 5f			            LD      E, A                                ;UPDATE E WITH INDEXED VALUE 
+2189 1a			            LD      A, (DE)                             ;RETRIEVE ASCII VALUE FOR SEVEN SEGMENT 
+218a 32 0b 3d		            LD      (DISP_BUFF + 5), A                  ;PLACE IN RIGHT MOST SPOT IN THE DISPLAY 
+218d e5			            PUSH    HL                                  ;SAVE HL TO RETAIN ASCII INDEX POSITION 
+218e 0e ff		            LD      C, 0xFF                             ;DELAY TO SLOW DOWN SCROLL 
+2190			SL3: 
+2190 cd 02 22		            CALL    SCAN                                ;CALL SEGMENT SCAN/KEY ROUTINE 
+2193			                                    ;Replace RST 20/NOP to LD A,I if JMON isn't used 
+2193 e7			            RST     20H             ;JMON No Wait Key handler 
+2194 00			            NOP  
+2195 fe ff		            CP      0FFH            ;If FF then no key hit 
+2197			 
+2197 20 08		            JR      NZ,SL4                              ;KEY PRESS, SO EXIT 
+2199 0d			            DEC     C                                   ;DECREASE C 
+219a 20 f4		            JR      NZ,SL3                              ;REPEAT SCAN 
+219c 0c			            INC     C                                   ;MAKE NON ZERO 
+219d e1			            POP     HL 
+219e 23			            INC     HL                                  ;MOVE TO NEXT ASCII CHARACTER 
+219f 18 cc		            JR      ASCII_SHIFT                         ;LOOP TO SCROLL MESSAGE 
+21a1			SL4: 
+21a1 e1			            POP     HL                                  ;RESTORE ASCII INDEX POSITION 
+21a2 c9			            RET                                         ;IF KEY HIT THEN EXIT 
+21a3			 
+21a3			;ASCII TO SEVEN SEGMENT LOOKUP TABLE,  PLACED HERE SO TO BE SITTING IN THE SAME PAGE 
+21a3			;OF MEMORY, 0555H TO 055B4H 
+21a3			ASCII_SEG_TBL: 
+21a3 00 18 0a ee a7 5c 2c 02	            DB      0x00, 0x18, 0x0A, 0xEE, 0xA7, 0x5C, 0x2C, 0x02 ;  ! " # $ % & ' 
+21ab 83 89 a3 46 40 04 10 4c	            DB      0x83, 0x89, 0xA3, 0x46, 0x40, 0x04, 0x10, 0x4C ;( ) * + , - . / 
+21b3 eb 28 cd ad 2e a7 e7 29	            DB      0xEB, 0x28, 0xCD, 0xAD, 0x2E, 0xA7, 0xE7, 0x29 ;0 1 2 3 4 5 6 7 
+21bb ef af 81 a1 07 84 0d 5d	            DB      0xEF, 0xAF, 0x81, 0xA1, 0x07, 0x84, 0x0D, 0x5D ;8 9 : ; < = > ? 
+21c3 ed 6f e6 c3 ec c7 47 e3	            DB      0xED, 0x6F, 0xE6, 0xC3, 0xEC, 0xC7, 0x47, 0xE3 ;@ A B C D E F G 
+21cb 6e 42 e8 67 c2 61 6b eb	            DB      0x6E, 0x42, 0xE8, 0x67, 0xC2, 0x61, 0x6B, 0xEB ;H I J K L M N O 
+21d3 4f 8f 4b a7 c6 ea ea 8a	            DB      0x4F, 0x8F, 0x4B, 0xA7, 0xC6, 0xEA, 0xEA, 0x8A ;P Q R S T U V W 
+21db 6e ae cd c3 26 a9 0b 80	            DB      0x6E, 0xAE, 0xCD, 0xC3, 0x26, 0xA9, 0x0B, 0x80 ;X Y Z [ \ ] ^ _ 
+21e3 08 ed e6 c4 ec cf 47 af	            DB      0x08, 0xED, 0xE6, 0xC4, 0xEC, 0xCF, 0x47, 0xAF ;` a b c d e f g 
+21eb 66 40 a0 67 42 60 64 e4	            DB      0x66, 0x40, 0xA0, 0x67, 0x42, 0x60, 0x64, 0xE4 ;h i j k l m n o 
+21f3 4f 2f 44 a7 c6 e0 e0 60	            DB      0x4F, 0x2F, 0x44, 0xA7, 0xC6, 0xE0, 0xE0, 0x60 ;p q r s t u v w 
+21fb 6e ae cd 2c 42 46 01	            DB      0x6E, 0xAE, 0xCD, 0x2C, 0x42, 0x46, 0x01       ;x y z { | } ~   
+2202			;Multiplex Routine 
+2202			SCAN: 
+2202 06 20		            LD      B, 20H                              ;B IS THE SCAN BIT 
+2204 21 06 3d		            LD      HL, DISP_BUFF                       ;GET ADDRESS OF DISPLAY BUFFER 
+2207 7e			L01BF:      LD      A, (HL)                             ;GET FIRST BYTE 
+2208 d3 02		            OUT     (02), A                             ;AND OUTPUT IT TO SEGMENTS 
+220a 78			            LD      A, B                                ;GET SCAN BIT 
+220b d3 01		            OUT     (01), A                             ;OUTPUT IT TO COMMONS 
+220d 06 40		            LD      B, 40H                              ;CREATE SHORT 
+220f 10 fe		L01C7:      DJNZ    L01C7                               ;DELAY IN B 
+2211 23			            INC     HL                                  ;INCREASE HL TO NEXT DISPLAY BYTE 
+2212 47			            LD      B, A                                ;GET SCAN BIT BACK IN B 
+2213 af			            XOR     A                                   ;CLEAR THE LAST PORT OUTPUTTED TO 
+2214 d3 01		            OUT     (01), A                             ;TO PREVENT "GHOSTING" 
+2216 cb 08		            RRC     B                                   ;SHIFT SCAN BIT ACROSS TO NEXT 
+2218 30 ed		            JR      NC, L01BF                           ;COMMON: WHEN SCAN BIT FALLS INTO 
+221a d3 02		            OUT     (02), A                             ;CARRY SCAN IS TERMINATED: CLEAR 
+221c c9			            RET                                         ;PORT 2 AND RETURN 
+221d			 
+# End of file /Users/slarti/Documents/TEC1x/TEC-1D-Stuff/code/games/Spiroid_aliens_mk2.z80
+221d

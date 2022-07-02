@@ -1,0 +1,288 @@
+; Spiriod Aliens Mark 2
+; ---------------------
+;
+; Game Written by Brian Chiha for the TEC 
+; brian.chiha@gmail.com  -- June 2022
+; based off Spiriod Aliens games published in the Talking Electroincs Magazine
+; issue #12 by M Allison.  This is a full rewrite so in can be used in a ROM
+; and to clean up the code as its very messy!  As it is stand alone, I have included
+; the utility routines, Music, Message and Scan.  
+;
+; The game consists of unusual shaped aliens passing across the display. Each game consists
+; of 16 passes and you must shoot down the arrivals by pressing buttons 0 to 3. To win
+; you must shoot down at least 11.
+; In the initial stages of the game, you must acquaint yourself with the connection betweeen
+; the spiroid shapes and buttons 0-3. After this you will be ready to launch an attack.
+
+
+;Memory Locations
+DELAYSP:    EQU     3D00H 	        ;Game Delay Speed
+TUNEADR:    EQU     3D01H           ;Tune address
+MESGADR:    EQU     3D03H           ;Message address
+RANDNO:     EQU     3D05H           ;Random number
+DISP_BUFF:  EQU     3D06H           ;Display buffer for message
+
+            ORG     2000H           ;Start Location of Code
+SPIALIEN:
+            LD      BC,1000H        ;Sixteen rounds / Zero hit
+START:
+            PUSH    BC              
+            LD      A,0F0H
+            LD      (DELAYSP),A     ;Initial Delay speed
+;Get Random Alien
+            CALL    RANDOM          ;RNG
+            AND     03H             ;Mask out last three bits
+;Get Alien
+            LD      D,A             ;Save Alien Key match
+            LD      E,01H           ;Scan Port
+            LD      HL,ALIENS       ;Load HL with Alien Table
+            ADD     A,L             ;Index HL with A
+            LD      L,A
+            LD      A,(HL)          ;Get Alian Glyph
+;Game Loop
+            OUT     (02),A          ;Send Glyph to Segments
+SP2:
+            LD      A,E             ;Get Scan Port
+            OUT     (01),A          ;Turn on Segment
+            CALL    DELAY           ;Pause for a bit
+            CALL    BEEP            ;Play a sound
+;Check Key Hit
+                                    ;Replace RST 20/NOP to LD A,I if JMON isn't used
+            RST     20H             ;JMON No Wait Key handler
+            NOP 
+            CP      0FFH            ;If FF then no key hit
+            JR      Z, SP3          ;Continue with game
+            CP      D               ;Compare key with alien key
+            JR      Z, SP4          ;Its a Hit,
+SP3:
+;Move Segment
+            RLC     E               ;Move Segment left one
+            BIT     6,E 
+            JR      Z,SP2           ;No, display again
+;Miss/Hit Setup
+            LD      HL,AMTABLE+6    ;Set to Miss Graphic
+            JR      SP5             ;Animate
+SP4:
+            LD      HL,AHTABLE+6    ;Set To Hit Graphic
+SP5:                                ;Animate Hit/Miss
+            LD      C,01H           ;First Segment
+SP6:
+            LD      A,0FAH          ;Minus 6
+            ADD     A,L             ;Fix HL to point
+            LD      L,A             ;To start of table
+            LD      B,06H           ;Six Segments
+SP7:
+            LD      A,(HL)          ;Get Segment
+            OUT     (02),A          ;Light Segment
+            LD      A,C             ;Get Scan Bit
+            OUT     (01),A          ;Turn on Segment
+            PUSH    HL              ;Save HL
+            PUSH    BC              ;Save BC
+            CALL    DELAY           ;Wait
+            CALL    PLAYTONE        ;
+            LD      HL,DELAYSP      ;Get Delay Speed
+            LD      B,07H           ;Get Subtraction
+SP8:        DEC     (HL)            ;Take 7 off
+            DJNZ    SP8    
+            POP     BC              ;Restore
+            POP     HL              ;Restore
+            INC     HL              ;Get next Segment
+            DJNZ    SP7             ;Repeat until all segments printed
+            RLC     C               ;Move to next segment
+            INC     C               ;Increase E
+            BIT     6,C             ;It it passed all segments
+            JR      Z,SP6           ;Do next segment
+            POP     BC              ;Restore Score/Rounds
+            LD      A,80H           ;Check for hit/miss
+            CP      (HL)            ;If 01H, then must be a hit
+            JR      NZ,SP9          ;Skip score update
+            INC     C               ;Add to score
+SP9:
+            DJNZ    START           ;Do next Round with new Alien
+GAMEOVER:   
+            LD      HL,WINTUNE
+            LD      DE,WINMESG
+            LD      A,C             ;Load # hits in A
+            CP      0BH             ;Has atleast 11 been hit?
+            JR      NC,SP11
+            LD      HL,LOSTUNE
+            LD      DE,LOSMESG
+SP11:
+            LD      (TUNEADR),HL
+            LD      (MESGADR),DE
+            CALL    PLAYTUNE
+            CALL    ASCII_SCRL
+            JP      SPIALIEN    
+DELAY:
+            LD      A,(DELAYSP)
+            LD      H,A
+            LD      L,00H
+SP10:
+			DEC     HL
+			LD      A,H
+			OR      L
+			JR      NZ,SP10
+			RET
+
+RANDOM:
+            LD      A,R
+            LD      B,A
+            LD      A,(RANDNO)
+            XOR     B
+            ADD     A,A
+            XOR     B
+            LD      (RANDNO),A
+            RET
+
+;frequency table, contains wavelength and frequency combined sequentially
+FREQTBL:    DB      0FCH,59H,0F3H,5AH,0ECH,5CH,0E5H,5DH
+            DB      0E0H,5EH,0D7H,60H,0D2H,63H,0CCH,65H
+            DB      0C7H,67H,0C2H,69H,0BEH,6CH,0B8H,6EH
+            DB      0B5H,71H,0B1H,73H,0ACH,77H,0A9H,7AH
+            DB      0A6H,7DH,0A2H,81H,09FH,85H,09CH,89H
+            DB      09AH,8DH,097H,92H,095H,97H,093H,9CH
+
+ALIENS:     DB      0FH,26H,61H,0C9H
+
+AHTABLE:    DB      01H,09H,29H,0A9H,0E9H,0EBH    ;Hit Animation
+AMTABLE:    DB      80H,64H,6BH,64H,80H,00H      ;Miss Animation
+
+WINTUNE:    DB      04H,00H,04H,00H,04H,00H,01H,01H,01H,1FH
+LOSTUNE:    DB      01H,18H,01H,18H,01H,18H,1FH
+WINMESG:    DB      "ALIENS DESTROYED!",0DH
+LOSMESG:    DB      "END OF EARTH!",0DH
+
+;----------------------- CUT HERE --------------------------
+;------------------ FOR MON 1 UTILITIES --------------------
+PLAYTUNE:       
+            LD      DE,(TUNEADR)    ;de = address of tune
+PTLOOP1:    LD      A,(DE)          ;a = (de); a = note
+            INC     DE              ;de++
+            CP      1FH             ;if (a == ENDOFTUNE)
+            RET     Z               ;    return
+            CP      1EH             ;if (a == REPEATTUNE)
+            JR      Z,PLAYTUNE      ;  goto PLAYTUNE
+            CP      19H             ;if out of range
+            JR      NC,PTSILENCE    ;  goto PTSILENCE
+            OR      A               ;if (a == SILENCE)
+            JR      Z,PTSILENCE     ;  goto PTSILENCE
+            LD      HL,FREQTBL      ;hl = frequency table
+            DEC     A               ;fix for indexing
+            ADD     A,A             ;double a for correct index
+            ADD     A,L             ;a = offset
+            LD      L,A             ;l = index
+            LD      A,(HL)          ;a = table + offset
+            LD      C,A             ;c = wave length
+            INC     HL              ;h1 = frequency num cycles
+            LD      A,(HL)          ;
+            LD      L,A             ;l = num cycles
+            LD      H,00H           
+            CALL    PLAYTONE        ;c and hl
+            JR      PTLOOP1         ;play next note
+PTSILENCE:  LD      HL,4000H        ;delay count = 1000
+PTLOOP2:    DEC     HL              ;hl--
+            LD      A,H
+            OR      L               ;if (hl != 0)
+            JR      NZ,PTLOOP2      ;  goto PTLOOP2
+            JR      PTLOOP1         ;play next note
+
+BEEP:       LD     HL,0020H         ;get delay
+            LD     C,40H            ;wavylength
+
+;The Play tone routine can be called from anywhere.  Use HL as the 
+;duration and C as the wavelength.  Duration's maximum is 7FH.
+PLAYTONE:   ADD     HL,HL           ;hl = hl + h1
+            XOR     A               ;a = 0
+            PUSH    DE
+            LD      DE,0001H
+MTLOOP:     OUT     (01),A          ;toggle speaker bit
+            LD      B,C             ;b = c
+MTDELAY:    DJNZ    MTDELAY         ;delay?
+            XOR     80H             ;invert bit 7 of a
+            SBC     HL,DE           ;hl = hl - 1
+            JR      NZ,MTLOOP       ;repeat until l = 0
+            POP     DE
+            RET
+
+;ASCII SCROLL ROUTINE
+ASCII_SCRL:
+            LD      HL, DISP_BUFF                       ;PUT DISPLAY BUFFER AT 3F00
+            XOR     A                                   ;RESET A TO BLANK
+            LD      B, 06H                              ;ALL SIX DISPLAYS
+SL1:
+            LD      (HL), A                             ;CLEAR DISPLAY
+            INC     HL                                  ;MOVE TO NEXT DISPLAY
+            DJNZ    SL1                                 ;REPEAT SIX FIVE TIMES
+
+            LD      HL, (MESGADR)                       ;GET START ADDRESS
+ASCII_SHIFT:
+            LD      B,05H                               ;SHIFT DOWN DISPLAY
+            LD      IX, DISP_BUFF                       ;POINT IX TO DISPLAY BUFFER START
+SL2:
+            LD      A,(IX+1)                            ;GET THE NEXT VALUE TO THE RIGHT 
+            LD      (IX+0),A                            ;PLACE IT IN THE POSITION TO THE LEFT
+            INC     IX                                  ;MOVE TO NEXT SEGMENT
+            DJNZ    SL2                                 ;REPEAT SO THAT ALL FIVE SEGMENTS HAVE MOVE 
+            LD      A,(HL)                              ;GET THE NEXT ASCII VALUE
+            CP      0x0D                                ;IS IT A CARRIAGE RETURN?
+            JR      Z, ASCII_SCRL                       ;YES, GO BACK TO START AND REPEAT MESSAGE
+            SUB     0x20                                ;ADJUST FOR ASCII TABLE LOOKUP
+            LD      DE, ASCII_SEG_TBL                   ;POINT DE TO BASE OF TABLE
+            ADD     A, E                                ;INDEX E REGISTER WITH ASCII VALUE
+            LD      E, A                                ;UPDATE E WITH INDEXED VALUE
+            LD      A, (DE)                             ;RETRIEVE ASCII VALUE FOR SEVEN SEGMENT
+            LD      (DISP_BUFF + 5), A                  ;PLACE IN RIGHT MOST SPOT IN THE DISPLAY
+            PUSH    HL                                  ;SAVE HL TO RETAIN ASCII INDEX POSITION
+            LD      C, 0xFF                             ;DELAY TO SLOW DOWN SCROLL
+SL3:
+            CALL    SCAN                                ;CALL SEGMENT SCAN/KEY ROUTINE
+                                    ;Replace RST 20/NOP to LD A,I if JMON isn't used
+            RST     20H             ;JMON No Wait Key handler
+            NOP 
+            CP      0FFH            ;If FF then no key hit
+
+            JR      NZ,SL4                              ;KEY PRESS, SO EXIT
+            DEC     C                                   ;DECREASE C
+            JR      NZ,SL3                              ;REPEAT SCAN
+            INC     C                                   ;MAKE NON ZERO
+            POP     HL
+            INC     HL                                  ;MOVE TO NEXT ASCII CHARACTER
+            JR      ASCII_SHIFT                         ;LOOP TO SCROLL MESSAGE
+SL4:
+            POP     HL                                  ;RESTORE ASCII INDEX POSITION
+            RET                                         ;IF KEY HIT THEN EXIT
+
+;ASCII TO SEVEN SEGMENT LOOKUP TABLE,  PLACED HERE SO TO BE SITTING IN THE SAME PAGE
+;OF MEMORY, 0555H TO 055B4H
+ASCII_SEG_TBL:
+            DB      0x00, 0x18, 0x0A, 0xEE, 0xA7, 0x5C, 0x2C, 0x02 ;  ! " # $ % & '
+            DB      0x83, 0x89, 0xA3, 0x46, 0x40, 0x04, 0x10, 0x4C ;( ) * + , - . /
+            DB      0xEB, 0x28, 0xCD, 0xAD, 0x2E, 0xA7, 0xE7, 0x29 ;0 1 2 3 4 5 6 7
+            DB      0xEF, 0xAF, 0x81, 0xA1, 0x07, 0x84, 0x0D, 0x5D ;8 9 : ; < = > ?
+            DB      0xED, 0x6F, 0xE6, 0xC3, 0xEC, 0xC7, 0x47, 0xE3 ;@ A B C D E F G
+            DB      0x6E, 0x42, 0xE8, 0x67, 0xC2, 0x61, 0x6B, 0xEB ;H I J K L M N O
+            DB      0x4F, 0x8F, 0x4B, 0xA7, 0xC6, 0xEA, 0xEA, 0x8A ;P Q R S T U V W
+            DB      0x6E, 0xAE, 0xCD, 0xC3, 0x26, 0xA9, 0x0B, 0x80 ;X Y Z [ \ ] ^ _
+            DB      0x08, 0xED, 0xE6, 0xC4, 0xEC, 0xCF, 0x47, 0xAF ;` a b c d e f g
+            DB      0x66, 0x40, 0xA0, 0x67, 0x42, 0x60, 0x64, 0xE4 ;h i j k l m n o
+            DB      0x4F, 0x2F, 0x44, 0xA7, 0xC6, 0xE0, 0xE0, 0x60 ;p q r s t u v w
+            DB      0x6E, 0xAE, 0xCD, 0x2C, 0x42, 0x46, 0x01       ;x y z { | } ~  
+;Multiplex Routine
+SCAN:
+            LD      B, 20H                              ;B IS THE SCAN BIT
+            LD      HL, DISP_BUFF                       ;GET ADDRESS OF DISPLAY BUFFER
+L01BF:      LD      A, (HL)                             ;GET FIRST BYTE
+            OUT     (02), A                             ;AND OUTPUT IT TO SEGMENTS
+            LD      A, B                                ;GET SCAN BIT
+            OUT     (01), A                             ;OUTPUT IT TO COMMONS
+            LD      B, 40H                              ;CREATE SHORT
+L01C7:      DJNZ    L01C7                               ;DELAY IN B
+            INC     HL                                  ;INCREASE HL TO NEXT DISPLAY BYTE
+            LD      B, A                                ;GET SCAN BIT BACK IN B
+            XOR     A                                   ;CLEAR THE LAST PORT OUTPUTTED TO
+            OUT     (01), A                             ;TO PREVENT "GHOSTING"
+            RRC     B                                   ;SHIFT SCAN BIT ACROSS TO NEXT
+            JR      NC, L01BF                           ;COMMON: WHEN SCAN BIT FALLS INTO
+            OUT     (02), A                             ;CARRY SCAN IS TERMINATED: CLEAR
+            RET                                         ;PORT 2 AND RETURN
+

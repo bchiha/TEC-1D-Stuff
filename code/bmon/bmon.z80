@@ -193,12 +193,12 @@ PATCH_CHK:  EQU     3FB5h                               ;RESET PATCH CHECKSUM
 PATCH_ADR:  EQU     3FB6H                               ;RESET PATCH ADDRESS. 0x3FB6-0x3FB7
 USER_TBL:   EQU     3FC0H - 2                           ;User Table -2
 RST_FLAG:   EQU     3FFFH                               ;Reset Flag
-JMON_UTIL:  EQU     3800H                               ;JMON UTILITIES ADDRESS START LOCATION 
+JMON_DISS:  EQU     4000H                               ;JMON DISSASEMBLER ADDRESS START LOCATION 
 JMON_JUMP:  EQU     381EH                               ;START OF THE JUMP TABLE IN THE JMON UTILITIES
-
 J_MINT:     EQU     0800H                               ;MINT LOCATION FOR BMON
 J_BASIC:    EQU     1000H                               ;TINY BASIC LOCATION FOR BMON
 J_GAMES:    EQU     18E0H                               ;GAMES LOCATION FOR BMON
+PLAY_TUNE:  EQU     1D60H                               ;TUNE ROUTINE
 
 ;IO Port ASSIGNMENTS
 KEYBOARD:   EQU     0x00                                ;KEYBOARD ENCODER
@@ -294,7 +294,8 @@ L004D:      JP      RXCHAR                              ;RECIEVE BYTE
 L0050:      JP      PERI_SFT                            ;SOFT PERIMETER HANDLER ENTRY
 L0053:      JP      BITIME                              ;BIT TIME DELAY
 L0056:      JP      ASCII_SCRL                          ;ASCII SCROLL ROUTINE
-            DB      0xFF,0xFF,0xFF,0xFF,0xFF            ;SPARE
+L0059:      JP      PLAY_TUNE                           ;PLAY TUNE ROUTINE
+            DB      0xFF,0xFF                           ;SPARE
 
 ;SHIFT-2 ROUTINE
 ;THIS STORES THE CURRENT EDIT LOCATION IN THE "NEXT PC" BUFFER. THE INTERRUPTS ARE THEN
@@ -349,10 +350,10 @@ L0095:      LD      (DE), A                             ;LOCATION OF EACH
             LD      (RST_FLAG), A                       ;RESET FLAG
 
 ;THIS SECTION IS THE SOFT RESET SECTION. IT IS ALSO PART OF THE HARD RESET SECTION.
-SOFT_RST:   LD      HL, JMON_UTIL                       ;TEST FOR JMON UTILITIES ROM
+SOFT_RST:   LD      HL, JMON_DISS                       ;TEST FOR JMON DISASSEBLER ROM
             LD      A, (HL)
-            CP      0xC3                                ;AND CALL ITS RESET ROUTINE
-            CALL    Z, JMON_UTIL                        ;IF REQUIRED
+            CP      0x21                                ;AND CALL ITS RESET ROUTINE
+            CALL    Z, JMON_DISS                        ;IF REQUIRED
             CALL    BEEPBEEP                            ;CALL RESET TONE ROUTINE (BEEP BEEP)
 FN_S_RST:   XOR     A                                   ;CLEAR MONITOR CONTROL BYTE
             LD      (V_MCB), A                          ;0 = DATA MODE, NO NIBBLES ENTERED
@@ -1451,7 +1452,7 @@ BITIME1:
 ;ASCII TO SEVEN SEGMENT LOOKUP TABLE,  PLACED HERE SO TO BE SITTING IN THE SAME PAGE
 ;OF MEMORY, 0555H TO 055B4H
 ASCII_SEG_TBL:
-            DB      0x00, 0x38, 0x0A, 0xEE, 0xA7, 0x5C, 0x2C, 0x02 ;  ! " # $ % & '
+            DB      0x00, 0x18, 0x0A, 0xEE, 0xA7, 0x5C, 0x2C, 0x02 ;  ! " # $ % & '
             DB      0x83, 0x89, 0xA3, 0x46, 0x40, 0x04, 0x10, 0x4C ;( ) * + , - . /
             DB      0xEB, 0x28, 0xCD, 0xAD, 0x2E, 0xA7, 0xE7, 0x29 ;0 1 2 3 4 5 6 7
             DB      0xEF, 0xAF, 0x81, 0xA1, 0x07, 0x84, 0x0D, 0x5D ;8 9 : ; < = > ?
