@@ -1,7 +1,7 @@
-TINY BASIC CODE
----------------
+TINY BASIC EXAMPLE PROGRAMS
+---------------------------
 
-Here are some Tiny Basic code that will work on the TEC-1F Version of Tiny Basic.
+Here are some Tiny Basic programs that will work on the TEC-1F Version of Tiny Basic.
 Type them in, learn and play around with the code!
 
 

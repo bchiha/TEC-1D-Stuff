@@ -8,7 +8,7 @@
 0000			            ORG    18E0H  
 18e0			GAMES: 
 18e0			            ; Copy Menu Data to JMON location 
-18e0 21 a3 1f		            LD      HL,M_DATA ; Menu data 
+18e0 21 ab 1f		            LD      HL,M_DATA ; Menu data 
 18e3 11 8d 3f		            LD      DE,3F8DH ; Destination for menu/perimiter to use 
 18e6 01 0b 00		            LD      BC,000BH ; Number of bytes to copy 
 18e9 ed b0		            LDIR     ; Copy it 
@@ -342,7 +342,7 @@
 1ab5			DOGAME: 
 1ab5			;SHIFT TERRAIN 
 1ab5 0d			            DEC     C               ;Decrease Delay and if 
-1ab6 20 53		            JR      NZ, DO6         ;Zero shift terrain else just scan displays 
+1ab6 20 54		            JR      NZ, DO6         ;Zero shift terrain else just scan displays 
 1ab8 06 05		            LD      B, 05H          ;Shift down 5 times 
 1aba dd 21 00 2d	            LD      IX, DOSCREEN      ;Point IX to Screen 
 1abe			DO2: 
@@ -356,290 +356,292 @@
 1ace b7			            OR      A               ;Is it Blank? 
 1acf 28 03		            JR      Z, DO3          ;Yes, Add Obsticle 
 1ad1 af			            XOR     A               ;Make it Blank 
-1ad2 18 0f		            JR      DO5 
+1ad2 18 10		            JR      DO5 
 1ad4			DO3: 
-1ad4 cd 42 1c		            CALL    RANDOM          ;Get Random Value 
-1ad7 e6 03		            AND     03H             ;Get the last two bits 
-1ad9 fe 03		            CP      03H             ;Is it Three? 
-1adb 28 f7		            JR      Z, DO3          ;No, index is okay 
-1add			DO4: 
-1add 21 62 1b		            LD      HL, OBSTICLES   ;Link HL to obsticle table 
-1ae0 85			            ADD     A, L            ;Get the index 
-1ae1 6f			            LD      L, A            ;Save the index 
-1ae2 7e			            LD      A, (HL)         ;Get Obsticle  
-1ae3			DO5: 
-1ae3 32 05 2d		            LD      (DOSCREND), A     ;Add Obsticle/Blank 
-1ae6			;ADD PLAYER 
-1ae6 3a 08 2d		            LD      A, (DOPLAYPOS)    ;Get the player position 
-1ae9 21 65 1b		            LD      HL, DOPLAYER      ;Link HL to player table 
-1aec 85			            ADD     A, L            ;Get the index 
-1aed 6f			            LD      L, A            ;Save the index 
-1aee 7e			            LD      A, (HL)         ;Get Player Segment 
-1aef			;CHECK FOR COLLISION 
-1aef b2			            OR      D               ;Compare player verses obsticle 
-1af0 ba			            CP      D               ;Is it the same as obsticle, 
-1af1 28 50		            JR      Z, DO13         ;Yes, Its a Hit, Game Over 
-1af3 32 00 2d		            LD      (DOSCREEN), A     ;Add Player to Screen. 
-1af6			;UPDATE DISTANCE TRAVELLED 
-1af6 21 06 2d		            LD      HL, DODISTVL      ;Load HL with the TEN's of distance 
-1af9 7e			            LD      A, (HL)         ;Get its value 
-1afa 3c			            INC     A               ;Increase it by one 
-1afb 27			            DAA                     ;Convert to BCD 
-1afc 77			            LD      (HL),A          ;Save it back 
-1afd 23			            INC     HL              ;Load HL with the Hundreds's of dist 
-1afe 3e 00		            LD      A,00H           ;Set A to zero (maintain carry) 
-1b00 8e			            ADC     A,(HL)          ;Add Hundreds with Carry 
-1b01 27			            DAA                     ;Convert to BCD 
-1b02 77			            LD      (HL),A          ;Save it back 
-1b03			 
-1b03 3a 0a 2d		            LD      A, (DOSPEED) 
-1b06 3d			            DEC     A 
-1b07 4f			            LD      C, A 
-1b08 32 0a 2d		            LD      (DOSPEED), A 
-1b0b			 
-1b0b			;MULTIPLEX THE DISPLAY 
-1b0b			DO6: 
-1b0b cd 68 1b		            CALL    DOSCAN          ;Display the screen 
-1b0e			;MOVE PLAYER 
-1b0e			                                    ;Replace RST 20/NOP to LD A,I if JMON isn't used 
-1b0e e7			            RST     20H             ;JMON No Wait Key handler  
-1b0f 47			            LD      B, A 
-1b10 fe ff		            CP      0FFH            ;If FF then no key hit, so Return 
-1b12 20 06		            JR      NZ, DO10        ;Continue with game 
-1b14 af			            XOR     A               ;Zero A 
-1b15 32 09 2d		            LD      (DOKEYPRE), A     ;Save in keypress as a no hit 
-1b18			DO9: 
-1b18 18 9b		            JR      DOGAME            ;Start Game loop 
-1b1a			DO10: 
-1b1a 3a 09 2d		            LD      A,(DOKEYPRE)      ;Get keypress flag 
-1b1d b7			            OR      A               ;Is it zero 
-1b1e 20 f8		            JR      NZ, DO9         ;No, key needs to be released 
-1b20 3d			            DEC     A               ;Set A to FF 
-1b21 32 09 2d		            LD      (DOKEYPRE), A     ;Store in keypress flag 
-1b24 78			            LD      A, B            ;Restore Key Pressed 
-1b25 fe 07		            CP      KEY_UP          ;Is key 'UP' 
-1b27 20 09		            JR      NZ, DO11        ;No, Check Down Key 
-1b29 3a 08 2d		            LD      A, (DOPLAYPOS)    ;Get Player Position 
-1b2c b7			            OR      A               ;Is it at the top already? 
-1b2d 28 e9		            JR      Z, DO9          ;Ignore Key hit 
-1b2f 3d			            DEC     A               ;Move down one 
-1b30 18 0c		            JR      DO12            ;Save Move and continue with game 
-1b32			DO11: 
-1b32 fe 04		            CP      KEY_DN          ;Is key 'DN' 
-1b34 20 e2		            JR      NZ, DO9         ;No, Continue with game 
-1b36 3a 08 2d		            LD      A, (DOPLAYPOS)    ;Get Player Position 
-1b39 fe 02		            CP      02H             ;Is it at the bottom already? 
-1b3b 28 db		            JR      Z, DO9          ;Ignore Key hit 
-1b3d 3c			            INC     A               ;Move down one 
-1b3e			DO12: 
-1b3e 32 08 2d		            LD      (DOPLAYPOS), A    ;Save new position 
-1b41 18 d5		            JR      DO9             ;Continue with game 
-1b43			 
-1b43			;GAME OVER 
-1b43			DO13: 
-1b43 2a 06 2d		            LD      HL, (DODISTVL)   ;Get Distanced Travelled 
-1b46 cd 83 1b		            CALL    DOCON_HL        ;Convert to BCD and Display 
-1b49			DO14: 
-1b49 0e 20		            LD      C,20H           ;Sound Routine 
-1b4b 69			            LD      L, C 
-1b4c af			            XOR     A 
-1b4d			FS3: 
-1b4d d3 01		            OUT     (01) ,A 
-1b4f 41			            LD      B,C 
-1b50 10 fe		FS4:        DJNZ    FS4 
-1b52 ee 80		            XOR     80H 
-1b54 2d			            DEC     L 
-1b55 20 f6		            JR      NZ, FS3 
-1b57			 
-1b57 cd 68 1b		            CALL    DOSCAN          ;Display the screen 
-1b5a			                                    ;Replace RST 20/NOP to LD A,I if JMON isn't used 
-1b5a e7			            RST     20H             ;JMON No Wait Key handler  
-1b5b fe 12		            CP      12H             ;GO Key 
-1b5d 20 ea		            JR      NZ, DO14        ;Not GO, repeat Scan 
-1b5f c3 41 00		            JP      0041H           ;Quit back to menu 
-1b62			 
-1b62			OBSTICLES: 
-1b62 e4 0f 81		            DB      0E4H, 0FH, 81H   ;Rock Low, Rock High and Gap 
-1b65			DOPLAYER: 
-1b65 01 04 80		            DB      01H, 04H, 80H    ;Dash High, Medium and Low 
-1b68			             
-1b68			DOSCAN: 
-1b68 06 20		            LD      B, 20H          ;Segment Reference 
-1b6a 21 00 2d		            LD      HL, DOSCREEN      ;Set HL to Display Buffer 
-1b6d			DO7: 
-1b6d 7e			            LD      A, (HL)         ;Get Segment Value at HL 
-1b6e d3 02		            OUT     (02), A         ;Set on Segment 
-1b70 78			            LD      A, B            ;Get Segment reference 
-1b71 d3 01		            OUT     (01), A         ;Activate segment 
-1b73 06 80		            LD      B, 80H          ;Segment delay 
-1b75 10 fe		DO8:        DJNZ    DO8 
-1b77 23			            INC     HL              ;Move to next location 
-1b78 47			            LD      B, A            ;Save Segment reference 
-1b79 af			            XOR     A               ;Clear A 
-1b7a d3 01		            OUT     (01), A         ;Deactivate Segment 
-1b7c cb 08		            RRC     B               ;Move Segment Reference on to the Right 
-1b7e 30 ed		            JR      NC, DO7         ;Scan next segment if more to do 
-1b80 d3 02		            OUT     (02), A         ;Clear port 2 
-1b82 c9			            RET 
-1b83			 
-1b83			;Convert HL and A to Seven Segment Display 
-1b83			DOCON_HL: 
-1b83 01 00 2d		            LD      BC,DOSCREEN           ;Location of display buffer 
-1b86 7c			            LD      A,H                 ;Get high byte of Address 
-1b87 cd 8b 1b		            CALL    DOCON_A               ;Convert A to Segment Hex 
-1b8a 7d			            LD      A,L                 ;Get low byte of Address 
-1b8b			DOCON_A: 
-1b8b f5			            PUSH    AF                  ;Save A to keep original value 
-1b8c 07			            RLCA                        ;Shift upper nibble to lower for masking 
-1b8d 07			            RLCA 
+1ad4 cd 44 1c		            CALL    RANDOM          ;Get Random Value 
+1ad7 2f			            CPL                     ;Mix to make more random 
+1ad8 e6 03		            AND     03H             ;Get the last two bits 
+1ada fe 03		            CP      03H             ;Is it Three? 
+1adc 28 f6		            JR      Z, DO3          ;No, index is okay 
+1ade			DO4: 
+1ade 21 63 1b		            LD      HL, OBSTICLES   ;Link HL to obsticle table 
+1ae1 85			            ADD     A, L            ;Get the index 
+1ae2 6f			            LD      L, A            ;Save the index 
+1ae3 7e			            LD      A, (HL)         ;Get Obsticle  
+1ae4			DO5: 
+1ae4 32 05 2d		            LD      (DOSCREND), A     ;Add Obsticle/Blank 
+1ae7			;ADD PLAYER 
+1ae7 3a 08 2d		            LD      A, (DOPLAYPOS)    ;Get the player position 
+1aea 21 66 1b		            LD      HL, DOPLAYER      ;Link HL to player table 
+1aed 85			            ADD     A, L            ;Get the index 
+1aee 6f			            LD      L, A            ;Save the index 
+1aef 7e			            LD      A, (HL)         ;Get Player Segment 
+1af0			;CHECK FOR COLLISION 
+1af0 b2			            OR      D               ;Compare player verses obsticle 
+1af1 ba			            CP      D               ;Is it the same as obsticle, 
+1af2 28 50		            JR      Z, DO13         ;Yes, Its a Hit, Game Over 
+1af4 32 00 2d		            LD      (DOSCREEN), A     ;Add Player to Screen. 
+1af7			;UPDATE DISTANCE TRAVELLED 
+1af7 21 06 2d		            LD      HL, DODISTVL      ;Load HL with the TEN's of distance 
+1afa 7e			            LD      A, (HL)         ;Get its value 
+1afb 3c			            INC     A               ;Increase it by one 
+1afc 27			            DAA                     ;Convert to BCD 
+1afd 77			            LD      (HL),A          ;Save it back 
+1afe 23			            INC     HL              ;Load HL with the Hundreds's of dist 
+1aff 3e 00		            LD      A,00H           ;Set A to zero (maintain carry) 
+1b01 8e			            ADC     A,(HL)          ;Add Hundreds with Carry 
+1b02 27			            DAA                     ;Convert to BCD 
+1b03 77			            LD      (HL),A          ;Save it back 
+1b04			 
+1b04 3a 0a 2d		            LD      A, (DOSPEED) 
+1b07 3d			            DEC     A 
+1b08 4f			            LD      C, A 
+1b09 32 0a 2d		            LD      (DOSPEED), A 
+1b0c			 
+1b0c			;MULTIPLEX THE DISPLAY 
+1b0c			DO6: 
+1b0c cd 69 1b		            CALL    DOSCAN          ;Display the screen 
+1b0f			;MOVE PLAYER 
+1b0f			                                    ;Replace RST 20/NOP to LD A,I if JMON isn't used 
+1b0f e7			            RST     20H             ;JMON No Wait Key handler  
+1b10 47			            LD      B, A 
+1b11 fe ff		            CP      0FFH            ;If FF then no key hit, so Return 
+1b13 20 06		            JR      NZ, DO10        ;Continue with game 
+1b15 af			            XOR     A               ;Zero A 
+1b16 32 09 2d		            LD      (DOKEYPRE), A     ;Save in keypress as a no hit 
+1b19			DO9: 
+1b19 18 9a		            JR      DOGAME            ;Start Game loop 
+1b1b			DO10: 
+1b1b 3a 09 2d		            LD      A,(DOKEYPRE)      ;Get keypress flag 
+1b1e b7			            OR      A               ;Is it zero 
+1b1f 20 f8		            JR      NZ, DO9         ;No, key needs to be released 
+1b21 3d			            DEC     A               ;Set A to FF 
+1b22 32 09 2d		            LD      (DOKEYPRE), A     ;Store in keypress flag 
+1b25 78			            LD      A, B            ;Restore Key Pressed 
+1b26 fe 07		            CP      KEY_UP          ;Is key 'UP' 
+1b28 20 09		            JR      NZ, DO11        ;No, Check Down Key 
+1b2a 3a 08 2d		            LD      A, (DOPLAYPOS)    ;Get Player Position 
+1b2d b7			            OR      A               ;Is it at the top already? 
+1b2e 28 e9		            JR      Z, DO9          ;Ignore Key hit 
+1b30 3d			            DEC     A               ;Move down one 
+1b31 18 0c		            JR      DO12            ;Save Move and continue with game 
+1b33			DO11: 
+1b33 fe 04		            CP      KEY_DN          ;Is key 'DN' 
+1b35 20 e2		            JR      NZ, DO9         ;No, Continue with game 
+1b37 3a 08 2d		            LD      A, (DOPLAYPOS)    ;Get Player Position 
+1b3a fe 02		            CP      02H             ;Is it at the bottom already? 
+1b3c 28 db		            JR      Z, DO9          ;Ignore Key hit 
+1b3e 3c			            INC     A               ;Move down one 
+1b3f			DO12: 
+1b3f 32 08 2d		            LD      (DOPLAYPOS), A    ;Save new position 
+1b42 18 d5		            JR      DO9             ;Continue with game 
+1b44			 
+1b44			;GAME OVER 
+1b44			DO13: 
+1b44 2a 06 2d		            LD      HL, (DODISTVL)   ;Get Distanced Travelled 
+1b47 cd 84 1b		            CALL    DOCON_HL        ;Convert to BCD and Display 
+1b4a			DO14: 
+1b4a 0e 20		            LD      C,20H           ;Sound Routine 
+1b4c 69			            LD      L, C 
+1b4d af			            XOR     A 
+1b4e			FS3: 
+1b4e d3 01		            OUT     (01) ,A 
+1b50 41			            LD      B,C 
+1b51 10 fe		FS4:        DJNZ    FS4 
+1b53 ee 80		            XOR     80H 
+1b55 2d			            DEC     L 
+1b56 20 f6		            JR      NZ, FS3 
+1b58			 
+1b58 cd 69 1b		            CALL    DOSCAN          ;Display the screen 
+1b5b			                                    ;Replace RST 20/NOP to LD A,I if JMON isn't used 
+1b5b e7			            RST     20H             ;JMON No Wait Key handler  
+1b5c fe 12		            CP      12H             ;GO Key 
+1b5e 20 ea		            JR      NZ, DO14        ;Not GO, repeat Scan 
+1b60 c3 41 00		            JP      0041H           ;Quit back to menu 
+1b63			 
+1b63			OBSTICLES: 
+1b63 e4 0f 81		            DB      0E4H, 0FH, 81H   ;Rock Low, Rock High and Gap 
+1b66			DOPLAYER: 
+1b66 01 04 80		            DB      01H, 04H, 80H    ;Dash High, Medium and Low 
+1b69			             
+1b69			DOSCAN: 
+1b69 06 20		            LD      B, 20H          ;Segment Reference 
+1b6b 21 00 2d		            LD      HL, DOSCREEN      ;Set HL to Display Buffer 
+1b6e			DO7: 
+1b6e 7e			            LD      A, (HL)         ;Get Segment Value at HL 
+1b6f d3 02		            OUT     (02), A         ;Set on Segment 
+1b71 78			            LD      A, B            ;Get Segment reference 
+1b72 d3 01		            OUT     (01), A         ;Activate segment 
+1b74 06 80		            LD      B, 80H          ;Segment delay 
+1b76 10 fe		DO8:        DJNZ    DO8 
+1b78 23			            INC     HL              ;Move to next location 
+1b79 47			            LD      B, A            ;Save Segment reference 
+1b7a af			            XOR     A               ;Clear A 
+1b7b d3 01		            OUT     (01), A         ;Deactivate Segment 
+1b7d cb 08		            RRC     B               ;Move Segment Reference on to the Right 
+1b7f 30 ed		            JR      NC, DO7         ;Scan next segment if more to do 
+1b81 d3 02		            OUT     (02), A         ;Clear port 2 
+1b83 c9			            RET 
+1b84			 
+1b84			;Convert HL and A to Seven Segment Display 
+1b84			DOCON_HL: 
+1b84 01 00 2d		            LD      BC,DOSCREEN           ;Location of display buffer 
+1b87 7c			            LD      A,H                 ;Get high byte of Address 
+1b88 cd 8c 1b		            CALL    DOCON_A               ;Convert A to Segment Hex 
+1b8b 7d			            LD      A,L                 ;Get low byte of Address 
+1b8c			DOCON_A: 
+1b8c f5			            PUSH    AF                  ;Save A to keep original value 
+1b8d 07			            RLCA                        ;Shift upper nibble to lower for masking 
 1b8e 07			            RLCA 
 1b8f 07			            RLCA 
-1b90 cd 94 1b		            CALL    DOCON_NIBBLE          ;Convert Lower nibble to segment hex 
-1b93 f1			            POP     AF                  ;Restore A 
-1b94			 
-1b94			DOCON_NIBBLE: 
-1b94 e6 0f		            AND     0FH                 ;Only look at lower nibble for indexing 
-1b96 11 b2 19		            LD      DE,SEGTBL           ;Reference Segment convert table 
-1b99 83			            ADD     A,E                 ;Index table with A 
-1b9a 5f			            LD      E,A                 ;Update DE with index 
-1b9b 1a			            LD      A,(DE)              ;Look up table 
-1b9c 02			            LD      (BC),A              ;Save it to display buffer 
-1b9d 03			            INC     BC                  ;Increment buffer location 
-1b9e c9			            RET 
-1b9f			 
-1b9f			;SPIROID ALIEN REMAKE. 
-1b9f			 
-1b9f			SPIALIEN: 
-1b9f			 
-1b9f			DELAYSP:    EQU     3D00H 	    ;Game Delay Speed 
-1b9f			RANDNO:     EQU     3D01H           ;Random number 
-1b9f			DISP_BUFF:  EQU     3F00H           ;Display buffer for message 
-1b9f			MESGADR:    EQU     3F98H           ;Message address 
-1b9f			ASCII_SCRL: EQU     0056H           ;Ascii scroll routine 
-1b9f			TUNE:       EQU     0059H           ;Tune routine 
-1b9f			 
-1b9f 01 00 10		            LD      BC,1000H        ;Sixteen rounds / Zero hit 
-1ba2			SPSTART: 
-1ba2 c5			            PUSH    BC               
-1ba3 3e f0		            LD      A,0F0H 
-1ba5 32 00 3d		            LD      (DELAYSP),A     ;Initial Delay speed 
-1ba8			;Get Random Alien 
-1ba8 cd 42 1c		            CALL    RANDOM          ;RNG 
-1bab e6 03		            AND     03H             ;Mask out last three bits 
-1bad			;Get Alien 
-1bad 57			            LD      D,A             ;Save Alien Key match 
-1bae 1e 01		            LD      E,01H           ;Scan Port 
-1bb0 21 4f 1c		            LD      HL,ALIENS       ;Load HL with Alien Table 
-1bb3 85			            ADD     A,L             ;Index HL with A 
-1bb4 6f			            LD      L,A 
-1bb5 7e			            LD      A,(HL)          ;Get Alian Glyph 
-1bb6			;Game Loop 
-1bb6 d3 02		            OUT     (02),A          ;Send Glyph to Segments 
-1bb8			SP2: 
-1bb8 7b			            LD      A,E             ;Get Scan Port 
-1bb9 d3 01		            OUT     (01),A          ;Turn on Segment 
-1bbb cd 36 1c		            CALL    DELAY           ;Pause for a bit 
-1bbe 21 20 00		            LD      HL,0020H        ;get delay 
-1bc1 0e 40		            LD      C,40H           ;wavylength 
-1bc3 cd 91 1d		            CALL    PLAYTONE        ;Play a sound 
-1bc6			;Check Key Hit 
-1bc6 e7			            RST     20H             ;JMON No Wait Key handler 
-1bc7 fe ff		            CP      0FFH            ;If FF then no key hit 
-1bc9 28 03		            JR      Z, SP3          ;Continue with game 
-1bcb ba			            CP      D               ;Compare key with alien key 
-1bcc 28 0b		            JR      Z, SP4          ;Its a Hit, 
-1bce			SP3: 
-1bce			;Move Segment 
-1bce cb 03		            RLC     E               ;Move Segment left one 
-1bd0 cb 73		            BIT     6,E  
-1bd2 28 e4		            JR      Z,SP2           ;No, display again 
-1bd4			;Miss/Hit Setup 
-1bd4 21 5f 1c		            LD      HL,AMTABLE+6    ;Set to Miss Graphic 
-1bd7 18 03		            JR      SP5             ;Animate 
-1bd9			SP4: 
-1bd9 21 59 1c		            LD      HL,AHTABLE+6    ;Set To Hit Graphic 
-1bdc			SP5:                                ;Animate Hit/Miss 
-1bdc 0e 01		            LD      C,01H           ;First Segment 
-1bde			SP6: 
-1bde 3e fa		            LD      A,0FAH          ;Minus 6 
-1be0 85			            ADD     A,L             ;Fix HL to point 
-1be1 6f			            LD      L,A             ;To start of table 
-1be2 06 06		            LD      B,06H           ;Six Segments 
-1be4			SP7: 
-1be4 7e			            LD      A,(HL)          ;Get Segment 
-1be5 d3 02		            OUT     (02),A          ;Light Segment 
-1be7 79			            LD      A,C             ;Get Scan Bit 
-1be8 d3 01		            OUT     (01),A          ;Turn on Segment 
-1bea e5			            PUSH    HL              ;Save HL 
-1beb c5			            PUSH    BC              ;Save BC 
-1bec cd 36 1c		            CALL    DELAY           ;Wait 
-1bef 21 00 3d		            LD      HL,DELAYSP      ;Get Delay Speed 
-1bf2 06 07		            LD      B,07H           ;Get Subtraction 
-1bf4 35			SP8:        DEC     (HL)            ;Take 7 off 
-1bf5 10 fd		            DJNZ    SP8     
-1bf7 3a 00 3d		            LD      A,(DELAYSP) 
-1bfa 6f			            LD      L,A 
-1bfb 26 00		            LD      H,00H           ;Clear H 
-1bfd cd 91 1d		            CALL    PLAYTONE        ; 
-1c00 c1			            POP     BC              ;Restore 
-1c01 e1			            POP     HL              ;Restore 
-1c02 23			            INC     HL              ;Get next Segment 
-1c03 10 df		            DJNZ    SP7             ;Repeat until all segments printed 
-1c05 cb 01		            RLC     C               ;Move to next segment 
-1c07 0c			            INC     C               ;Increase E 
-1c08 cb 71		            BIT     6,C             ;It it passed all segments 
-1c0a 28 d2		            JR      Z,SP6           ;Do next segment 
-1c0c c1			            POP     BC              ;Restore Score/Rounds 
-1c0d 3e 80		            LD      A,80H           ;Check for hit/miss 
-1c0f be			            CP      (HL)            ;If 01H, then must be a hit 
-1c10 20 01		            JR      NZ,SP9          ;Skip score update 
-1c12 0c			            INC     C               ;Add to score 
-1c13			SP9: 
-1c13 10 8d		            DJNZ    SPSTART           ;Do next Round with new Alien 
-1c15			GAMEOVER:    
-1c15 21 5f 1c		            LD      HL,WINTUNE 
-1c18 11 73 1c		            LD      DE,WINMESG 
-1c1b 79			            LD      A,C             ;Load # hits in A 
-1c1c fe 0b		            CP      0BH             ;Has atleast 11 been hit? 
-1c1e 30 06		            JR      NC,SP11 
-1c20 21 69 1c		            LD      HL,LOSTUNE 
-1c23 11 8b 1c		            LD      DE,LOSMESG 
-1c26			SP11: 
-1c26 22 9a 3f		            LD      (TUNEADR),HL 
-1c29 ed 53 98 3f	            LD      (MESGADR),DE 
-1c2d cd 59 00		            CALL    TUNE 
-1c30 cd 56 00		            CALL    ASCII_SCRL 
-1c33 c3 9f 1b		            JP      SPIALIEN     
-1c36			DELAY: 
-1c36 3a 00 3d		            LD      A,(DELAYSP) 
-1c39 67			            LD      H,A 
-1c3a 2e 00		            LD      L,00H 
-1c3c			SP10: 
-1c3c 2b				    DEC     HL 
-1c3d 7c				    LD      A,H 
-1c3e b5				    OR      L 
-1c3f 20 fb			    JR      NZ,SP10 
-1c41 c9				    RET 
-1c42			 
-1c42			RANDOM: 
-1c42 ed 5f		            LD      A,R 
-1c44 47			            LD      B,A 
-1c45 3a 01 3d		            LD      A,(RANDNO) 
-1c48 a8			            XOR     B 
-1c49 87			            ADD     A,A 
+1b90 07			            RLCA 
+1b91 cd 95 1b		            CALL    DOCON_NIBBLE          ;Convert Lower nibble to segment hex 
+1b94 f1			            POP     AF                  ;Restore A 
+1b95			 
+1b95			DOCON_NIBBLE: 
+1b95 e6 0f		            AND     0FH                 ;Only look at lower nibble for indexing 
+1b97 11 b2 19		            LD      DE,SEGTBL           ;Reference Segment convert table 
+1b9a 83			            ADD     A,E                 ;Index table with A 
+1b9b 5f			            LD      E,A                 ;Update DE with index 
+1b9c 1a			            LD      A,(DE)              ;Look up table 
+1b9d 02			            LD      (BC),A              ;Save it to display buffer 
+1b9e 03			            INC     BC                  ;Increment buffer location 
+1b9f c9			            RET 
+1ba0			 
+1ba0			;SPIROID ALIEN REMAKE. 
+1ba0			 
+1ba0			SPIALIEN: 
+1ba0			 
+1ba0			DELAYSP:    EQU     3D00H 	    ;Game Delay Speed 
+1ba0			RANDNO:     EQU     3D01H           ;Random number 
+1ba0			DISP_BUFF:  EQU     3F00H           ;Display buffer for message 
+1ba0			MESGADR:    EQU     3F98H           ;Message address 
+1ba0			ASCII_SCRL: EQU     0056H           ;Ascii scroll routine 
+1ba0			TUNE:       EQU     0059H           ;Tune routine 
+1ba0			 
+1ba0 01 00 10		            LD      BC,1000H        ;Sixteen rounds / Zero hit 
+1ba3			SPSTART: 
+1ba3 c5			            PUSH    BC               
+1ba4 3e f0		            LD      A,0F0H 
+1ba6 32 00 3d		            LD      (DELAYSP),A     ;Initial Delay speed 
+1ba9			;Get Random Alien 
+1ba9 cd 44 1c		            CALL    RANDOM          ;RNG 
+1bac 2f			            CPL  
+1bad e6 03		            AND     03H             ;Mask out last three bits 
+1baf			;Get Alien 
+1baf 57			            LD      D,A             ;Save Alien Key match 
+1bb0 1e 01		            LD      E,01H           ;Scan Port 
+1bb2 21 51 1c		            LD      HL,ALIENS       ;Load HL with Alien Table 
+1bb5 85			            ADD     A,L             ;Index HL with A 
+1bb6 6f			            LD      L,A 
+1bb7 7e			            LD      A,(HL)          ;Get Alian Glyph 
+1bb8			;Game Loop 
+1bb8 d3 02		            OUT     (02),A          ;Send Glyph to Segments 
+1bba			SP2: 
+1bba 7b			            LD      A,E             ;Get Scan Port 
+1bbb d3 01		            OUT     (01),A          ;Turn on Segment 
+1bbd cd 38 1c		            CALL    DELAY           ;Pause for a bit 
+1bc0 21 20 00		            LD      HL,0020H        ;get delay 
+1bc3 0e 40		            LD      C,40H           ;wavylength 
+1bc5 cd 91 1d		            CALL    PLAYTONE        ;Play a sound 
+1bc8			;Check Key Hit 
+1bc8 e7			            RST     20H             ;JMON No Wait Key handler 
+1bc9 fe ff		            CP      0FFH            ;If FF then no key hit 
+1bcb 28 03		            JR      Z, SP3          ;Continue with game 
+1bcd ba			            CP      D               ;Compare key with alien key 
+1bce 28 0b		            JR      Z, SP4          ;Its a Hit, 
+1bd0			SP3: 
+1bd0			;Move Segment 
+1bd0 cb 03		            RLC     E               ;Move Segment left one 
+1bd2 cb 73		            BIT     6,E  
+1bd4 28 e4		            JR      Z,SP2           ;No, display again 
+1bd6			;Miss/Hit Setup 
+1bd6 21 61 1c		            LD      HL,AMTABLE+6    ;Set to Miss Graphic 
+1bd9 18 03		            JR      SP5             ;Animate 
+1bdb			SP4: 
+1bdb 21 5b 1c		            LD      HL,AHTABLE+6    ;Set To Hit Graphic 
+1bde			SP5:                                ;Animate Hit/Miss 
+1bde 0e 01		            LD      C,01H           ;First Segment 
+1be0			SP6: 
+1be0 3e fa		            LD      A,0FAH          ;Minus 6 
+1be2 85			            ADD     A,L             ;Fix HL to point 
+1be3 6f			            LD      L,A             ;To start of table 
+1be4 06 06		            LD      B,06H           ;Six Segments 
+1be6			SP7: 
+1be6 7e			            LD      A,(HL)          ;Get Segment 
+1be7 d3 02		            OUT     (02),A          ;Light Segment 
+1be9 79			            LD      A,C             ;Get Scan Bit 
+1bea d3 01		            OUT     (01),A          ;Turn on Segment 
+1bec e5			            PUSH    HL              ;Save HL 
+1bed c5			            PUSH    BC              ;Save BC 
+1bee cd 38 1c		            CALL    DELAY           ;Wait 
+1bf1 21 00 3d		            LD      HL,DELAYSP      ;Get Delay Speed 
+1bf4 06 0e		            LD      B,0EH           ;Get Subtraction 
+1bf6 35			SP8:        DEC     (HL)            ;Take 14 off 
+1bf7 10 fd		            DJNZ    SP8     
+1bf9 3a 00 3d		            LD      A,(DELAYSP) 
+1bfc 6f			            LD      L,A 
+1bfd 26 00		            LD      H,00H           ;Clear H 
+1bff cd 91 1d		            CALL    PLAYTONE        ; 
+1c02 c1			            POP     BC              ;Restore 
+1c03 e1			            POP     HL              ;Restore 
+1c04 23			            INC     HL              ;Get next Segment 
+1c05 10 df		            DJNZ    SP7             ;Repeat until all segments printed 
+1c07 cb 01		            RLC     C               ;Move to next segment 
+1c09 0c			            INC     C               ;Increase C 
+1c0a cb 59		            BIT     3,C             ;It it passed all segments 
+1c0c 28 d2		            JR      Z,SP6           ;Do next segment 
+1c0e c1			            POP     BC              ;Restore Score/Rounds 
+1c0f 3e 80		            LD      A,80H           ;Check for hit/miss 
+1c11 be			            CP      (HL)            ;If 01H, then must be a hit 
+1c12 20 01		            JR      NZ,SP9          ;Skip score update 
+1c14 0c			            INC     C               ;Add to score 
+1c15			SP9: 
+1c15 10 8c		            DJNZ    SPSTART           ;Do next Round with new Alien 
+1c17			GAMEOVER:    
+1c17 21 61 1c		            LD      HL,WINTUNE 
+1c1a 11 75 1c		            LD      DE,WINMESG 
+1c1d 79			            LD      A,C             ;Load # hits in A 
+1c1e fe 0b		            CP      0BH             ;Has atleast 11 been hit? 
+1c20 30 06		            JR      NC,SP11 
+1c22 21 6b 1c		            LD      HL,LOSTUNE 
+1c25 11 8d 1c		            LD      DE,LOSMESG 
+1c28			SP11: 
+1c28 22 9a 3f		            LD      (TUNEADR),HL 
+1c2b ed 53 98 3f	            LD      (MESGADR),DE 
+1c2f cd 59 00		            CALL    TUNE 
+1c32 cd 56 00		            CALL    ASCII_SCRL 
+1c35 c3 a0 1b		            JP      SPIALIEN     
+1c38			DELAY: 
+1c38 3a 00 3d		            LD      A,(DELAYSP) 
+1c3b 67			            LD      H,A 
+1c3c 2e 00		            LD      L,00H 
+1c3e			SP10: 
+1c3e 2b				    DEC     HL 
+1c3f 7c				    LD      A,H 
+1c40 b5				    OR      L 
+1c41 20 fb			    JR      NZ,SP10 
+1c43 c9				    RET 
+1c44			 
+1c44			RANDOM: 
+1c44 ed 5f		            LD      A,R 
+1c46 47			            LD      B,A 
+1c47 3a 01 3d		            LD      A,(RANDNO) 
 1c4a a8			            XOR     B 
-1c4b 32 01 3d		            LD      (RANDNO),A 
-1c4e c9			            RET 
-1c4f			 
-1c4f 0f 26 61 c9	ALIENS:     DB      0FH,26H,61H,0C9H 
-1c53 01 09 29 a9 e9 eb	AHTABLE:    DB      01H,09H,29H,0A9H,0E9H,0EBH    ;Hit Animation 
-1c59 80 64 6b 64 80 00	AMTABLE:    DB      80H,64H,6BH,64H,80H,00H      ;Miss Animation 
-1c5f 04 00 04 00 04 00 01 01 01 1f	WINTUNE:    DB      04H,00H,04H,00H,04H,00H,01H,01H,01H,1FH 
-1c69 01 18 01 18 01 18 01 18 01 1f	LOSTUNE:    DB      01H,18H,01H,18H,01H,18H,01H,18H,01H,1FH 
-1c73 .. 0d		WINMESG:    DB      "ALIENS DESTROYED!      ",0DH 
-1c8b .. 0d		LOSMESG:    DB      "END OF EARTH!      ",0DH 
-1c9f			 
-1c9f ff ff ff ff	            DB      0FFH,0FFH,0FFH,0FFH 
+1c4b 87			            ADD     A,A 
+1c4c a8			            XOR     B 
+1c4d 32 01 3d		            LD      (RANDNO),A 
+1c50 c9			            RET 
+1c51			 
+1c51 0f 26 61 c9	ALIENS:     DB      0FH,26H,61H,0C9H 
+1c55 01 09 29 a9 e9 eb	AHTABLE:    DB      01H,09H,29H,0A9H,0E9H,0EBH    ;Hit Animation 
+1c5b 80 64 6b 64 80 00	AMTABLE:    DB      80H,64H,6BH,64H,80H,00H      ;Miss Animation 
+1c61 04 00 04 00 04 00 01 01 01 1f	WINTUNE:    DB      04H,00H,04H,00H,04H,00H,01H,01H,01H,1FH 
+1c6b 01 18 01 18 01 18 01 18 01 1f	LOSTUNE:    DB      01H,18H,01H,18H,01H,18H,01H,18H,01H,1FH 
+1c75 .. 0d		WINMESG:    DB      "ALIENS DESTROYED!      ",0DH 
+1c8d .. 0d		LOSMESG:    DB      "END OF EARTH!      ",0DH 
+1ca1			 
+1ca1 ff ff		            DB      0FFH,0FFH 
 1ca3			 
 1ca3			;NIM Game -- John Hardie's Favourite Game!! 
 1ca3			;Remove a match 1,2,3 and don’t be the last.  This is a re-write, nothing wrong with the 
@@ -683,7 +685,7 @@
 1cd6 91			            SUB     C               ;Minus Players pick 
 1cd7 18 11		            JR      NM6             ;Update match and check win 
 1cd9			NM4:  
-1cd9 cd 42 1c		            CALL    RANDOM          ;Simple Randomness 
+1cd9 cd 44 1c		            CALL    RANDOM          ;Simple Randomness 
 1cdc cb c7		            SET     0,A             ;Ensure non zero 
 1cde e6 03		            AND     03H             ;Mask out high bits 
 1ce0 18 08		            JR      NM6             ;Update match and check win 
@@ -754,7 +756,7 @@
 1d6f 30 16		            JR      NC,PTSILENCE    ;  goto PTSILENCE 
 1d71 b7			            OR      A               ;if (a == SILENCE) 
 1d72 28 13		            JR      Z,PTSILENCE     ;  goto PTSILENCE 
-1d74 21 a4 1d		            LD      HL,FREQTBL      ;hl = frequency table 
+1d74 21 ab 1d		            LD      HL,FREQTBL      ;hl = frequency table 
 1d77 3d			            DEC     A               ;fix for indexing 
 1d78 87			            ADD     A,A             ;double a for correct index 
 1d79 85			            ADD     A,L             ;a = offset 
@@ -767,7 +769,7 @@
 1d80 26 00		            LD      H,00H            
 1d82 cd 91 1d		            CALL    PLAYTONE        ;c and hl 
 1d85 18 dd		            JR      PTLOOP1         ;play next note 
-1d87 21 00 40		PTSILENCE:  LD      HL,4000H        ;delay count = 4000 
+1d87 21 00 20		PTSILENCE:  LD      HL,2000H        ;delay count = 2000 
 1d8a 2b			PTLOOP2:    DEC     HL              ;hl-- 
 1d8b 7c			            LD      A,H 
 1d8c b5			            OR      L               ;if (hl != 0) 
@@ -777,330 +779,338 @@
 1d91			;The Play tone routine can be called from anywhere.  Use HL as the  
 1d91			;duration and C as the wavelength.  Duration's maximum is 7FH. 
 1d91 29			PLAYTONE:   ADD     HL,HL           ;hl = hl + h1 
-1d92 af			            XOR     A               ;a = 0 
-1d93 d5			            PUSH    DE 
-1d94 11 01 00		            LD      DE,0001H 
-1d97 d3 01		MTLOOP:     OUT     (01),A          ;toggle speaker bit 
-1d99 41			            LD      B,C             ;b = c 
-1d9a 10 fe		MTDELAY:    DJNZ    MTDELAY         ;delay? 
-1d9c ee 80		            XOR     80H             ;invert bit 7 of a 
-1d9e ed 52		            SBC     HL,DE           ;hl = hl - 1 
-1da0 20 f5		            JR      NZ,MTLOOP       ;repeat until l = 0 
-1da2 d1			            POP     DE 
-1da3 c9			            RET 
-1da4			 
-1da4			;frequency table, contains wavelength and frequency combined sequentially 
-1da4 fc 59 f3 5a ec 5c e5 5d	FREQTBL:    DB      0FCH,59H,0F3H,5AH,0ECH,5CH,0E5H,5DH 
-1dac e0 5e d7 60 d2 63 cc 65	            DB      0E0H,5EH,0D7H,60H,0D2H,63H,0CCH,65H 
-1db4 c7 67 c2 69 be 6c b8 6e	            DB      0C7H,67H,0C2H,69H,0BEH,6CH,0B8H,6EH 
-1dbc b5 71 b1 73 ac 77 a9 7a	            DB      0B5H,71H,0B1H,73H,0ACH,77H,0A9H,7AH 
-1dc4 a6 7d a2 81 9f 85 9c 89	            DB      0A6H,7DH,0A2H,81H,09FH,85H,09CH,89H 
-1dcc 9a 8d 97 92 95 97 93 9c	            DB      09AH,8DH,097H,92H,095H,97H,093H,9CH 
-1dd4			 
-1dd4			;LUNALANDER 
-1dd4			;you must land your luna module on the moon as gently as possible while 
-1dd4			;gravity is pulling you down.  You can use the + key to fire your engine 
-1dd4			;briefly this will slow down your descent but it also uses fuel.  If you 
-1dd4			;run out of fuel you will crash 
-1dd4			;Based off John Hardy's game on MON1.  Rewrite by Brian Chiha 
-1dd4			LLALT:      EQU     2D02H           ;Altitude 
-1dd4			LLVEL:      EQU     2D01H           ;Velocity 
-1dd4			LLFUEL:     EQU     2D00H           ;Fuel Left 
-1dd4			PLUSKEY:    EQU     10H             ;Plus Key 
-1dd4			 
-1dd4			LUNALANDER: 
-1dd4 3e 80		            LD      A,80H           ;Altitude at 50 meters (BCD) 
-1dd6 32 02 2d		            LD      (LLALT),A       ;Save Starting Altitude 
-1dd9 3e 15		            LD      A,15H           ;Starting Fuel (BCD) 
-1ddb 32 00 2d		            LD      (LLFUEL),A      ;Save Fuel 
-1dde af			            XOR     A               ;Blank A 
-1ddf 32 01 2d		            LD      (LLVEL),A       ;Starting Velocity of 0 
-1de2 06 06		            LD      B,06H           ;Six Segments 
-1de4 21 00 3f		            LD      HL,DISP_BUFF    ;Clear Screen 
-1de7 22 2c 3f		            LD      (V_DISPLAY), HL 
-1dea			LL1:             
-1dea 77			            LD      (HL),A          ;Blank Segment 
-1deb 23			            INC     HL 
-1dec 10 fc		            DJNZ    LL1             ;Repeat for all six segments 
-1dee			 
-1dee			LL2: 
-1dee cd 50 1e		            CALL    LLSCREEN        ;Display the current lander stats 
-1df1 11 00 02		            LD      DE,0200H        ;Drop counter 
-1df4			LL3:        ;Scan and Key Input 
-1df4 df			            RST     18H             ;Do Scan/Key Loop 
-1df5 fe 10		            CP      PLUSKEY         ;Was Key Press Plus +? 
-1df7 28 07		            JR      Z,LL4           ;Yes Adjust Velocity 
-1df9 1b			            DEC     DE               ;Decrease delay 
-1dfa 7a			            LD      A,D 
-1dfb b3			            OR      E 
-1dfc 20 f6		            JR      NZ,LL3          ;Not Zero so do Scan/Key again 
-1dfe 18 14		            JR      LL5             ;Move Lander 
-1e00			LL4:        ;Fuel Used 
-1e00 3a 00 2d		            LD      A,(LLFUEL)      ;Check enough fuel 
-1e03 b7			            OR      A               ;Is it zero? 
-1e04 28 0e		            JR      Z,LL5           ;Yes, Move Lander 
-1e06 3d			            DEC     A               ;Reduce Fuel 
-1e07 27			            DAA                     ;Decimal Adjust 
-1e08 32 00 2d		            LD      (LLFUEL),A      ;Save fuel 
-1e0b 3a 01 2d		            LD      A,(LLVEL)       ;Load Velocity 
-1e0e c6 02		            ADD     A,02H           ;Add 2 to Velocity 
-1e10 27			            DAA                     ;Decimal Adjust 
-1e11 32 01 2d		            LD      (LLVEL),A       ;Save Velocity 
-1e14			LL5:        ;Move Lander downwards 
-1e14 3a 01 2d		            LD      A,(LLVEL)       ;Load Velocity 
-1e17 d6 01		            SUB     01H             ;Reduce it by one 
-1e19 27			            DAA                     ;Decimal Adjust 
-1e1a 32 01 2d		            LD      (LLVEL),A       ;Save Veloicty 
-1e1d 47			            LD      B,A             ;Save B with Velocity 
-1e1e 3a 02 2d		            LD      A,(LLALT)       ;Get Altitude 
-1e21 80			            ADD     A,B             ;Add Veloicity to Altitude 
-1e22 27			            DAA                     ;Decimal Adjust 
-1e23 32 02 2d		            LD      (LLALT),A       ;Save Altitude 
-1e26 b7			            OR      A               ;Have we landed? 
-1e27 f2 ee 1d		            JP      P,LL2           ;Not Yet, Next Round 
-1e2a 78			            LD      A,B             ;Check Velocity 
-1e2b c6 02		            ADD     A,02H           ;Add 2 
-1e2d 27			            DAA                     ;Adjust for decimal 
-1e2e b7			            OR      A               ;Check if 0 or over 
-1e2f f2 3a 1e		            JP      P,LL6           ;Yes, Winner! 
-1e32 21 a1 1e		            LD      HL,LUNALOSER    ;Load HL with LOSE Message 
-1e35 11 7d 1e		            LD      DE,LUNALOSE     ;Load DE with LOSE Tune 
-1e38 18 06		            JR      LL7 
-1e3a			LL6: 
-1e3a 21 86 1e		            LD      HL,LUNAWINNER   ;Load HL with WIN Message 
-1e3d 11 74 1e		            LD      DE,LUNAWIN      ;Load DE with WIN Tune 
-1e40			LL7: 
-1e40 ed 53 9a 3f	            LD      (TUNEADR),DE 
-1e44 22 98 3f		            LD      (MESGADR),HL 
-1e47 cd 59 00		            CALL    TUNE 
-1e4a cd 56 00		            CALL    ASCII_SCRL 
-1e4d c3 d4 1d		            JP      LUNALANDER 
-1e50			 
-1e50			LLSCREEN: 
-1e50 01 00 3f		            LD      BC,DISP_BUFF    ;Get Display buffer 
-1e53 3a 00 2d		            LD      A,(LLFUEL)      ;Get Fuel 
-1e56 cd 33 3f		            CALL    A2CODE          ;Convert A to Segment Code, store in BC 
-1e59 3a 02 2d		            LD      A,(LLALT)       ;Get Altitude 
-1e5c 57			            LD      D,A             ;Save 
-1e5d 1e 80		            LD      E,80H           ;Bottom Segment 
-1e5f fe 15		            CP      15H             ;It is under 10 
-1e61 38 08		            JR      C,LLS1          ;Yes 
-1e63 1e 04		            LD      E,04H           ;Middle Segments 
-1e65 fe 40		            CP      40H             ;It is half way 
-1e67 38 02		            JR      C,LLS1          ;Yes 
-1e69 1e 01		            LD      E,01H           ;Top Segments 
-1e6b			LLS1: 
-1e6b 7b			            LD      A,E             ;Get Segments 
-1e6c 02			            LD      (BC),A          ;Write it 
-1e6d 03			            INC     BC              ;Move to next segment 
-1e6e 02			            LD      (BC),A          ;Write it 
-1e6f 03			            INC     BC              ;Move to last two segments 
-1e70 7a			            LD      A,D             ;Restore Altituded 
-1e71 c3 33 3f		            JP      A2CODE          ;Convert A to Segment Code, store in BC 
-1e74			 
-1e74 14 12 14 17 17 12 14 10 1f	LUNAWIN:    DB      14H,12H,14H,17H,17H,12H,14H,10H,1FH 
-1e7d 01 11 01 11 01 11 01 11 1f	LUNALOSE:   DB      01H,11H,01H,11H,01H,11H,01H,11H,1FH 
-1e86 .. 0d		LUNAWINNER: DB      "GREAT LANDING JOHN!!      ",0DH 
-1ea1 .. 0d		LUNALOSER:  DB      "AAARG!! YOU DIE!!      ",0DH 
-1eb9			 
-1eb9			MMGUESS:    EQU     2D00H           ;Guess Made by user (4 bytes) 
-1eb9			MMANSWER:   EQU     2D04H           ;Answer (4 bytes) 
-1eb9			MMSCORE:    EQU     2D08H           ;Correct/Score 
-1eb9			MASTERMIND: 
-1eb9 21 5f 1c		            LD      HL,WINTUNE 
-1ebc 22 9a 3f		            LD      (TUNEADR),HL 
-1ebf 21 00 3f		            LD      HL,DISP_BUFF    ;Load HL with Display 
-1ec2 af			            XOR     A 
-1ec3 06 05		            LD      B,05H           ;five Segments 
-1ec5			MM00:             
-1ec5 77			            LD      (HL),A          ;Blank Segment 
-1ec6 23			            INC     HL 
-1ec7 10 fc		            DJNZ    MM00             ;Repeat for all six segments 
-1ec9 16 20		            LD      D,20H  
-1ecb			MM0:  
-1ecb df			            RST     18H             ;Do Scan/Key Loop 
-1ecc 28 10		            JR      Z,MM2           ;Key Press Exit 
-1ece 15			            DEC     D 
-1ecf 20 fa		            JR      NZ,MM0 
-1ed1 0e 06		            LD      C,06H           ;Loop for all segments 
-1ed3			MM1: 
-1ed3 cd 42 1c		            CALL    RANDOM          ;Get Random Number 
-1ed6 27			            DAA                     ;Convert to 0-9 
-1ed7 77			            LD      (HL),A          ;Fill Screen 
-1ed8 0d			            DEC     C               ;Reduce C 
-1ed9 20 f8		            JR      NZ,MM1          ;Do for second byte 
-1edb c3 b9 1e		            JP      MASTERMIND      ;Keep going until key press 
-1ede			MM2: 
-1ede 11 04 2d		            LD      DE,MMANSWER     ;Load DE with Answer Location 
-1ee1 0e 02		            LD      C,02H           ;Two Bytes 
-1ee3			MM3: 
-1ee3 06 02		            LD      B,02H           ;Do Twice 
-1ee5			MM4: 
-1ee5 af			            XOR     A               ;Clear A 
-1ee6 ed 6f		            RLD                     ;Get High Nibble in A 
-1ee8 12			            LD      (DE),A          ;Load BC with A 
-1ee9 13			            INC     DE              ;Move to next location 
-1eea 10 f9		            DJNZ    MM4             ;Do for second nibble 
-1eec 0d			            DEC     C               ;Second Byte 
-1eed 20 f4		            JR      NZ,MM3          ;Do Again 
-1eef			;Game Starts 
-1eef			MM5: 
-1eef af			            XOR     A 
-1ef0 32 08 2d		            LD      (MMSCORE),A 
-1ef3 21 00 3f		            LD      HL,DISP_BUFF    ;Get Display buffer 
-1ef6 06 04		            LD      B,04H           ;Clear first four segments 
-1ef8 af			            XOR     A               ;Clear A 
-1ef9			MM6: 
-1ef9 77			            LD      (HL),A          ;Fill with Blank 
-1efa 23			            INC     HL              ;Move to next segment 
-1efb 10 fc		            DJNZ    MM6             ;Again 
-1efd 3e 04		            LD      A,04H           ;Middle Segment 
-1eff 77			            LD      (HL),A          ;Display Segment 
-1f00 23			            INC     HL              ;Move to last segment 
-1f01 77			            LD      (HL),A          ;Display Segment 
-1f02 11 00 3f		            LD      DE,DISP_BUFF    ;Link BC to Display for A2CODE to work 
-1f05 21 00 2d		            LD      HL,MMGUESS      ;Load Guess 
-1f08			;Players Move 
-1f08			MM7: 
-1f08 df			            RST     18H             ;Do Scan/Key Loop 
-1f09 20 fd		            JR      NZ,MM7          ;No Key Press Exit, Keep Scaning 
-1f0b fe 0a		            CP      0AH             ;Is it greater than A? 
-1f0d 30 f9		            JR      NC,MM7          ;Invalid Key, Keep Scaning 
-1f0f 77			            LD      (HL),A          ;Save player number 
-1f10 01 b2 19		            LD      BC,SEGTBL       ;Load Segment Table 
-1f13 81			            ADD     A,C             ;Index Table 
-1f14 4f			            LD      C,A             ; 
-1f15 0a			            LD      A,(BC)          ;Get Segment 
-1f16 12			            LD      (DE),A          ;Save number to screen 
-1f17 23			            INC     HL              ;Move to next guess number 
-1f18 13			            INC     DE               
-1f19 cb 55		            BIT     2,L             ;Is HL 2D04? 
-1f1b 28 eb		            JR      Z,MM7           ;Get Next Key 
-1f1d			;Compare Guess to Answer 
-1f1d			MM8: 
-1f1d cd 71 1f		            CALL    THINKING        ;Display Thinking Animation 
-1f20 21 04 2d		            LD      HL,MMANSWER     ;Link HL To Answer 
-1f23 11 00 2d		            LD      DE,MMGUESS      ;Link DE to Guess 
-1f26 06 04		            LD      B,04H           ;Tries 
-1f28			MM9: 
-1f28 1a			            LD      A,(DE)          ;Get Guess 
-1f29 be			            CP      (HL)            ;Does it Match? 
-1f2a 20 08		            JR      NZ,MM10          ;No 
-1f2c 3a 08 2d		            LD      A,(MMSCORE)     ;Get Score 
-1f2f c6 10		            ADD     A,10H           ;Yes, Add one to upper nibble 
-1f31 32 08 2d		            LD      (MMSCORE),A     ;Save Score 
-1f34			MM10: 
-1f34 c5			            PUSH    BC              ;Save BC 
-1f35 06 03		            LD      B,03            ;Check other three guesses 
-1f37			MM11: 
-1f37 13			            INC     DE              ;Move to next guess 
-1f38 7b			            LD      A,E             ;Mask E to for overflow 
-1f39 e6 03		            AND     03H             ;Loop if > 3 
-1f3b 5f			            LD      E,A             ;Reset E 
-1f3c 1a			            LD      A,(DE)          ;Get Guess 
-1f3d be			            CP      (HL)            ;Does it Match? 
-1f3e 20 07		            JR      NZ,MM12         ;No 
-1f40 3a 08 2d		            LD      A,(MMSCORE)     ;Get Score 
-1f43 3c			            INC     A               ;Yes, Add one to upper nibble 
-1f44 32 08 2d		            LD      (MMSCORE),A     ;Save Score 
-1f47			MM12: 
-1f47 10 ee		            DJNZ    MM11            ;Do 3 times 
-1f49 c1			            POP     BC              ;Restore BC 
-1f4a 23			            INC     HL              ;Next Answer 
-1f4b 7d			            LD      A,L             ;Make E = L-4 
-1f4c d6 04		            SUB     04H             ;Subtract 4 
-1f4e 5f			            LD      E,A             ;Reset E 
-1f4f 10 d7		            DJNZ    MM9             ;Do for all 4 numbers 
-1f51			;Display Score 
-1f51 01 04 3f		            LD      BC,DISP_BUFF+4  ;Get Display buffer last two segments 
-1f54 3a 08 2d		            LD      A,(MMSCORE)     ;Get Score 
-1f57			 
-1f57 f5			            PUSH    AF              ;Save Score 
-1f58 cd 33 3f		            CALL    A2CODE          ;Save it to display buff 
-1f5b f1			            POP     AF              ;Restore Score 
-1f5c cb 77		            BIT     6,A             ;Winner? 
-1f5e 28 03		            JR      Z,MM13 
-1f60 cd 59 00		            CALL    TUNE 
-1f63			MM13: 
-1f63 df			            RST     18H             ;Do Scan/Key Loop 
-1f64 20 fd		            JR      NZ,MM13         ;Repeat until key pressed 
-1f66 3a 08 2d		            LD      A,(MMSCORE)     ;Get Score 
-1f69 cb 77		            BIT     6,A             ;Winner? 
-1f6b c2 b9 1e		            JP      NZ,MASTERMIND   ;Start New Game 
-1f6e c3 ef 1e		            JP      MM5             ;Start Next Round Again 
-1f71			;Thinking Animation 
-1f71			THINKING: 
-1f71 06 02		            LD      B,02H          ;Full loop, 4 Times 
-1f73 21 04 3f		            LD      HL,DISP_BUFF+4  ;Get Display buffer last two segments 
-1f76			THK1: 
-1f76 11 93 1f		            LD      DE,THINKTBL     ;Link to Thinking Table 
-1f79 c5			            PUSH    BC              ;Save BC 
-1f7a 06 08		            LD      B,08H           ;Eight loops 
-1f7c			THK2: 
-1f7c 1a			            LD      A,(DE)          ;Get Move 
-1f7d 77			            LD      (HL),A          ;Display Move 
-1f7e 23			            INC     HL              ;Next Display 
-1f7f 13			            INC     DE              ;Next Segment 
-1f80 1a			            LD      A,(DE)          ;Get Move 
-1f81 77			            LD      (HL),A          ;Display Move 
-1f82 13			            INC     DE              ;Next Segment 
-1f83 c5			            PUSH    BC              ;Save B 
-1f84 06 30		            LD      B,30H           ;Delay 
-1f86			THK3: 
-1f86 c5			            PUSH    BC 
-1f87 df			            RST     18H             ;Do Scan/Key Loop 
-1f88 c1			            POP     BC 
-1f89 10 fb		            DJNZ    THK3            ;Scan Again 
-1f8b 2b			            DEC     HL              ;Restore HL 
-1f8c c1			            POP     BC              ;Restore BC 
-1f8d 10 ed		            DJNZ    THK2            ;Do next Segment 
-1f8f c1			            POP     BC              ;Get C 
-1f90 10 e4		            DJNZ    THK1            ;Repeat Sequence 
-1f92 c9			            RET 
-1f93			 
-1f93 04 04 02 08 01 01 08 02	THINKTBL:   DB      04H,04H,02H,08H,01H,01H,08H,02H 
-1f9b 04 04 40 20 80 80 20 40	            DB      04H,04H,40H,20H,80H,80H,20H,40H 
-1fa3			 
-1fa3			;Menu Command String 
-1fa3			M_DATA: 
-1fa3 ff ff		            DB      0xFF,0xFF ; Blank 
-1fa5 00 06		            DB      0x00,0x06 ; First menu item and number of menu items, = 7 
-1fa7 ae 1f		            DW      MENU_JP_TBL ; Jump table for menu items 
-1fa9 c3 1f		            DW      MENU_AD_TBL ; Menu Address LED display table 
-1fab df 1f		            DW      MENU_DA_TBL ; Menu Data LED display table 
-1fad c9			            DB      0xC9 ; return (unused) 
-1fae			 
-1fae			MENU_JP_TBL:        ; Menu Jump table 
-1fae			                    ; Seven Segment Routines  
-1fae c3 ee 18		            JP      SEGHIT  ; Segment Hit 
-1fb1 c3 bc 19		            JP      SIMON  ; Simon Game 
-1fb4 c3 aa 1a		            JP      DODGY  ; Dodgy Game 
-1fb7 c3 9f 1b		            JP      SPIALIEN ; Spiroid Alien 
-1fba c3 a3 1c		            JP      NIM  ; NIM Matches Game 
-1fbd c3 d4 1d		            JP      LUNALANDER ; Luna Lander 
-1fc0 c3 b9 1e		            JP      MASTERMIND ; Master Mind 
-1fc3			  
-1fc3			MENU_AD_TBL:        ; Menu Display for ADDRESS LEDs 
-1fc3			                    ; Seven Segment Routines  
-1fc3 a7 c7 e3 6e	            DB      0xA7,0xC7,0xE3,0x6E ; "SEGh" 
-1fc7 a7 42 61 eb	            DB      0xA7,0x42,0x61,0xEB ; "SIMO" 
-1fcb ec eb ec e3	            DB      0xEC,0xEB,0xEC,0xE3 ; "DODG" 
-1fcf 67 42 c2 c2	            DB      0x67,0x42,0xC2,0xC2 ; "kILL" 
-1fd3 6b 42 61 00	            DB      0x6B,0x42,0x61,0x00 ; "NIM " 
-1fd7 c2 6f 6b ec	            DB      0xC2,0x6F,0x6B,0xEC ; "LANd" 
-1fdb 61 6f a7 c6	            DB      0x61,0x6F,0xA7,0xC6 ; "MASt" 
-1fdf			  
-1fdf			MENU_DA_TBL:        ; Menu Display for DATA LEDs 
-1fdf			                    ; Seven Segment Routines  
-1fdf 42 c6		            DB      0x42,0xC6 ; "It" 
-1fe1 6b 00		            DB      0x6B,0x00 ; "N " 
-1fe3 ae 00		            DB      0xAE,0x00 ; "Y " 
-1fe5 c7 c6		            DB      0xC7,0xC6 ; "Et" 
-1fe7 00 00		            DB      0x00,0x00 ; "  " 
-1fe9 c7 4b		            DB      0xC7,0x4B ; "ER" 
-1feb c7 4b		            DB      0xC7,0x4B ; "ER" 
-1fed			  
-1fed 0x00...		            DS      13H,00H   ;Pad out  
+1d92 29			            ADD     HL,HL           ;double again for 4Mhz 
+1d93 af			            XOR     A               ;a = 0 
+1d94 d5			            PUSH    DE 
+1d95 11 01 00		            LD      DE,0001H 
+1d98 d3 01		MTLOOP:     OUT     (01),A          ;toggle speaker bit 
+1d9a 06 03		            LD      B,03H           ;Lenghten wave lenght 
+1d9c			MTDELAY2: 
+1d9c c5			            PUSH    BC              ;Save B 
+1d9d 41			            LD      B,C             ;b = c 
+1d9e 10 fe		MTDELAY:    DJNZ    MTDELAY         ;delay? 
+1da0 c1			            POP     BC              ;Restore B 
+1da1 10 f9		            DJNZ    MTDELAY2        ;Do for 3 cycles 
+1da3 ee 80		            XOR     80H             ;invert bit 7 of a 
+1da5 ed 52		            SBC     HL,DE           ;hl = hl - 1 
+1da7 20 ef		            JR      NZ,MTLOOP       ;repeat until l = 0 
+1da9 d1			            POP     DE 
+1daa c9			            RET 
+1dab			 
+1dab			;frequency table, contains wavelength and frequency combined sequentially 
+1dab 8c 19 83 1a 7c 1c 75 1d	FREQTBL:    DB      8CH,19H,83H,1AH,7CH,1CH,75H,1DH 
+1db3 70 1e 67 20 62 23 5c 25	            DB      70H,1EH,67H,20H,62H,23H,5CH,25H 
+1dbb 57 27 52 29 4e 2c 48 2e	            DB      57H,27H,52H,29H,4EH,2CH,48H,2EH 
+1dc3 45 31 41 33 3c 37 39 3a	            DB      45H,31H,41H,33H,3CH,37H,39H,3AH 
+1dcb 36 3d 32 41 2f 45 2c 49	            DB      36H,3DH,32H,41H,2FH,45H,2CH,49H 
+1dd3 2a 4d 27 52 25 57 23 5c	            DB      2AH,4DH,27H,52H,25H,57H,23H,5CH 
+1ddb			 
+1ddb			;LUNALANDER 
+1ddb			;you must land your luna module on the moon as gently as possible while 
+1ddb			;gravity is pulling you down.  You can use the + key to fire your engine 
+1ddb			;briefly this will slow down your descent but it also uses fuel.  If you 
+1ddb			;run out of fuel you will crash 
+1ddb			;Based off John Hardy's game on MON1.  Rewrite by Brian Chiha 
+1ddb			LLALT:      EQU     2D02H           ;Altitude 
+1ddb			LLVEL:      EQU     2D01H           ;Velocity 
+1ddb			LLFUEL:     EQU     2D00H           ;Fuel Left 
+1ddb			PLUSKEY:    EQU     10H             ;Plus Key 
+1ddb			 
+1ddb			LUNALANDER: 
+1ddb 3e 80		            LD      A,80H           ;Altitude at 50 meters (BCD) 
+1ddd 32 02 2d		            LD      (LLALT),A       ;Save Starting Altitude 
+1de0 3e 15		            LD      A,15H           ;Starting Fuel (BCD) 
+1de2 32 00 2d		            LD      (LLFUEL),A      ;Save Fuel 
+1de5 af			            XOR     A               ;Blank A 
+1de6 32 01 2d		            LD      (LLVEL),A       ;Starting Velocity of 0 
+1de9 06 06		            LD      B,06H           ;Six Segments 
+1deb 21 00 3f		            LD      HL,DISP_BUFF    ;Clear Screen 
+1dee 22 2c 3f		            LD      (V_DISPLAY), HL 
+1df1			LL1:             
+1df1 77			            LD      (HL),A          ;Blank Segment 
+1df2 23			            INC     HL 
+1df3 10 fc		            DJNZ    LL1             ;Repeat for all six segments 
+1df5			 
+1df5			LL2: 
+1df5 cd 57 1e		            CALL    LLSCREEN        ;Display the current lander stats 
+1df8 11 00 02		            LD      DE,0200H        ;Drop counter 
+1dfb			LL3:        ;Scan and Key Input 
+1dfb df			            RST     18H             ;Do Scan/Key Loop 
+1dfc fe 10		            CP      PLUSKEY         ;Was Key Press Plus +? 
+1dfe 28 07		            JR      Z,LL4           ;Yes Adjust Velocity 
+1e00 1b			            DEC     DE               ;Decrease delay 
+1e01 7a			            LD      A,D 
+1e02 b3			            OR      E 
+1e03 20 f6		            JR      NZ,LL3          ;Not Zero so do Scan/Key again 
+1e05 18 14		            JR      LL5             ;Move Lander 
+1e07			LL4:        ;Fuel Used 
+1e07 3a 00 2d		            LD      A,(LLFUEL)      ;Check enough fuel 
+1e0a b7			            OR      A               ;Is it zero? 
+1e0b 28 0e		            JR      Z,LL5           ;Yes, Move Lander 
+1e0d 3d			            DEC     A               ;Reduce Fuel 
+1e0e 27			            DAA                     ;Decimal Adjust 
+1e0f 32 00 2d		            LD      (LLFUEL),A      ;Save fuel 
+1e12 3a 01 2d		            LD      A,(LLVEL)       ;Load Velocity 
+1e15 c6 02		            ADD     A,02H           ;Add 2 to Velocity 
+1e17 27			            DAA                     ;Decimal Adjust 
+1e18 32 01 2d		            LD      (LLVEL),A       ;Save Velocity 
+1e1b			LL5:        ;Move Lander downwards 
+1e1b 3a 01 2d		            LD      A,(LLVEL)       ;Load Velocity 
+1e1e d6 01		            SUB     01H             ;Reduce it by one 
+1e20 27			            DAA                     ;Decimal Adjust 
+1e21 32 01 2d		            LD      (LLVEL),A       ;Save Veloicty 
+1e24 47			            LD      B,A             ;Save B with Velocity 
+1e25 3a 02 2d		            LD      A,(LLALT)       ;Get Altitude 
+1e28 80			            ADD     A,B             ;Add Veloicity to Altitude 
+1e29 27			            DAA                     ;Decimal Adjust 
+1e2a 32 02 2d		            LD      (LLALT),A       ;Save Altitude 
+1e2d b7			            OR      A               ;Have we landed? 
+1e2e f2 f5 1d		            JP      P,LL2           ;Not Yet, Next Round 
+1e31 78			            LD      A,B             ;Check Velocity 
+1e32 c6 02		            ADD     A,02H           ;Add 2 
+1e34 27			            DAA                     ;Adjust for decimal 
+1e35 b7			            OR      A               ;Check if 0 or over 
+1e36 f2 41 1e		            JP      P,LL6           ;Yes, Winner! 
+1e39 21 a8 1e		            LD      HL,LUNALOSER    ;Load HL with LOSE Message 
+1e3c 11 84 1e		            LD      DE,LUNALOSE     ;Load DE with LOSE Tune 
+1e3f 18 06		            JR      LL7 
+1e41			LL6: 
+1e41 21 8d 1e		            LD      HL,LUNAWINNER   ;Load HL with WIN Message 
+1e44 11 7b 1e		            LD      DE,LUNAWIN      ;Load DE with WIN Tune 
+1e47			LL7: 
+1e47 ed 53 9a 3f	            LD      (TUNEADR),DE 
+1e4b 22 98 3f		            LD      (MESGADR),HL 
+1e4e cd 59 00		            CALL    TUNE 
+1e51 cd 56 00		            CALL    ASCII_SCRL 
+1e54 c3 db 1d		            JP      LUNALANDER 
+1e57			 
+1e57			LLSCREEN: 
+1e57 01 00 3f		            LD      BC,DISP_BUFF    ;Get Display buffer 
+1e5a 3a 00 2d		            LD      A,(LLFUEL)      ;Get Fuel 
+1e5d cd 33 3f		            CALL    A2CODE          ;Convert A to Segment Code, store in BC 
+1e60 3a 02 2d		            LD      A,(LLALT)       ;Get Altitude 
+1e63 57			            LD      D,A             ;Save 
+1e64 1e 80		            LD      E,80H           ;Bottom Segment 
+1e66 fe 15		            CP      15H             ;It is under 10 
+1e68 38 08		            JR      C,LLS1          ;Yes 
+1e6a 1e 04		            LD      E,04H           ;Middle Segments 
+1e6c fe 40		            CP      40H             ;It is half way 
+1e6e 38 02		            JR      C,LLS1          ;Yes 
+1e70 1e 01		            LD      E,01H           ;Top Segments 
+1e72			LLS1: 
+1e72 7b			            LD      A,E             ;Get Segments 
+1e73 02			            LD      (BC),A          ;Write it 
+1e74 03			            INC     BC              ;Move to next segment 
+1e75 02			            LD      (BC),A          ;Write it 
+1e76 03			            INC     BC              ;Move to last two segments 
+1e77 7a			            LD      A,D             ;Restore Altituded 
+1e78 c3 33 3f		            JP      A2CODE          ;Convert A to Segment Code, store in BC 
+1e7b			 
+1e7b 14 12 14 17 17 12 14 10 1f	LUNAWIN:    DB      14H,12H,14H,17H,17H,12H,14H,10H,1FH 
+1e84 01 11 01 11 01 11 01 11 1f	LUNALOSE:   DB      01H,11H,01H,11H,01H,11H,01H,11H,1FH 
+1e8d .. 0d		LUNAWINNER: DB      "GREAT LANDING JOHN!!      ",0DH 
+1ea8 .. 0d		LUNALOSER:  DB      "AAARG!! YOU DIE!!      ",0DH 
+1ec0			 
+1ec0			MMGUESS:    EQU     2D00H           ;Guess Made by user (4 bytes) 
+1ec0			MMANSWER:   EQU     2D04H           ;Answer (4 bytes) 
+1ec0			MMSCORE:    EQU     2D08H           ;Correct/Score 
+1ec0			MASTERMIND: 
+1ec0 21 61 1c		            LD      HL,WINTUNE 
+1ec3 22 9a 3f		            LD      (TUNEADR),HL 
+1ec6 21 00 3f		            LD      HL,DISP_BUFF    ;Load HL with Display 
+1ec9 af			            XOR     A 
+1eca 06 04		            LD      B,04H           ;four Segments 
+1ecc			MM00:             
+1ecc 77			            LD      (HL),A          ;Blank Segment 
+1ecd 23			            INC     HL 
+1ece 10 fc		            DJNZ    MM00             ;Repeat for all six segments 
+1ed0 16 20		            LD      D,20H  
+1ed2			MM0:  
+1ed2 df			            RST     18H             ;Do Scan/Key Loop 
+1ed3 28 10		            JR      Z,MM2           ;Key Press Exit 
+1ed5 15			            DEC     D 
+1ed6 20 fa		            JR      NZ,MM0 
+1ed8 0e 02		            LD      C,02H           ;Loop for all segments 
+1eda			MM1: 
+1eda cd 44 1c		            CALL    RANDOM          ;Get Random Number 
+1edd 27			            DAA                     ;Convert to 0-9 
+1ede 77			            LD      (HL),A          ;Fill Screen 
+1edf 0d			            DEC     C               ;Reduce C 
+1ee0 23			            INC     HL 
+1ee1 20 f7		            JR      NZ,MM1          ;Do for second byte 
+1ee3 18 db		            JR      MASTERMIND      ;Keep going until key press 
+1ee5			MM2: 
+1ee5 11 04 2d		            LD      DE,MMANSWER     ;Load DE with Answer Location 
+1ee8 0e 02		            LD      C,02H           ;Two Bytes 
+1eea			MM3: 
+1eea 06 02		            LD      B,02H           ;Do Twice 
+1eec			MM4: 
+1eec af			            XOR     A               ;Clear A 
+1eed ed 6f		            RLD                     ;Get High Nibble in A 
+1eef 12			            LD      (DE),A          ;Load BC with A 
+1ef0 13			            INC     DE              ;Move to next location 
+1ef1 10 f9		            DJNZ    MM4             ;Do for second nibble 
+1ef3 0d			            DEC     C               ;Second Byte 
+1ef4 23			            INC     HL       
+1ef5 20 f3		            JR      NZ,MM3          ;Do Again 
+1ef7			;Game Starts 
+1ef7			MM5: 
+1ef7 af			            XOR     A 
+1ef8 32 08 2d		            LD      (MMSCORE),A 
+1efb 21 00 3f		            LD      HL,DISP_BUFF    ;Get Display buffer 
+1efe 06 04		            LD      B,04H           ;Clear first four segments 
+1f00 af			            XOR     A               ;Clear A 
+1f01			MM6: 
+1f01 77			            LD      (HL),A          ;Fill with Blank 
+1f02 23			            INC     HL              ;Move to next segment 
+1f03 10 fc		            DJNZ    MM6             ;Again 
+1f05 3e 04		            LD      A,04H           ;Middle Segment 
+1f07 77			            LD      (HL),A          ;Display Segment 
+1f08 23			            INC     HL              ;Move to last segment 
+1f09 77			            LD      (HL),A          ;Display Segment 
+1f0a 11 00 3f		            LD      DE,DISP_BUFF    ;Link BC to Display for A2CODE to work 
+1f0d 21 00 2d		            LD      HL,MMGUESS      ;Load Guess 
+1f10			;Players Move 
+1f10			MM7: 
+1f10 df			            RST     18H             ;Do Scan/Key Loop 
+1f11 20 fd		            JR      NZ,MM7          ;No Key Press Exit, Keep Scaning 
+1f13 fe 0a		            CP      0AH             ;Is it greater than A? 
+1f15 30 f9		            JR      NC,MM7          ;Invalid Key, Keep Scaning 
+1f17 77			            LD      (HL),A          ;Save player number 
+1f18 01 b2 19		            LD      BC,SEGTBL       ;Load Segment Table 
+1f1b 81			            ADD     A,C             ;Index Table 
+1f1c 4f			            LD      C,A             ; 
+1f1d 0a			            LD      A,(BC)          ;Get Segment 
+1f1e 12			            LD      (DE),A          ;Save number to screen 
+1f1f 23			            INC     HL              ;Move to next guess number 
+1f20 13			            INC     DE               
+1f21 cb 55		            BIT     2,L             ;Is HL 2D04? 
+1f23 28 eb		            JR      Z,MM7           ;Get Next Key 
+1f25			;Compare Guess to Answer 
+1f25			MM8: 
+1f25 cd 79 1f		            CALL    THINKING        ;Display Thinking Animation 
+1f28 21 04 2d		            LD      HL,MMANSWER     ;Link HL To Answer 
+1f2b 11 00 2d		            LD      DE,MMGUESS      ;Link DE to Guess 
+1f2e 06 04		            LD      B,04H           ;Tries 
+1f30			MM9: 
+1f30 1a			            LD      A,(DE)          ;Get Guess 
+1f31 be			            CP      (HL)            ;Does it Match? 
+1f32 20 08		            JR      NZ,MM10          ;No 
+1f34 3a 08 2d		            LD      A,(MMSCORE)     ;Get Score 
+1f37 c6 10		            ADD     A,10H           ;Yes, Add one to upper nibble 
+1f39 32 08 2d		            LD      (MMSCORE),A     ;Save Score 
+1f3c			MM10: 
+1f3c c5			            PUSH    BC              ;Save BC 
+1f3d 06 03		            LD      B,03            ;Check other three guesses 
+1f3f			MM11: 
+1f3f 13			            INC     DE              ;Move to next guess 
+1f40 7b			            LD      A,E             ;Mask E to for overflow 
+1f41 e6 03		            AND     03H             ;Loop if > 3 
+1f43 5f			            LD      E,A             ;Reset E 
+1f44 1a			            LD      A,(DE)          ;Get Guess 
+1f45 be			            CP      (HL)            ;Does it Match? 
+1f46 20 07		            JR      NZ,MM12         ;No 
+1f48 3a 08 2d		            LD      A,(MMSCORE)     ;Get Score 
+1f4b 3c			            INC     A               ;Yes, Add one to upper nibble 
+1f4c 32 08 2d		            LD      (MMSCORE),A     ;Save Score 
+1f4f			MM12: 
+1f4f 10 ee		            DJNZ    MM11            ;Do 3 times 
+1f51 c1			            POP     BC              ;Restore BC 
+1f52 23			            INC     HL              ;Next Answer 
+1f53 7d			            LD      A,L             ;Make E = L-4 
+1f54 d6 04		            SUB     04H             ;Subtract 4 
+1f56 5f			            LD      E,A             ;Reset E 
+1f57 10 d7		            DJNZ    MM9             ;Do for all 4 numbers 
+1f59			;Display Score 
+1f59 01 04 3f		            LD      BC,DISP_BUFF+4  ;Get Display buffer last two segments 
+1f5c 3a 08 2d		            LD      A,(MMSCORE)     ;Get Score 
+1f5f			 
+1f5f f5			            PUSH    AF              ;Save Score 
+1f60 cd 33 3f		            CALL    A2CODE          ;Save it to display buff 
+1f63 f1			            POP     AF              ;Restore Score 
+1f64 cb 77		            BIT     6,A             ;Winner? 
+1f66 28 03		            JR      Z,MM13 
+1f68 cd 59 00		            CALL    TUNE 
+1f6b			MM13: 
+1f6b df			            RST     18H             ;Do Scan/Key Loop 
+1f6c 20 fd		            JR      NZ,MM13         ;Repeat until key pressed 
+1f6e 3a 08 2d		            LD      A,(MMSCORE)     ;Get Score 
+1f71 cb 77		            BIT     6,A             ;Winner? 
+1f73 c2 c0 1e		            JP      NZ,MASTERMIND   ;Start New Game 
+1f76 c3 f7 1e		            JP      MM5             ;Start Next Round Again 
+1f79			;Thinking Animation 
+1f79			THINKING: 
+1f79 06 02		            LD      B,02H          ;Full loop, 4 Times 
+1f7b 21 04 3f		            LD      HL,DISP_BUFF+4  ;Get Display buffer last two segments 
+1f7e			THK1: 
+1f7e 11 9b 1f		            LD      DE,THINKTBL     ;Link to Thinking Table 
+1f81 c5			            PUSH    BC              ;Save BC 
+1f82 06 08		            LD      B,08H           ;Eight loops 
+1f84			THK2: 
+1f84 1a			            LD      A,(DE)          ;Get Move 
+1f85 77			            LD      (HL),A          ;Display Move 
+1f86 23			            INC     HL              ;Next Display 
+1f87 13			            INC     DE              ;Next Segment 
+1f88 1a			            LD      A,(DE)          ;Get Move 
+1f89 77			            LD      (HL),A          ;Display Move 
+1f8a 13			            INC     DE              ;Next Segment 
+1f8b c5			            PUSH    BC              ;Save B 
+1f8c 06 30		            LD      B,30H           ;Delay 
+1f8e			THK3: 
+1f8e c5			            PUSH    BC 
+1f8f df			            RST     18H             ;Do Scan/Key Loop 
+1f90 c1			            POP     BC 
+1f91 10 fb		            DJNZ    THK3            ;Scan Again 
+1f93 2b			            DEC     HL              ;Restore HL 
+1f94 c1			            POP     BC              ;Restore BC 
+1f95 10 ed		            DJNZ    THK2            ;Do next Segment 
+1f97 c1			            POP     BC              ;Get C 
+1f98 10 e4		            DJNZ    THK1            ;Repeat Sequence 
+1f9a c9			            RET 
+1f9b			 
+1f9b 04 04 02 08 01 01 08 02	THINKTBL:   DB      04H,04H,02H,08H,01H,01H,08H,02H 
+1fa3 04 04 40 20 80 80 20 40	            DB      04H,04H,40H,20H,80H,80H,20H,40H 
+1fab			 
+1fab			;Menu Command String 
+1fab			M_DATA: 
+1fab ff ff		            DB      0xFF,0xFF ; Blank 
+1fad 00 06		            DB      0x00,0x06 ; First menu item and number of menu items, = 7 
+1faf b6 1f		            DW      MENU_JP_TBL ; Jump table for menu items 
+1fb1 cb 1f		            DW      MENU_AD_TBL ; Menu Address LED display table 
+1fb3 e7 1f		            DW      MENU_DA_TBL ; Menu Data LED display table 
+1fb5 c9			            DB      0xC9 ; return (unused) 
+1fb6			 
+1fb6			MENU_JP_TBL:        ; Menu Jump table 
+1fb6			                    ; Seven Segment Routines  
+1fb6 c3 ee 18		            JP      SEGHIT  ; Segment Hit 
+1fb9 c3 bc 19		            JP      SIMON  ; Simon Game 
+1fbc c3 aa 1a		            JP      DODGY  ; Dodgy Game 
+1fbf c3 a0 1b		            JP      SPIALIEN ; Spiroid Alien 
+1fc2 c3 a3 1c		            JP      NIM  ; NIM Matches Game 
+1fc5 c3 db 1d		            JP      LUNALANDER ; Luna Lander 
+1fc8 c3 c0 1e		            JP      MASTERMIND ; Master Mind 
+1fcb			  
+1fcb			MENU_AD_TBL:        ; Menu Display for ADDRESS LEDs 
+1fcb			                    ; Seven Segment Routines  
+1fcb a7 c7 e3 6e	            DB      0xA7,0xC7,0xE3,0x6E ; "SEGh" 
+1fcf a7 42 61 eb	            DB      0xA7,0x42,0x61,0xEB ; "SIMO" 
+1fd3 ec eb ec e3	            DB      0xEC,0xEB,0xEC,0xE3 ; "DODG" 
+1fd7 67 42 c2 c2	            DB      0x67,0x42,0xC2,0xC2 ; "kILL" 
+1fdb 6b 42 61 00	            DB      0x6B,0x42,0x61,0x00 ; "NIM " 
+1fdf c2 6f 6b ec	            DB      0xC2,0x6F,0x6B,0xEC ; "LANd" 
+1fe3 61 6f a7 c6	            DB      0x61,0x6F,0xA7,0xC6 ; "MASt" 
+1fe7			  
+1fe7			MENU_DA_TBL:        ; Menu Display for DATA LEDs 
+1fe7			                    ; Seven Segment Routines  
+1fe7 42 c6		            DB      0x42,0xC6 ; "It" 
+1fe9 6b 00		            DB      0x6B,0x00 ; "N " 
+1feb ae 00		            DB      0xAE,0x00 ; "Y " 
+1fed c7 c6		            DB      0xC7,0xC6 ; "Et" 
+1fef 00 00		            DB      0x00,0x00 ; "  " 
+1ff1 c7 4b		            DB      0xC7,0x4B ; "ER" 
+1ff3 c7 4b		            DB      0xC7,0x4B ; "ER" 
+1ff5			  
+1ff5 0x00...		            DS      0BH,00H   ;Pad out  
 2000			 
 # End of file /Users/slarti/Documents/TEC1x/TEC-1D-Stuff/code/bmon/games.z80
 2000

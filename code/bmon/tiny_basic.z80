@@ -63,7 +63,7 @@ CS:              EQU     0CH             ; Clear screen
 CR:              EQU     0DH             ; Carriage return
 CTRLO:           EQU     0FH             ; Control "O"
 CTRLQ:           EQU     11H             ; Control "Q"
-CTRLS:           EQU     13H             ; Control "S"
+CTRLD:           EQU     04H             ; Control "D"
 CTRLU:           EQU     15H             ; Control "U"
 CTRLZ:           EQU     1AH             ; Control "Z"
 ESC:             EQU     1BH             ; Escape
@@ -83,14 +83,14 @@ LOPPT:           EQU     OCSW+17         ;TEXT POINTER
 RANPNT:          EQU     OCSW+19         ;RANDOM NUMBER POINTER
 TXTUNF:          EQU     OCSW+21         ;->UNFILLED TEXT AREA
 TXTBGN:          EQU     OCSW+23         ;TEXT SAVE AREA BEGINS
-TXTEND:          EQU     3F00H           ;TEXT SAVE AREA ENDS
+TXTEND:          EQU     3E00H           ;TEXT SAVE AREA ENDS
 
 ;STACK, VARIABLES AND INPUT BUFFER
-VARBGN:          EQU     3F00H           ;VARIABLE LOCATION (SIZE OF 55)
-BUFFER:          EQU     3F37H           ;INPUT BUFFER (SIZE OF 80)
-BUFEND:          EQU     3F87H           ;BUFFER END
-STKLMT:          EQU     3F88H           ;TOP LIMIT FOR STACK
-STACK:           EQU     3FFFH           ;STACK
+VARBGN:          EQU     3E00H           ;VARIABLE LOCATION (SIZE OF 55)
+BUFFER:          EQU     3E37H           ;INPUT BUFFER (SIZE OF 80)
+BUFEND:          EQU     3E87H           ;BUFFER END
+STKLMT:          EQU     3E88H           ;TOP LIMIT FOR STACK
+STACK:           EQU     3EFFH           ;STACK
 
 ;*************************************************************
 ; *** ZERO PAGE SUBROUTINES ***
@@ -448,7 +448,7 @@ GOTO:
 ; AS AN ASCII CHARCTER.  IF THE CARACTER IS NOT PRINTABLE
 ; A '.' WILL BE PRINTED.
 ;
-; IF IA $ IS THE FIRST CHARACTER, THE NUMBER IS PRINTED
+; IF A $ IS THE FIRST CHARACTER, THE NUMBER IS PRINTED
 ; AS AN ASCII CHARCTER BUT ALL ASCII CHARACTERS ARE PRINTED
 ; BETWEEN 0 AND 128
 ;
@@ -1743,8 +1743,10 @@ CI1:
         AND 0DFH                        ;MAKE IT UPPER CASE
 CI2:
         CP CTRLC                        ;IS IT CONTROL-C?
+        JP Z,RSTART                     ;YES, RESTART TBI
+        CP CTRLD                        ;IS IT CONTROL-D?
         RET NZ                          ;NO, RETURN "NZ"
-        JP RSTART                       ;YES, RESTART TBI
+        RST 00H                         ;RESTART MONITOR AND EXIT
 
 
 MSG1:   DB   CS,'Z80 TINY BASIC 2.1b',CR       ;CLEAR SCREEN AND BOOT MESSAGE
@@ -1970,7 +1972,7 @@ RX_EXIT:
         POP BC
         RET
 
-        DS 0AH                          ;FILL TO MAKE EVEN
+        DS 07H                          ;FILL TO MAKE EVEN
 ;-------------------------------------------------------------------------------
 
 ;///////////////////////////////////////////////////////////////////////////////

@@ -64,7 +64,7 @@
 0000			CR:              EQU     0DH             ; Carriage return 
 0000			CTRLO:           EQU     0FH             ; Control "O" 
 0000			CTRLQ:           EQU     11H             ; Control "Q" 
-0000			CTRLS:           EQU     13H             ; Control "S" 
+0000			CTRLD:           EQU     04H             ; Control "D" 
 0000			CTRLU:           EQU     15H             ; Control "U" 
 0000			CTRLZ:           EQU     1AH             ; Control "Z" 
 0000			ESC:             EQU     1BH             ; Escape 
@@ -84,14 +84,14 @@
 0000			RANPNT:          EQU     OCSW+19         ;RANDOM NUMBER POINTER 
 0000			TXTUNF:          EQU     OCSW+21         ;->UNFILLED TEXT AREA 
 0000			TXTBGN:          EQU     OCSW+23         ;TEXT SAVE AREA BEGINS 
-0000			TXTEND:          EQU     3F00H           ;TEXT SAVE AREA ENDS 
+0000			TXTEND:          EQU     3E00H           ;TEXT SAVE AREA ENDS 
 0000			 
 0000			;STACK, VARIABLES AND INPUT BUFFER 
-0000			VARBGN:          EQU     3F00H           ;VARIABLE LOCATION (SIZE OF 55) 
-0000			BUFFER:          EQU     3F37H           ;INPUT BUFFER (SIZE OF 80) 
-0000			BUFEND:          EQU     3F87H           ;BUFFER END 
-0000			STKLMT:          EQU     3F88H           ;TOP LIMIT FOR STACK 
-0000			STACK:           EQU     3FFFH           ;STACK 
+0000			VARBGN:          EQU     3E00H           ;VARIABLE LOCATION (SIZE OF 55) 
+0000			BUFFER:          EQU     3E37H           ;INPUT BUFFER (SIZE OF 80) 
+0000			BUFEND:          EQU     3E87H           ;BUFFER END 
+0000			STKLMT:          EQU     3E88H           ;TOP LIMIT FOR STACK 
+0000			STACK:           EQU     3EFFH           ;STACK 
 0000			 
 0000			;************************************************************* 
 0000			; *** ZERO PAGE SUBROUTINES *** 
@@ -113,7 +113,7 @@
 0000			        ORG    1000H 
 1000			 
 1000			START: 
-1000 31 ff 3f		        LD SP,STACK                     ;*** COLD START *** 
+1000 31 ff 3e		        LD SP,STACK                     ;*** COLD START *** 
 1003 c3 df 16		        JP INIT 
 1006			 
 1006 e3			RST08:  EX (SP),HL                      ;*** TSTC OR RST 08H *** 
@@ -163,7 +163,7 @@
 1044 cd b0 14		        CALL SIZE                       ;FIND SIZE OF FREE 
 1047 cd 1f 10		        CALL RST20                      ;AND CHECK THAT 
 104a da 59 15		        JP C,ASORRY                     ;IF SO, SAY "SORRY" 
-104d 21 00 3f		        LD HL,VARBGN                    ;IF NOT GET ADDRESS 
+104d 21 00 3e		        LD HL,VARBGN                    ;IF NOT GET ADDRESS 
 1050 cd d2 14		        CALL SUBDE                      ;OF @(EXPR) AND PUT IT 
 1053 d1			        POP DE                          ;IN HL 
 1054 c9			        RET                             ;C FLAG IS CLEARED 
@@ -173,7 +173,7 @@
 1057 3f			        CCF                             ;IF NOT RETURN C FLAG 
 1058 d8			        RET C 
 1059 13			        INC DE                          ;IF A THROUGH Z 
-105a 21 00 3f		        LD HL,VARBGN                    ;COMPUTE ADDRESS OF 
+105a 21 00 3e		        LD HL,VARBGN                    ;COMPUTE ADDRESS OF 
 105d 07			        RLCA                            ;THAT VARIABLE 
 105e 85			        ADD A,L                         ;AND RETURN IT IN HL 
 105f 6f			        LD L,A                          ;WITH C FLAG CLEARED 
@@ -277,7 +277,7 @@
 10b3			;************************************************************* 
 10b3			 
 10b3			RSTART: 
-10b3 31 ff 3f		        LD SP,STACK 
+10b3 31 ff 3e		        LD SP,STACK 
 10b6			 
 10b6			ST1: 
 10b6 3e ff		        LD A,0FFH 
@@ -298,13 +298,13 @@
 10d4 3e 3e		        LD A,'>'                        ;PROMPT '>' AND 
 10d6 cd 5e 15		        CALL GETLN                      ;READ A LINE 
 10d9 d5			        PUSH DE                         ;DE->END OF LINE 
-10da 11 37 3f		        LD DE,BUFFER                    ;DE->BEGINNING OF LINE 
+10da 11 37 3e		        LD DE,BUFFER                    ;DE->BEGINNING OF LINE 
 10dd cd 6f 10		        CALL TSTNUM                     ;TEST IF IT IS A NUMBER 
 10e0 cd 25 10		        CALL RST28 
 10e3 7c			        LD A,H                          ;HL=VALUE OF THE # OR 
 10e4 b5			        OR L                            ;0 IF NO # WAS FOUND 
 10e5 c1			        POP BC                          ;BC->END OF LINE 
-10e6 ca 3f 18		        JP Z,DIRECT 
+10e6 ca 42 18		        JP Z,DIRECT 
 10e9 1b			        DEC DE                          ;BACKUP DE AND SAVE 
 10ea 7c			        LD A,H                          ;VALUE OF LINE # THERE 
 10eb 12			        LD (DE),A 
@@ -342,7 +342,7 @@
 1116 3e 00		        LD A,00H 
 1118 8c			        ADC A,H 
 1119 67			        LD H,A                          ;HL->NEW UNFILLED AREA 
-111a 11 00 3f		        LD DE,TXTEND                    ;CHECK TO SEE IF THERE 
+111a 11 00 3e		        LD DE,TXTEND                    ;CHECK TO SEE IF THERE 
 111d cd 1f 10		        CALL RST20                         ;IS ENOUGH SPACE 
 1120 d2 58 15		        JP NC,QSORRY                    ;SORRY, NO ROOM FOR IT 
 1123 22 15 20		        LD (TXTUNF),HL                  ;OK, UPDATE TXTUNF 
@@ -411,8 +411,8 @@
 1155 13			        INC DE 
 1156			RUNSML: 
 1156 cd 3e 17		        CALL CHKIO                      ;*** RUNSML *** 
-1159 21 ae 17		        LD HL,TAB2-1                    ;FIND COMMAND IN TAB2 
-115c c3 42 18		        JP EXEC                         ;AND EXECUTE IT 
+1159 21 b1 17		        LD HL,TAB2-1                    ;FIND COMMAND IN TAB2 
+115c c3 45 18		        JP EXEC                         ;AND EXECUTE IT 
 115f			GOTO: 
 115f cd 18 10		        CALL RST18                         ;*** GOTO EXPR *** 
 1162 d5			        PUSH DE                         ;SAVE FOR ERROR ROUTINE 
@@ -620,13 +620,13 @@
 122d cd f7 14		        CALL SETVAL                     ;SET THE CONTROL VAR. 
 1230 2b			        DEC HL                          ;HL IS ITS ADDRESS 
 1231 22 09 20		        LD (LOPVAR),HL                  ;SAVE THAT 
-1234 21 1a 18		        LD HL,TAB5-1                    ;USE 'EXEC' TO LOOK 
-1237 c3 42 18		        JP EXEC                         ;FOR THE WORK 'TO' 
+1234 21 1d 18		        LD HL,TAB5-1                    ;USE 'EXEC' TO LOOK 
+1237 c3 45 18		        JP EXEC                         ;FOR THE WORK 'TO' 
 123a			FR1: 
 123a cd 18 10		        CALL RST18                         ;EVALUATE THE LIMITE 
 123d 22 0d 20		        LD (LOPLMT),HL                  ;SAVE THAT 
-1240 21 20 18		        LD HL,TAB6-1                    ;USE 'EXEC' TO LOOK 
-1243 c3 42 18		        JP EXEC                         ;FOR THE WORD 'STEP' 
+1240 21 23 18		        LD HL,TAB6-1                    ;USE 'EXEC' TO LOOK 
+1243 c3 45 18		        JP EXEC                         ;FOR THE WORD 'STEP' 
 1246			FR2: 
 1246 cd 18 10		        CALL RST18                         ;FOUND IT, GET STEP 
 1249 18 03		        JR FR4 
@@ -818,7 +818,7 @@
 1339 d5			        PUSH DE                         ;OLD HL 
 133a 3e 3a		        LD A,3AH                        ;PRINT THIS TOO 
 133c cd 5e 15		        CALL GETLN                      ;AND GET A LINE 
-133f 11 37 3f		        LD DE,BUFFER                    ;POINTS TO BUFFER 
+133f 11 37 3e		        LD DE,BUFFER                    ;POINTS TO BUFFER 
 1342 cd 18 10		        CALL RST18                         ;EVALUATE INPUT 
 1345 00			        NOP                             ;CAN BE 'CALL ENDCHK' 
 1346 00			        NOP 
@@ -872,8 +872,8 @@
 136f			;************************************************************* 
 136f			 
 136f			EXPR1: 
-136f 21 28 18		        LD HL,TAB8-1                    ;LOOKUP REL.OP. 
-1372 c3 42 18		        JP EXEC                         ;GO DO IT 
+136f 21 2b 18		        LD HL,TAB8-1                    ;LOOKUP REL.OP. 
+1372 c3 45 18		        JP EXEC                         ;GO DO IT 
 1375			XP11: 
 1375 cd 9e 13		        CALL XP18                       ;REL.OP.">=" 
 1378 d8			        RET C                           ;NO, RETURN HL=0 
@@ -1028,8 +1028,8 @@
 1447 fc dc 14		        CALL M,CHGSGN                   ;CHANGE SIGN IF NEEDED 
 144a 18 a4		        JR XP31                         ;LOOK FOR MORE TERMS 
 144c			EXPR4: 
-144c 21 02 18		        LD HL,TAB4-1                    ;FIND FUNCTION IN TAB4 
-144f c3 42 18		        JP EXEC                         ;AND GO DO IT 
+144c 21 05 18		        LD HL,TAB4-1                    ;FIND FUNCTION IN TAB4 
+144f c3 45 18		        JP EXEC                         ;AND GO DO IT 
 1452			XP40: 
 1452 cd 33 10		        CALL RST38                         ;NO, NOT A FUNCTION 
 1455 38 05		        JR C,XP41                       ;NOR A VARIABLE 
@@ -1098,7 +1098,7 @@
 14b0 2a 15 20		        LD HL,(TXTUNF)                  ;*** SIZE *** 
 14b3 d5			        PUSH DE                         ;GET THE NUMBER OF FREE 
 14b4 eb			        EX DE,HL                        ;BYTES BETWEEN 'TXTUNF' 
-14b5 21 00 3f		        LD HL,VARBGN                    ;AND 'VARBGN' 
+14b5 21 00 3e		        LD HL,VARBGN                    ;AND 'VARBGN' 
 14b8 cd d2 14		        CALL SUBDE 
 14bb d1			        POP DE 
 14bc c9			        RET 
@@ -1305,7 +1305,7 @@
 155e			 
 155e			GETLN: 
 155e cd 10 10		        CALL RST10                         ;*** GETLN *** 
-1561 11 37 3f		        LD DE,BUFFER                    ;PROMPT AND INIT. 
+1561 11 37 3e		        LD DE,BUFFER                    ;PROMPT AND INIT. 
 1564			GL1: 
 1564 cd 3e 17		        CALL CHKIO                      ;CHECK KEYBOARD 
 1567 28 fb		        JR Z,GL1                        ;NO INPUT, WAIT 
@@ -1604,7 +1604,7 @@
 16b5 c5			        PUSH BC                         ;BC = RETURN ADDR. 
 16b6 c9			        RET 
 16b7			PUSHA: 
-16b7 21 88 3f		        LD HL,STKLMT                    ;*** PUSHA *** 
+16b7 21 88 3e		        LD HL,STKLMT                    ;*** PUSHA *** 
 16ba cd dc 14		        CALL CHGSGN 
 16bd c1			        POP BC                          ;BC=RETURN ADDRESS 
 16be 39			        ADD HL,SP                       ;IS STACK NEAR THE TOP? 
@@ -1661,12 +1661,12 @@
 16df			;************************************************************* 
 16df			 
 16df			INIT: 
-16df cd 6c 18		        CALL SERIAL_INIT        ;INITIALIZE THE SIO 
+16df cd 6f 18		        CALL SERIAL_INIT        ;INITIALIZE THE SIO 
 16e2 af			        XOR A 
-16e3 11 6a 17		        LD DE,MSG1          ;PRINT THE BOOT MESSAGES 
+16e3 11 6d 17		        LD DE,MSG1          ;PRINT THE BOOT MESSAGES 
 16e6 cd c5 15		        CALL PRTSTG 
 16e9 af			        XOR A 
-16ea 11 7f 17		        LD DE,MSG2 
+16ea 11 82 17		        LD DE,MSG2 
 16ed cd c5 15		        CALL PRTSTG 
 16f0 21 00 10		        LD HL,START 
 16f3 22 13 20		        LD (RANPNT),HL 
@@ -1679,7 +1679,7 @@
 1702 c9			        RET                             ;RESTORE AF AND RETURN 
 1703			OUTC2: 
 1703 f1			        POP AF                          ;RESTORE THE REGISTER          
-1704 cd 77 18		        CALL TX_RDY                     ;SEND THE BYTE 
+1704 cd 7a 18		        CALL TX_RDY                     ;SEND THE BYTE 
 1707 fe 0d		        CP CR 
 1709 c0			        RET NZ 
 170a 3e 0a		        LD A,LF 
@@ -1715,7 +1715,7 @@
 1738 32 00 20		        LD (OCSW),A                   ;SAVE NEW SWITCH 
 173b cd 2c 10		        CALL RST30                      ;CONTINUE 
 173e			CHKIO: 
-173e cd a2 18		        CALL RX_RDY                     ;CHECK IF CHARACTER AVAILABLE 
+173e cd a5 18		        CALL RX_RDY                     ;CHECK IF CHARACTER AVAILABLE 
 1741 c8			        RET Z                           ;RETURN IF NO CHARACTER AVAILABLE 
 1742			 
 1742 c5			        PUSH BC                         ;IF IT'S A LF, IGNORE AND RETURN 
@@ -1744,370 +1744,372 @@
 1762 e6 df		        AND 0DFH                        ;MAKE IT UPPER CASE 
 1764			CI2: 
 1764 fe 03		        CP CTRLC                        ;IS IT CONTROL-C? 
-1766 c0			        RET NZ                          ;NO, RETURN "NZ" 
-1767 c3 b3 10		        JP RSTART                       ;YES, RESTART TBI 
-176a			 
-176a			 
-176a 0c .. 0d		MSG1:   DB   CS,'Z80 TINY BASIC 2.1b',CR       ;CLEAR SCREEN AND BOOT MESSAGE 
-177f .. 0d		MSG2:   DB   'TEC-1F VERSION BY B CHIHA, 2022',CR 
-179f			 
-179f			;************************************************************* 
-179f			; 
-179f			; *** TABLES *** DIRECT *** & EXEC *** 
-179f			; 
-179f			; THIS SECTION OF THE CODE TESTS A STRING AGAINST A TABLE. 
-179f			; WHEN A MATCH IS FOUND, CONTROL IS TRANSFERED TO THE SECTION 
-179f			; OF CODE ACCORDING TO THE TABLE. 
-179f			; 
-179f			; AT 'EXEC', DE SHOULD POINT TO THE STRING AND HL SHOULD POINT 
-179f			; TO THE TABLE-1.  AT 'DIRECT', DE SHOULD POINT TO THE STRING. 
-179f			; HL WILL BE SET UP TO POINT TO TAB1-1, WHICH IS THE TABLE OF 
-179f			; ALL DIRECT AND STATEMENT COMMANDS. 
-179f			; 
-179f			; A '.' IN THE STRING WILL TERMINATE THE TEST AND THE PARTIAL 
-179f			; MATCH WILL BE CONSIDERED AS A MATCH.  E.G., 'P.', 'PR.', 
-179f			; 'PRI.', 'PRIN.', OR 'PRINT' WILL ALL MATCH 'PRINT'. 
-179f			; 
-179f			; THE TABLE CONSISTS OF ANY NUMBER OF ITEMS.  EACH ITEM 
-179f			; IS A STRING OF CHARACTERS WITH BIT 7 SET TO 0 AND 
-179f			; A JUMP ADDRESS STORED HI-LOW WITH BIT 7 OF THE HIGH 
-179f			; BYTE SET TO 1. 
-179f			; 
-179f			; END OF TABLE IS AN ITEM WITH A JUMP ADDRESS ONLY.  IF THE 
-179f			; STRING DOES NOT MATCH ANY OF THE OTHER ITEMS, IT WILL 
-179f			; MATCH THIS NULL ITEM AS DEFAULT. 
-179f			;************************************************************* 
-179f			 
-179f			TAB1:                                   ;DIRECT COMMANDS 
-179f ..			        DB 'LIST' 
-17a3			        DWA LIST 
-17a3 91			        DB   (LIST >> 8) + 128 
-17a4 6f			        DB   LIST & 0FFH 
-17a5			        ENDM 
+1766 ca b3 10		        JP Z,RSTART                     ;YES, RESTART TBI 
+1769 fe 04		        CP CTRLD                        ;IS IT CONTROL-D? 
+176b c0			        RET NZ                          ;NO, RETURN "NZ" 
+176c c7			        RST 00H                         ;RESTART MONITOR AND EXIT 
+176d			 
+176d			 
+176d 0c .. 0d		MSG1:   DB   CS,'Z80 TINY BASIC 2.1b',CR       ;CLEAR SCREEN AND BOOT MESSAGE 
+1782 .. 0d		MSG2:   DB   'TEC-1F VERSION BY B CHIHA, 2022',CR 
+17a2			 
+17a2			;************************************************************* 
+17a2			; 
+17a2			; *** TABLES *** DIRECT *** & EXEC *** 
+17a2			; 
+17a2			; THIS SECTION OF THE CODE TESTS A STRING AGAINST A TABLE. 
+17a2			; WHEN A MATCH IS FOUND, CONTROL IS TRANSFERED TO THE SECTION 
+17a2			; OF CODE ACCORDING TO THE TABLE. 
+17a2			; 
+17a2			; AT 'EXEC', DE SHOULD POINT TO THE STRING AND HL SHOULD POINT 
+17a2			; TO THE TABLE-1.  AT 'DIRECT', DE SHOULD POINT TO THE STRING. 
+17a2			; HL WILL BE SET UP TO POINT TO TAB1-1, WHICH IS THE TABLE OF 
+17a2			; ALL DIRECT AND STATEMENT COMMANDS. 
+17a2			; 
+17a2			; A '.' IN THE STRING WILL TERMINATE THE TEST AND THE PARTIAL 
+17a2			; MATCH WILL BE CONSIDERED AS A MATCH.  E.G., 'P.', 'PR.', 
+17a2			; 'PRI.', 'PRIN.', OR 'PRINT' WILL ALL MATCH 'PRINT'. 
+17a2			; 
+17a2			; THE TABLE CONSISTS OF ANY NUMBER OF ITEMS.  EACH ITEM 
+17a2			; IS A STRING OF CHARACTERS WITH BIT 7 SET TO 0 AND 
+17a2			; A JUMP ADDRESS STORED HI-LOW WITH BIT 7 OF THE HIGH 
+17a2			; BYTE SET TO 1. 
+17a2			; 
+17a2			; END OF TABLE IS AN ITEM WITH A JUMP ADDRESS ONLY.  IF THE 
+17a2			; STRING DOES NOT MATCH ANY OF THE OTHER ITEMS, IT WILL 
+17a2			; MATCH THIS NULL ITEM AS DEFAULT. 
+17a2			;************************************************************* 
+17a2			 
+17a2			TAB1:                                   ;DIRECT COMMANDS 
+17a2 ..			        DB 'LIST' 
+17a6			        DWA LIST 
+17a6 91			        DB   (LIST >> 8) + 128 
+17a7 6f			        DB   LIST & 0FFH 
+17a8			        ENDM 
 # End of macro DWA
-17a5 ..			        DB 'RUN' 
-17a8			        DWA RUN 
-17a8 91			        DB   (RUN >> 8) + 128 
-17a9 40			        DB   RUN & 0FFH 
-17aa			        ENDM 
+17a8 ..			        DB 'RUN' 
+17ab			        DWA RUN 
+17ab 91			        DB   (RUN >> 8) + 128 
+17ac 40			        DB   RUN & 0FFH 
+17ad			        ENDM 
 # End of macro DWA
-17aa ..			        DB 'NEW' 
-17ad			        DWA NEW 
-17ad 91			        DB   (NEW >> 8) + 128 
-17ae 31			        DB   NEW & 0FFH 
-17af			        ENDM 
+17ad ..			        DB 'NEW' 
+17b0			        DWA NEW 
+17b0 91			        DB   (NEW >> 8) + 128 
+17b1 31			        DB   NEW & 0FFH 
+17b2			        ENDM 
 # End of macro DWA
-17af			TAB2:                                   ;DIRECT/STATEMENT 
-17af ..			        DB 'NEXT' 
-17b3			        DWA NEXT 
-17b3 92			        DB   (NEXT >> 8) + 128 
-17b4 89			        DB   NEXT & 0FFH 
-17b5			        ENDM 
+17b2			TAB2:                                   ;DIRECT/STATEMENT 
+17b2 ..			        DB 'NEXT' 
+17b6			        DWA NEXT 
+17b6 92			        DB   (NEXT >> 8) + 128 
+17b7 89			        DB   NEXT & 0FFH 
+17b8			        ENDM 
 # End of macro DWA
-17b5 ..			        DB 'LET' 
-17b8			        DWA LET 
-17b8 93			        DB   (LET >> 8) + 128 
-17b9 62			        DB   LET & 0FFH 
-17ba			        ENDM 
+17b8 ..			        DB 'LET' 
+17bb			        DWA LET 
+17bb 93			        DB   (LET >> 8) + 128 
+17bc 62			        DB   LET & 0FFH 
+17bd			        ENDM 
 # End of macro DWA
-17ba ..			        DB 'IF' 
-17bc			        DWA IFF 
-17bc 92			        DB   (IFF >> 8) + 128 
-17bd ec			        DB   IFF & 0FFH 
-17be			        ENDM 
+17bd ..			        DB 'IF' 
+17bf			        DWA IFF 
+17bf 92			        DB   (IFF >> 8) + 128 
+17c0 ec			        DB   IFF & 0FFH 
+17c1			        ENDM 
 # End of macro DWA
-17be ..			        DB 'GOTO' 
-17c2			        DWA GOTO 
-17c2 91			        DB   (GOTO >> 8) + 128 
-17c3 5f			        DB   GOTO & 0FFH 
-17c4			        ENDM 
+17c1 ..			        DB 'GOTO' 
+17c5			        DWA GOTO 
+17c5 91			        DB   (GOTO >> 8) + 128 
+17c6 5f			        DB   GOTO & 0FFH 
+17c7			        ENDM 
 # End of macro DWA
-17c4 ..			        DB 'GOSUB' 
-17c9			        DWA GOSUB 
-17c9 91			        DB   (GOSUB >> 8) + 128 
-17ca ed			        DB   GOSUB & 0FFH 
-17cb			        ENDM 
+17c7 ..			        DB 'GOSUB' 
+17cc			        DWA GOSUB 
+17cc 91			        DB   (GOSUB >> 8) + 128 
+17cd ed			        DB   GOSUB & 0FFH 
+17ce			        ENDM 
 # End of macro DWA
-17cb ..			        DB 'RETURN' 
-17d1			        DWA RETURN 
-17d1 92			        DB   (RETURN >> 8) + 128 
-17d2 0f			        DB   RETURN & 0FFH 
-17d3			        ENDM 
+17ce ..			        DB 'RETURN' 
+17d4			        DWA RETURN 
+17d4 92			        DB   (RETURN >> 8) + 128 
+17d5 0f			        DB   RETURN & 0FFH 
+17d6			        ENDM 
 # End of macro DWA
-17d3 ..			        DB 'REM' 
-17d6			        DWA REM 
-17d6 92			        DB   (REM >> 8) + 128 
-17d7 e7			        DB   REM & 0FFH 
-17d8			        ENDM 
+17d6 ..			        DB 'REM' 
+17d9			        DWA REM 
+17d9 92			        DB   (REM >> 8) + 128 
+17da e7			        DB   REM & 0FFH 
+17db			        ENDM 
 # End of macro DWA
-17d8 ..			        DB 'FOR' 
-17db			        DWA FOR 
-17db 92			        DB   (FOR >> 8) + 128 
-17dc 2a			        DB   FOR & 0FFH 
-17dd			        ENDM 
+17db ..			        DB 'FOR' 
+17de			        DWA FOR 
+17de 92			        DB   (FOR >> 8) + 128 
+17df 2a			        DB   FOR & 0FFH 
+17e0			        ENDM 
 # End of macro DWA
-17dd ..			        DB 'INPUT' 
-17e2			        DWA INPUT 
-17e2 93			        DB   (INPUT >> 8) + 128 
-17e3 07			        DB   INPUT & 0FFH 
-17e4			        ENDM 
+17e0 ..			        DB 'INPUT' 
+17e5			        DWA INPUT 
+17e5 93			        DB   (INPUT >> 8) + 128 
+17e6 07			        DB   INPUT & 0FFH 
+17e7			        ENDM 
 # End of macro DWA
-17e4 ..			        DB 'PRINT' 
-17e9			        DWA PRINT 
-17e9 91			        DB   (PRINT >> 8) + 128 
-17ea 86			        DB   PRINT & 0FFH 
-17eb			        ENDM 
+17e7 ..			        DB 'PRINT' 
+17ec			        DWA PRINT 
+17ec 91			        DB   (PRINT >> 8) + 128 
+17ed 86			        DB   PRINT & 0FFH 
+17ee			        ENDM 
 # End of macro DWA
-17eb ..			        DB 'OUT' 
-17ee			        DWA OUTP 
-17ee 97			        DB   (OUTP >> 8) + 128 
-17ef 12			        DB   OUTP & 0FFH 
-17f0			        ENDM 
+17ee ..			        DB 'OUT' 
+17f1			        DWA OUTP 
+17f1 97			        DB   (OUTP >> 8) + 128 
+17f2 12			        DB   OUTP & 0FFH 
+17f3			        ENDM 
 # End of macro DWA
-17f0 ..			        DB 'STOP' 
-17f4			        DWA STOP 
-17f4 91			        DB   (STOP >> 8) + 128 
-17f5 3a			        DB   STOP & 0FFH 
-17f6			        ENDM 
+17f3 ..			        DB 'STOP' 
+17f7			        DWA STOP 
+17f7 91			        DB   (STOP >> 8) + 128 
+17f8 3a			        DB   STOP & 0FFH 
+17f9			        ENDM 
 # End of macro DWA
-17f6 ..			        DB 'XON' 
-17f9			        DWA XON 
-17f9 97			        DB   (XON >> 8) + 128 
-17fa 33			        DB   XON & 0FFH 
-17fb			        ENDM 
+17f9 ..			        DB 'XON' 
+17fc			        DWA XON 
+17fc 97			        DB   (XON >> 8) + 128 
+17fd 33			        DB   XON & 0FFH 
+17fe			        ENDM 
 # End of macro DWA
-17fb ..			        DB 'XOFF' 
-17ff			        DWA XOFF 
-17ff 97			        DB   (XOFF >> 8) + 128 
-1800 37			        DB   XOFF & 0FFH 
-1801			        ENDM 
+17fe ..			        DB 'XOFF' 
+1802			        DWA XOFF 
+1802 97			        DB   (XOFF >> 8) + 128 
+1803 37			        DB   XOFF & 0FFH 
+1804			        ENDM 
 # End of macro DWA
-1801			        DWA DEFLT 
-1801 93			        DB   (DEFLT >> 8) + 128 
-1802 5d			        DB   DEFLT & 0FFH 
-1803			        ENDM 
+1804			        DWA DEFLT 
+1804 93			        DB   (DEFLT >> 8) + 128 
+1805 5d			        DB   DEFLT & 0FFH 
+1806			        ENDM 
 # End of macro DWA
-1803			TAB4:                                   ;FUNCTIONS 
-1803 ..			        DB 'RND' 
-1806			        DWA RND 
-1806 94			        DB   (RND >> 8) + 128 
-1807 73			        DB   RND & 0FFH 
-1808			        ENDM 
+1806			TAB4:                                   ;FUNCTIONS 
+1806 ..			        DB 'RND' 
+1809			        DWA RND 
+1809 94			        DB   (RND >> 8) + 128 
+180a 73			        DB   RND & 0FFH 
+180b			        ENDM 
 # End of macro DWA
-1808 ..			        DB 'ABS' 
-180b			        DWA ABS 
-180b 94			        DB   (ABS >> 8) + 128 
-180c 9f			        DB   ABS & 0FFH 
-180d			        ENDM 
+180b ..			        DB 'ABS' 
+180e			        DWA ABS 
+180e 94			        DB   (ABS >> 8) + 128 
+180f 9f			        DB   ABS & 0FFH 
+1810			        ENDM 
 # End of macro DWA
-180d ..			        DB 'PEEK' 
-1811			        DWA PEEK 
-1811 94			        DB   (PEEK >> 8) + 128 
-1812 a8			        DB   PEEK & 0FFH 
-1813			        ENDM 
+1810 ..			        DB 'PEEK' 
+1814			        DWA PEEK 
+1814 94			        DB   (PEEK >> 8) + 128 
+1815 a8			        DB   PEEK & 0FFH 
+1816			        ENDM 
 # End of macro DWA
-1813 ..			        DB 'SIZE' 
-1817			        DWA SIZE 
-1817 94			        DB   (SIZE >> 8) + 128 
-1818 b0			        DB   SIZE & 0FFH 
-1819			        ENDM 
+1816 ..			        DB 'SIZE' 
+181a			        DWA SIZE 
+181a 94			        DB   (SIZE >> 8) + 128 
+181b b0			        DB   SIZE & 0FFH 
+181c			        ENDM 
 # End of macro DWA
-1819			        DWA XP40 
-1819 94			        DB   (XP40 >> 8) + 128 
-181a 52			        DB   XP40 & 0FFH 
-181b			        ENDM 
+181c			        DWA XP40 
+181c 94			        DB   (XP40 >> 8) + 128 
+181d 52			        DB   XP40 & 0FFH 
+181e			        ENDM 
 # End of macro DWA
-181b			TAB5:                                   ;"TO" IN "FOR" 
-181b ..			        DB 'TO' 
-181d			        DWA FR1 
-181d 92			        DB   (FR1 >> 8) + 128 
-181e 3a			        DB   FR1 & 0FFH 
-181f			        ENDM 
+181e			TAB5:                                   ;"TO" IN "FOR" 
+181e ..			        DB 'TO' 
+1820			        DWA FR1 
+1820 92			        DB   (FR1 >> 8) + 128 
+1821 3a			        DB   FR1 & 0FFH 
+1822			        ENDM 
 # End of macro DWA
-181f			        DWA QWHAT 
-181f 95			        DB   (QWHAT >> 8) + 128 
-1820 29			        DB   QWHAT & 0FFH 
-1821			        ENDM 
+1822			        DWA QWHAT 
+1822 95			        DB   (QWHAT >> 8) + 128 
+1823 29			        DB   QWHAT & 0FFH 
+1824			        ENDM 
 # End of macro DWA
-1821			TAB6:                                   ;"STEP" IN "FOR" 
-1821 ..			        DB 'STEP' 
-1825			        DWA FR2 
-1825 92			        DB   (FR2 >> 8) + 128 
-1826 46			        DB   FR2 & 0FFH 
-1827			        ENDM 
+1824			TAB6:                                   ;"STEP" IN "FOR" 
+1824 ..			        DB 'STEP' 
+1828			        DWA FR2 
+1828 92			        DB   (FR2 >> 8) + 128 
+1829 46			        DB   FR2 & 0FFH 
+182a			        ENDM 
 # End of macro DWA
-1827			        DWA FR3 
-1827 92			        DB   (FR3 >> 8) + 128 
-1828 4b			        DB   FR3 & 0FFH 
-1829			        ENDM 
+182a			        DWA FR3 
+182a 92			        DB   (FR3 >> 8) + 128 
+182b 4b			        DB   FR3 & 0FFH 
+182c			        ENDM 
 # End of macro DWA
-1829			TAB8:                                   ;RELATION OPERATORS 
-1829 ..			        DB '>=' 
-182b			        DWA XP11 
-182b 93			        DB   (XP11 >> 8) + 128 
-182c 75			        DB   XP11 & 0FFH 
-182d			        ENDM 
-# End of macro DWA
-182d ..			        DB '#' 
-182e			        DWA XP12 
-182e 93			        DB   (XP12 >> 8) + 128 
-182f 7b			        DB   XP12 & 0FFH 
+182c			TAB8:                                   ;RELATION OPERATORS 
+182c ..			        DB '>=' 
+182e			        DWA XP11 
+182e 93			        DB   (XP11 >> 8) + 128 
+182f 75			        DB   XP11 & 0FFH 
 1830			        ENDM 
 # End of macro DWA
-1830 ..			        DB '>' 
-1831			        DWA XP13 
-1831 93			        DB   (XP13 >> 8) + 128 
-1832 81			        DB   XP13 & 0FFH 
+1830 ..			        DB '#' 
+1831			        DWA XP12 
+1831 93			        DB   (XP12 >> 8) + 128 
+1832 7b			        DB   XP12 & 0FFH 
 1833			        ENDM 
 # End of macro DWA
-1833 ..			        DB '=' 
-1834			        DWA XP15 
-1834 93			        DB   (XP15 >> 8) + 128 
-1835 90			        DB   XP15 & 0FFH 
+1833 ..			        DB '>' 
+1834			        DWA XP13 
+1834 93			        DB   (XP13 >> 8) + 128 
+1835 81			        DB   XP13 & 0FFH 
 1836			        ENDM 
 # End of macro DWA
-1836 ..			        DB '<=' 
-1838			        DWA XP14 
-1838 93			        DB   (XP14 >> 8) + 128 
-1839 88			        DB   XP14 & 0FFH 
-183a			        ENDM 
+1836 ..			        DB '=' 
+1837			        DWA XP15 
+1837 93			        DB   (XP15 >> 8) + 128 
+1838 90			        DB   XP15 & 0FFH 
+1839			        ENDM 
 # End of macro DWA
-183a ..			        DB '<' 
-183b			        DWA XP16 
-183b 93			        DB   (XP16 >> 8) + 128 
-183c 96			        DB   XP16 & 0FFH 
+1839 ..			        DB '<=' 
+183b			        DWA XP14 
+183b 93			        DB   (XP14 >> 8) + 128 
+183c 88			        DB   XP14 & 0FFH 
 183d			        ENDM 
 # End of macro DWA
-183d			        DWA XP17 
-183d 93			        DB   (XP17 >> 8) + 128 
-183e 9c			        DB   XP17 & 0FFH 
-183f			        ENDM 
+183d ..			        DB '<' 
+183e			        DWA XP16 
+183e 93			        DB   (XP16 >> 8) + 128 
+183f 96			        DB   XP16 & 0FFH 
+1840			        ENDM 
 # End of macro DWA
-183f 21 9e 17		DIRECT: LD HL,TAB1-1                   ;*** DIRECT *** 
-1842			EXEC:                                   ;*** EXEC *** 
-1842 cd 25 10		EX0:    CALL RST28                         ;IGNORE LEADING BLANKS 
-1845 d5			        PUSH DE                         ;SAVE POINTER 
-1846			EX1: 
-1846 1a			        LD A,(DE)                       ;IF FOUND '.' IN STRING 
-1847 13			        INC DE                          ;BEFORE ANY MISMATCH 
-1848 fe 2e		        CP "."                          ;WE DECLARE A MATCH 
-184a 28 12		        JR Z,EX3 
-184c 23			        INC HL                          ;HL->TABLE 
-184d be			        CP (HL)                         ;IF MATCH, TEST NEXT 
-184e 28 f6		        JR Z,EX1 
-1850 3e 7f		        LD A,7FH                        ;ELSE SEE IF BIT 7 
-1852 1b			        DEC DE                          ;OF TABLE IS SET, WHICH 
-1853 be			        CP (HL)                         ;IS THE JUMP ADDR. (HI) 
-1854 38 0e		        JR C,EX5                        ;C:YES, MATCHED 
-1856			EX2: 
-1856 23			        INC HL                          ;NC:NO, FIND JUMP ADDR. 
-1857 be			        CP (HL) 
-1858 30 fc		        JR NC,EX2 
-185a 23			        INC HL                          ;BUMP TO NEXT TAB. ITEM 
-185b d1			        POP DE                          ;RESTORE STRING POINTER 
-185c 18 e4		        JR EX0                          ;TEST AGAINST NEXT ITEM 
-185e			EX3: 
-185e 3e 7f		        LD A,7FH                        ;PARTIAL MATCH, FIND 
-1860			EX4: 
-1860 23			        INC HL                          ;JUMP ADDR., WHICH IS 
-1861 be			        CP (HL)                         ;FLAGGED BY BIT 7 
-1862 30 fc		        JR NC,EX4 
-1864			EX5: 
-1864 7e			        LD A,(HL)                       ;LOAD HL WITH THE JUMP 
-1865 23			        INC HL                          ;ADDRESS FROM THE TABLE 
-1866 6e			        LD L,(HL) 
-1867 e6 7f		        AND 7FH                         ;MASK OFF BIT 7 
-1869 67			        LD H,A 
-186a f1			        POP AF                          ;CLEAN UP THE GABAGE 
-186b e9			        JP (HL)                         ;AND WE GO DO IT 
-186c			;------------------------------------------------------------------------------- 
-186c			;/////////////////////////////////////////////////////////////////////////////// 
-186c			;------------------------------------------------------------------------------- 
-186c			;COMPUTER SPECIFIC ROUTINES. 
-186c			;------------------------------------------------------------------------------- 
-186c			SERIAL_INIT: 
-186c 21 00 20		        LD HL,2000H                     ;POWER UP DELAY 
-186f cd 53 00		        CALL 0053H    
-1872 3e 40		        LD A,40H    
-1874 d3 01		        OUT (SCAN),A                       ;MAKE THE OUTPUT PORT HIGH 
-1876 c9			        RET 
-1877			;------------------------------------------------------------------------------- 
-1877			TX_RDY: 
-1877			 
-1877			    ; This routine sends the character to the output port.  Port is always 
-1877			    ; ready as init and last part sets output port to high for two stop bits 
-1877			 
-1877 f5			        PUSH AF    
-1878 c5			        PUSH BC    
-1879 e5			        PUSH HL    
-187a 21 1b 00		        LD HL,BAUD                      ;HL HOLDS THE BIT TIME DELAY 
-187d 4f			        LD C,A                          ;STORE CHRACTER IN C FOR BIT SENDING    
-187e af			        XOR A                           ;TRANSMIT THE START BIT  
-187f d3 01		        OUT (SCAN),A    
-1881 cd 53 00		        CALL 0053H    
-1884 06 08		        LD B,08H                        ;TRANSMIT 8 BITS OF DATA    
-1886 cb 09		        RRC C                           ;SHIFT BIT 0 TO BIT 7 
-1888			NXTBIT:       
-1888 cb 09		        RRC C                           ;SHIFT BITS TO D6 
-188a 79			        LD A,C                          ;SEND FIRST LSB 
-188b e6 40		        AND 40H                         ;FOR ONE BIT TIME 
-188d d3 01		        OUT (SCAN),A    
-188f cd 53 00		        CALL 0053H 
-1892 10 f4		        DJNZ NXTBIT                     ;DO FOR ALL BITS 
-1894 3e 40		        LD A,40H                        ;SEND THE TWO STOP BITS    
-1896 d3 01		        OUT (SCAN),A                               
-1898 cd 53 00		        CALL 0053H 
+1840			        DWA XP17 
+1840 93			        DB   (XP17 >> 8) + 128 
+1841 9c			        DB   XP17 & 0FFH 
+1842			        ENDM 
+# End of macro DWA
+1842 21 a1 17		DIRECT: LD HL,TAB1-1                   ;*** DIRECT *** 
+1845			EXEC:                                   ;*** EXEC *** 
+1845 cd 25 10		EX0:    CALL RST28                         ;IGNORE LEADING BLANKS 
+1848 d5			        PUSH DE                         ;SAVE POINTER 
+1849			EX1: 
+1849 1a			        LD A,(DE)                       ;IF FOUND '.' IN STRING 
+184a 13			        INC DE                          ;BEFORE ANY MISMATCH 
+184b fe 2e		        CP "."                          ;WE DECLARE A MATCH 
+184d 28 12		        JR Z,EX3 
+184f 23			        INC HL                          ;HL->TABLE 
+1850 be			        CP (HL)                         ;IF MATCH, TEST NEXT 
+1851 28 f6		        JR Z,EX1 
+1853 3e 7f		        LD A,7FH                        ;ELSE SEE IF BIT 7 
+1855 1b			        DEC DE                          ;OF TABLE IS SET, WHICH 
+1856 be			        CP (HL)                         ;IS THE JUMP ADDR. (HI) 
+1857 38 0e		        JR C,EX5                        ;C:YES, MATCHED 
+1859			EX2: 
+1859 23			        INC HL                          ;NC:NO, FIND JUMP ADDR. 
+185a be			        CP (HL) 
+185b 30 fc		        JR NC,EX2 
+185d 23			        INC HL                          ;BUMP TO NEXT TAB. ITEM 
+185e d1			        POP DE                          ;RESTORE STRING POINTER 
+185f 18 e4		        JR EX0                          ;TEST AGAINST NEXT ITEM 
+1861			EX3: 
+1861 3e 7f		        LD A,7FH                        ;PARTIAL MATCH, FIND 
+1863			EX4: 
+1863 23			        INC HL                          ;JUMP ADDR., WHICH IS 
+1864 be			        CP (HL)                         ;FLAGGED BY BIT 7 
+1865 30 fc		        JR NC,EX4 
+1867			EX5: 
+1867 7e			        LD A,(HL)                       ;LOAD HL WITH THE JUMP 
+1868 23			        INC HL                          ;ADDRESS FROM THE TABLE 
+1869 6e			        LD L,(HL) 
+186a e6 7f		        AND 7FH                         ;MASK OFF BIT 7 
+186c 67			        LD H,A 
+186d f1			        POP AF                          ;CLEAN UP THE GABAGE 
+186e e9			        JP (HL)                         ;AND WE GO DO IT 
+186f			;------------------------------------------------------------------------------- 
+186f			;/////////////////////////////////////////////////////////////////////////////// 
+186f			;------------------------------------------------------------------------------- 
+186f			;COMPUTER SPECIFIC ROUTINES. 
+186f			;------------------------------------------------------------------------------- 
+186f			SERIAL_INIT: 
+186f 21 00 20		        LD HL,2000H                     ;POWER UP DELAY 
+1872 cd 53 00		        CALL 0053H    
+1875 3e 40		        LD A,40H    
+1877 d3 01		        OUT (SCAN),A                       ;MAKE THE OUTPUT PORT HIGH 
+1879 c9			        RET 
+187a			;------------------------------------------------------------------------------- 
+187a			TX_RDY: 
+187a			 
+187a			    ; This routine sends the character to the output port.  Port is always 
+187a			    ; ready as init and last part sets output port to high for two stop bits 
+187a			 
+187a f5			        PUSH AF    
+187b c5			        PUSH BC    
+187c e5			        PUSH HL    
+187d 21 1b 00		        LD HL,BAUD                      ;HL HOLDS THE BIT TIME DELAY 
+1880 4f			        LD C,A                          ;STORE CHRACTER IN C FOR BIT SENDING    
+1881 af			        XOR A                           ;TRANSMIT THE START BIT  
+1882 d3 01		        OUT (SCAN),A    
+1884 cd 53 00		        CALL 0053H    
+1887 06 08		        LD B,08H                        ;TRANSMIT 8 BITS OF DATA    
+1889 cb 09		        RRC C                           ;SHIFT BIT 0 TO BIT 7 
+188b			NXTBIT:       
+188b cb 09		        RRC C                           ;SHIFT BITS TO D6 
+188d 79			        LD A,C                          ;SEND FIRST LSB 
+188e e6 40		        AND 40H                         ;FOR ONE BIT TIME 
+1890 d3 01		        OUT (SCAN),A    
+1892 cd 53 00		        CALL 0053H 
+1895 10 f4		        DJNZ NXTBIT                     ;DO FOR ALL BITS 
+1897 3e 40		        LD A,40H                        ;SEND THE TWO STOP BITS    
+1899 d3 01		        OUT (SCAN),A                               
 189b cd 53 00		        CALL 0053H 
-189e e1			        POP HL    
-189f c1			        POP BC    
-18a0 f1			        POP AF    
-18a1 c9			        RET 
-18a2			 
-18a2			;------------------------------------------------------------------------------- 
-18a2			RX_RDY: 
-18a2			 
-18a2			    ; This routine is for checkif if a character is available over 
-18a2			    ; serial. If a character is available, it returns to the calling 
-18a2			    ; function with the character in 'A' and the Z-flag reset. 
-18a2			    ; However, if a character is not available, it returns with the 
-18a2			    ; Z-flag set. 
-18a2			 
-18a2 c5			        PUSH BC    
-18a3 e5			        PUSH HL 
-18a4 06 20		        LD B,20H                        ;CHECK FOR START BIT 20H TIMES BEFORE EXITING 
-18a6			STARTBIT:       
-18a6 db 00		        IN A,(KEYBUF)    
-18a8 cb 7f		        BIT 7,A    
-18aa 28 05		        JR Z,GETCHAR                    ;START BIT FOUND, GET CHARACTER 
-18ac 10 f8		        DJNZ STARTBIT                   ;KEEP CHECKING FOR START BIT 
-18ae af			        XOR A                           ;SET ZERO FLAG 
-18af 18 22		        JR RX_EXIT                      ;EXIT 
-18b1			 
-18b1			GETCHAR:                                ;START BIT DETECTED 
-18b1 21 1b 00		        LD HL,BAUD                      ;DELAY FOR HALF A 
-18b4 cb 3c		        SRL H                           ;BIT TIME TO SAMPLE THE MIDDLE 
-18b6 cb 1d		        RR L                            ;OF THE BIT CELL 
-18b8 cd 53 00		        CALL 0053H    
-18bb db 00		        IN A,(KEYBUF)    
-18bd cb 7f		        BIT 7,A                         ;CHECK THE START BIT IS STILL LOW 
-18bf 20 e5		        JR NZ,STARTBIT 
-18c1			    
-18c1 06 08		        LD B,08H                        ;VALID START BIT DETECTED 
-18c3			GETBITS:       
-18c3 21 1b 00		        LD HL,BAUD    
-18c6 cd 53 00		        CALL 0053H                     ;DELAY FOR ONE FULL BIT TIME 
-18c9 db 00		        IN A,(KEYBUF)    
-18cb cb 17		        RL A    
-18cd cb 19		        RR C                            ;SHIFT BIT INTO OUTPUT REGISTER 
-18cf 10 f2		        DJNZ GETBITS    
-18d1 79			        LD A,C    
-18d2 b7			        OR A                            ;CLEAR CARRY FLAG AND RESET ZERO FLAG 
-18d3			RX_EXIT: 
-18d3 e1			        POP HL    
-18d4 c1			        POP BC 
-18d5 c9			        RET 
-18d6			 
-18d6 00...		        DS 0AH                          ;FILL TO MAKE EVEN 
+189e cd 53 00		        CALL 0053H 
+18a1 e1			        POP HL    
+18a2 c1			        POP BC    
+18a3 f1			        POP AF    
+18a4 c9			        RET 
+18a5			 
+18a5			;------------------------------------------------------------------------------- 
+18a5			RX_RDY: 
+18a5			 
+18a5			    ; This routine is for checkif if a character is available over 
+18a5			    ; serial. If a character is available, it returns to the calling 
+18a5			    ; function with the character in 'A' and the Z-flag reset. 
+18a5			    ; However, if a character is not available, it returns with the 
+18a5			    ; Z-flag set. 
+18a5			 
+18a5 c5			        PUSH BC    
+18a6 e5			        PUSH HL 
+18a7 06 20		        LD B,20H                        ;CHECK FOR START BIT 20H TIMES BEFORE EXITING 
+18a9			STARTBIT:       
+18a9 db 00		        IN A,(KEYBUF)    
+18ab cb 7f		        BIT 7,A    
+18ad 28 05		        JR Z,GETCHAR                    ;START BIT FOUND, GET CHARACTER 
+18af 10 f8		        DJNZ STARTBIT                   ;KEEP CHECKING FOR START BIT 
+18b1 af			        XOR A                           ;SET ZERO FLAG 
+18b2 18 22		        JR RX_EXIT                      ;EXIT 
+18b4			 
+18b4			GETCHAR:                                ;START BIT DETECTED 
+18b4 21 1b 00		        LD HL,BAUD                      ;DELAY FOR HALF A 
+18b7 cb 3c		        SRL H                           ;BIT TIME TO SAMPLE THE MIDDLE 
+18b9 cb 1d		        RR L                            ;OF THE BIT CELL 
+18bb cd 53 00		        CALL 0053H    
+18be db 00		        IN A,(KEYBUF)    
+18c0 cb 7f		        BIT 7,A                         ;CHECK THE START BIT IS STILL LOW 
+18c2 20 e5		        JR NZ,STARTBIT 
+18c4			    
+18c4 06 08		        LD B,08H                        ;VALID START BIT DETECTED 
+18c6			GETBITS:       
+18c6 21 1b 00		        LD HL,BAUD    
+18c9 cd 53 00		        CALL 0053H                     ;DELAY FOR ONE FULL BIT TIME 
+18cc db 00		        IN A,(KEYBUF)    
+18ce cb 17		        RL A    
+18d0 cb 19		        RR C                            ;SHIFT BIT INTO OUTPUT REGISTER 
+18d2 10 f2		        DJNZ GETBITS    
+18d4 79			        LD A,C    
+18d5 b7			        OR A                            ;CLEAR CARRY FLAG AND RESET ZERO FLAG 
+18d6			RX_EXIT: 
+18d6 e1			        POP HL    
+18d7 c1			        POP BC 
+18d8 c9			        RET 
+18d9			 
+18d9 00...		        DS 07H                          ;FILL TO MAKE EVEN 
 18e0			;------------------------------------------------------------------------------- 
 18e0			 
 18e0			;/////////////////////////////////////////////////////////////////////////////// 

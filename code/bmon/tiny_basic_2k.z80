@@ -63,7 +63,7 @@ CS:              EQU     0CH             ; Clear screen
 CR:              EQU     0DH             ; Carriage return
 CTRLO:           EQU     0FH             ; Control "O"
 CTRLQ:           EQU     11H             ; Control "Q"
-CTRLS:           EQU     13H             ; Control "S"
+CTRLD:           EQU     04H             ; Control "D"
 CTRLU:           EQU     15H             ; Control "U"
 CTRLZ:           EQU     1AH             ; Control "Z"
 ESC:             EQU     1BH             ; Escape
@@ -116,7 +116,7 @@ START:
         JP INIT
 
 RST08:  EX (SP),HL                      ;*** TSTC OR RST 08H ***
-        RST 38H                         ;IGNORE BLANKS AND
+        RST 28H                         ;IGNORE BLANKS AND
         CP (HL)                         ;TEST CHARACTER
         JP TC1                          ;REST OF THIS IS AT TC1
 
@@ -152,7 +152,7 @@ RST30:  POP AF                          ;*** FINISH/RST 30H ***
         JP QWHAT                        ;PRINT "WHAT?" IF WRONG
         DB 'G'
 
-RST38:  RST 38H                         ;*** TSTV OR RST 38H ***
+RST38:  RST 28H                         ;*** TSTV OR RST 38H ***
         SUB 40H                         ;TEST VARIABLES
         RET C                           ;C:NOT A VARIABLE
         JR NZ,TV1                       ;NOT "@" ARRAY
@@ -200,7 +200,7 @@ TC2:
 TSTNUM:
         LD HL,0000H                     ;*** TSTNUM ***
         LD B,H                          ;TEST IF THE TEXT IS
-        RST 38H                         ;A NUMBER
+        RST 28H                         ;A NUMBER
 
 TN1:
         CP "0"                          ;IF NOT, RETURN 0 IN
@@ -299,7 +299,7 @@ ST3:
         PUSH DE                         ;DE->END OF LINE
         LD DE,BUFFER                    ;DE->BEGINNING OF LINE
         CALL TSTNUM                     ;TEST IF IT IS A NUMBER
-        RST 38H   
+        RST 28H   
         LD A,H                          ;HL=VALUE OF THE # OR
         OR L                            ;0 IF NO # WAS FOUND
         POP BC                          ;BC->END OF LINE
@@ -1194,7 +1194,7 @@ FIN:
         POP AF                          ;";", PURGE RET. ADDR.
         JP RUNSML                       ;CONTINUE SAME LINE
 FI1:
-        RST 08H                            ;NOT ";", IS IT CR?
+        RST 08H                         ;NOT ";", IS IT CR?
         DB CR
         DB FI2-$-1
         POP AF                          ;YES, PURGE RET. ADDR.
@@ -1202,7 +1202,7 @@ FI1:
 FI2:
         RET                             ;ELSE RETURN TO CALLER
 ENDCHK:
-        RST 38H                            ;*** ENDCHK ***
+        RST 28H                         ;*** ENDCHK ***
         CP CR                           ;END WITH CR?
         RET Z                           ;OK, ELSE SAY: "WHAT?"
 QWHAT:
@@ -1666,9 +1666,10 @@ CI1:
         AND 0DFH                        ;MAKE IT UPPER CASE
 CI2:
         CP CTRLC                        ;IS IT CONTROL-C?
+        JP Z,RSTART                     ;YES, RESTART TBI
+        CP CTRLD                        ;IS IT CONTROL-D?
         RET NZ                          ;NO, RETURN "NZ"
-        JP RSTART                       ;YES, RESTART TBI
-
+        RST 00H                         ;RESTART MONITOR AND EXIT
 
 MSG1:   DB   CS,'Z80 TINY BASIC 2.1b',CR       ;CLEAR SCREEN AND BOOT MESSAGE
 MSG2:   DB   'TEC-1F VERSION BY B CHIHA',CR
@@ -1771,7 +1772,7 @@ TAB8:                                   ;RELATION OPERATORS
         DWA XP17
 DIRECT: LD HL,TAB1-1                   ;*** DIRECT ***
 EXEC:                                   ;*** EXEC ***
-EX0:    RST 38H                            ;IGNORE LEADING BLANKS
+EX0:    RST 28H                            ;IGNORE LEADING BLANKS
         PUSH DE                         ;SAVE POINTER
 EX1:
         LD A,(DE)                       ;IF FOUND '.' IN STRING
@@ -1906,7 +1907,6 @@ BITIME1:
             POP     HL
             RET
 
-        DS 03H                          ;FILL TO MAKE EVEN
 ;-------------------------------------------------------------------------------
 
 ;///////////////////////////////////////////////////////////////////////////////

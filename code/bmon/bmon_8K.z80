@@ -795,7 +795,7 @@ L029B:      LD      A, C                                ;NEXT PROMPT LOCATION AD
             LD      HL, LCDFNC_TBL                      ;ADDR AND FUNCTION: A=0 IF DATA, 4 IF
             ADD     A, L                                ;ADDR, 12 IF FUNCTION, NOTE THAT TABLE
             LD      L, A                                ;IS STAGGERED (SEE 07AD): ADD A TO BASE
-            CP      0xB9                                ;IF A=B9 THEN MODE IS FUNCTION MODE
+            CP      0xBC                                ;IF A=BC THEN MODE IS FUNCTION MODE
             LD      BC, 0484H                           ;LOAD C WITH PORT, B WITH BYTE COUNT
             JR      Z, L02C7                            ;JUMP IF FUNCTION MDDE TO OUT 3 BYTES
 L02C1:      OUTI                                        ;OUT (HL) TO (C) B=B-1
@@ -1527,6 +1527,9 @@ SL4:
 ;01 FOR END OF FILE. DATA IS THE DATA OF UPTO 16 BYTES AND THE CHECKSUM IS THE ADDITION OF 
 ;ALL BYTES.
 J_INTEL_IN:
+            LD      HL, DEF_BAUD                        ;SET BAUD 4800
+            LD      (BAUD), HL                          ;SET UP THE BAUD RATE
+
             CALL    INTEL_LOADER                        ;CALL THE LOADER ROUTINE
             JP      NZ, INTEL_ERR                       ;IF RETURNS NON ZERO, ERROR
             LD      DE, LOAD_DA_P                       ;LOAD PASS
@@ -1615,15 +1618,13 @@ NOTA2F:
 ;ROUTINE TO THE J_KEY_MOD ROUTINE.  THIS WILL MODIFY THE CURRENT KEY PRESSED BEFORE THE KEYBOARD HANDLER
 ;RETURNS. 
 J_ALT_KEY:
-            LD      A, (V_ALT_KEYB)                     ;GET THE ALTERNATIVE KEYBOARD FLAG
-            CPL                                         ;SET IT TO EITHER 00 OR FF
-            OR      A                                   ;IS IT ZERO (NORMAL KEYPAD)
-            LD      (V_ALT_KEYB), A                     ;SAVE THE ALTERNATE KEYBOARD FLAG
+            LD      HL, V_ALT_KEYB                      ;GET THE ALTERNATIVE KEYBOARD FLAG
+            RRC     (HL)                                ;ROTATE A CARRY CHECK
             LD      HL, PATCH_KEY                       ;LOAD HL WITH THE PATCH KEYBOARD ENTRY
-            JP      NZ,SET_ALTK                         ;IF NOT NORNAL, SET ALTERATE
+            JR      C,SET_ALTK                          ;IF NOT NORNAL, SET ALTERATE
             LD      (HL), 0xC9                          ;JUST SET KEYBOARD PATCH TO EXIT
 EXIT_KEY:
-            JP      SOFT_RST                            ;DO A SOFT RESET
+            RET                                         ;EXIT 
 SET_ALTK:
             LD      (HL), 0xC3                          ;SET THE KEYBOARD PATCH TO CALL
             LD      BC, J_KEY_MOD                       ;THE J_KEY_MOD ROUTINE
@@ -1753,7 +1754,7 @@ L071A:      DB      0x00                                ;SOUND ON/OFF 3F22*
 L071B:      DB      0xFF                                ;GO AT ALTERNATE GO ADDRESS IF AA 3F23*
 L071C:      DB      0xFF                                ;STEPPER KEY CONTROL/TIMER 3F24
 L071D:      DB      0x00                                ;KEY PRESSED FLAG 3F25
-L071E:      DB      0x00                                ;ALTERNATIVE KEYBOARD LAYOUT FLAG 3F26
+L071E:      DB      0x55                                ;ALTERNATIVE KEYBOARD LAYOUT FLAG 3F26
 L071F:      DB      0x00                                ;AUTO INCREMENT ON/OFF 3F27*
 L0720:      DB      0x00, 0x20                          ;ALT GO ADDR/SOFT RESET EDIT LOCATION ($2000) 3F28*
 L0722:      DB      0x70                                ;AUTO KEY REPEAT TIMER 3F2A
@@ -1881,7 +1882,7 @@ ORG     $07E0
 L07E0:      DW      FN_MENU                             ;#0 MAIN MENU SETUP TO MENU DRIVER
             DW      FN_BACK1                            ;#1 MOVE ADDRESS BACK ONE LOCATION
             DW      FN_STEPPER                          ;#2 STEPPER ROUTINE
-            DW      0xFFFF                              ;#3 N/A
+            DW      0xFFFF                              ;#3 SPARE
             DW      FN_FORW4                            ;#4 MOVE ADDRESS FORWARD FOUR LOCATIONS
             DW      FN_S_RST                            ;#5 DO A SOFT RESET
             DW      FN_BACK4                            ;#6 MOVE ADDRESS BACK FOUR LOCATIONS
@@ -1889,8 +1890,8 @@ L07E0:      DW      FN_MENU                             ;#0 MAIN MENU SETUP TO M
             DW      FN_FORW8                            ;#8 MOVE ADDRESS FORWARD EIGHT LOCATIONS
             DW      FN_FORW1                            ;#9 MOVE ADDRESS FORWARD ONE LOCATION
             DW      FN_BACK8                            ;#A MOVE ADDRESS BACK EIGHT LOCATIONS
-            DW      0xFFFF                              ;#B N/A
-            DW      0xFFFF                              ;#C N/A
-            DW      0xFFFF                              ;#D N/A
-            DW      0xFFFF                              ;#E N/A
-            DW      0xFFFF                              ;#F N/A
+            DW      J_BASIC                             ;#B TINY BASIC
+            DW      J_GAMES                             ;#C GAMES
+            DW      PLAY_TUNE                           ;#D TUNES ROUTINE
+            DW      ASCII_SCRL                          ;#E ASCII SCROLL ROUTINE
+            DW      J_MINT                              ;#F MINT

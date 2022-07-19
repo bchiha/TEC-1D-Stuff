@@ -1522,6 +1522,8 @@ SL4:
 ;01 FOR END OF FILE. DATA IS THE DATA OF UPTO 16 BYTES AND THE CHECKSUM IS THE ADDITION OF 
 ;ALL BYTES.
 J_INTEL_IN:
+            LD      HL, DEF_BAUD                        ;SET BAUD 4800
+            LD      (BAUD), HL                          ;SET UP THE BAUD RATE
             CALL    INTEL_LOADER                        ;CALL THE LOADER ROUTINE
             JP      NZ, INTEL_ERR                       ;IF RETURNS NON ZERO, ERROR
             LD      DE, LOAD_DA_P                       ;LOAD PASS
@@ -1610,15 +1612,13 @@ NOTA2F:
 ;ROUTINE TO THE J_KEY_MOD ROUTINE.  THIS WILL MODIFY THE CURRENT KEY PRESSED BEFORE THE KEYBOARD HANDLER
 ;RETURNS. 
 J_ALT_KEY:
-            LD      A, (V_ALT_KEYB)                     ;GET THE ALTERNATIVE KEYBOARD FLAG
-            CPL                                         ;SET IT TO EITHER 00 OR FF
-            OR      A                                   ;IS IT ZERO (NORMAL KEYPAD)
-            LD      (V_ALT_KEYB), A                     ;SAVE THE ALTERNATE KEYBOARD FLAG
+            LD      HL, V_ALT_KEYB                      ;GET THE ALTERNATIVE KEYBOARD FLAG
+            RRC     (HL)                                ;ROTATE A CARRY CHECK
             LD      HL, PATCH_KEY                       ;LOAD HL WITH THE PATCH KEYBOARD ENTRY
-            JP      NZ,SET_ALTK                         ;IF NOT NORNAL, SET ALTERATE
+            JR      C,SET_ALTK                          ;IF NOT NORNAL, SET ALTERATE
             LD      (HL), 0xC9                          ;JUST SET KEYBOARD PATCH TO EXIT
 EXIT_KEY:
-            JP      SOFT_RST                            ;DO A SOFT RESET
+            RET                                         ;EXIT 
 SET_ALTK:
             LD      (HL), 0xC3                          ;SET THE KEYBOARD PATCH TO CALL
             LD      BC, J_KEY_MOD                       ;THE J_KEY_MOD ROUTINE
@@ -1745,7 +1745,7 @@ L0711:      DB      0x00                                ;SOUND ON/OFF 0822*
 L0712:      DB      0xFF                                ;GO AT ALTERNATE GO ADDRESS IF AA 0823*
 L0713:      DB      0xFF                                ;STEPPER KEY CONTROL/TIMER 0824
 L0714:      DB      0x00                                ;KEY PRESSED FLAG 0825
-L0715:      DB      0x00                                ;ALTERNATIVE KEYBOARD LAYOUT FLAG 0826
+L0715:      DB      0x55                                ;ALTERNATIVE KEYBOARD LAYOUT FLAG 0826
 L0716:      DB      0x00                                ;AUTO INCREMENT ON/OFF 0827*
 L0717:      DB      0x00, 0x09                          ;ALT GO ADDR/SOFT RESET EDIT LOCATION ($2000) 0828*
 L0719:      DB      0x70                                ;AUTO KEY REPEAT TIMER 082A
@@ -1887,5 +1887,5 @@ L07E0:      DW      FN_MENU                             ;#0 MAIN MENU SETUP TO M
             DW      0xFFFF                              ;#B N/A
             DW      0xFFFF                              ;#C N/A
             DW      0xFFFF                              ;#D N/A
-            DW      0xFFFF                              ;#E N/A
+            DW      ASCII_SCRL                          ;#E ASCII SCROLL ROUTINE
             DW      0xFFFF                              ;#F N/A

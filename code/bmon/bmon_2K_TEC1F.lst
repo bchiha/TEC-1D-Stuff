@@ -1523,108 +1523,108 @@
 05fc			;01 FOR END OF FILE. DATA IS THE DATA OF UPTO 16 BYTES AND THE CHECKSUM IS THE ADDITION OF   
 05fc			;ALL BYTES.  
 05fc			J_INTEL_IN:  
-05fc cd 14 06		            CALL    INTEL_LOADER                        ;CALL THE LOADER ROUTINE  
-05ff c2 0a 06		            JP      NZ, INTEL_ERR                       ;IF RETURNS NON ZERO, ERROR  
-0602 11 72 07		            LD      DE, LOAD_DA_P                       ;LOAD PASS  
-0605 21 5a 07		            LD      HL, LOAD_AD_P                       ;MESSAGE  
-0608 18 06		            JR      INTEL_RET                           ;DISPLAY MESSAGE  
-060a			INTEL_ERR:  
-060a 11 74 07		            LD      DE, LOAD_DA_F                       ;LOAD FAIL  
-060d 21 5e 07		            LD      HL, LOAD_AD_F                       ;MESSAGE  
-0610			INTEL_RET:  
-0610 af			            XOR     A                                   ;RESET A AND ZERO FLAG  
-0611 c3 ed 03		            JP      MENU_SFT                            ;DIPSLAY MENU WITH EITHER PASS/FAIL MESSAGE  
-0614			  
-0614			;THIS IS THE MAIN LOADING ROUTINE.  IT WILL LOAD ONE LINE OF INTEL HEX.  WHILE THE LOAD IS   
-0614			;HAPPENING, THE ADDRESS WHERE THE DATA IS BEING SAVED WILL DISPLAY ON THE SCREEN.   
-0614			INTEL_LOADER:  
-0614 af			        	XOR	    A                                   ;ZERO A  
-0615 4f				        LD      C, A	                            ;CLEAR CHECKSUM  
-0616			INTEL_MARK:  
-0616 cd 1b 05			        CALL	RXCHAR	                            ;WAIT FOR THE MARK  
-0619 fe 3a			        CP	    ':'	                                ;TO BE TRANSMITTED  
-061b 20 f9			        JR      NZ, INTEL_MARK	                    ;LOOP UNTIL START OF LINE FOUND  
-061d cd 4d 06		        	CALL	ASCII_2_BYTE                        ;GET LINE LENGTH IN BYTES  
-0620 47				        LD	    B, A                                ;STORE NUMBER OF DATA BYTES IN B  
-0621 cd 4d 06		        	CALL	ASCII_2_BYTE                        ;GET ADDRESS HIGH BYTE  
-0624 67			            LD      H, A                                ;STORE HIGH ADDRESS IN H  
-0625 cd 4d 06		        	CALL	ASCII_2_BYTE                        ;GET ADDRESS LOW BYTE  
-0628 6f			            LD      L, A                                ;STORE LOW ADDRESS IN L  
-0629			  
-0629 c5			            PUSH    BC                                  ;SAVE BC  
-062a ed 4b 2c 08	            LD      BC, (V_DISPLAY)                     ;PUT DISPLAY BUFFER ADDRESS IN BC  
-062e cd 30 08		            CALL    HL_2_DIS                            ;CALL HL TO DISPLAY CODE ROUTINE  
-0631 c1			            POP     BC                                  ;RESTORE BC  
-0632			  
-0632 cd 4d 06		        	CALL	ASCII_2_BYTE                        ;GET RECORD TYPE  
-0635 20 10		            JR      NZ, CHECKSUM                        ;IF 01 THEN END OF FILE  
-0637			INTEL_DATA:  
-0637 c5			            PUSH    BC  
-0638 df			            RST     18H                                 ;SCAN THE DISPLAY TO SHOW CURRENT LOADING ADDRESS  
-0639 c1			            POP     BC    
-063a cd 4d 06		        	CALL	ASCII_2_BYTE                        ;GET DATA  
-063d 77			            LD      (HL), A                             ;STORE DATA BYTE IN HL  
-063e 23			        	INC     HL                                  ;MOVE TO NEXT ADDRESS  
-063f 10 f6		            DJNZ    INTEL_DATA                          ;LOAD MORE BYTES  
-0641			  
-0641 cd 47 06		        	CALL    CHECKSUM                            ;COMPARE CHECK SUM  
-0644 28 ce			        JR      Z, INTEL_LOADER	                    ;CHECKSUM OK,NEXT RECORD              
-0646 c9			            RET                                         ;EXIT FOR ERROR  
+05fc 21 1b 00		            LD      HL, DEF_BAUD                        ;SET BAUD 4800  
+05ff 22 a4 08		            LD      (BAUD), HL                          ;SET UP THE BAUD RATE  
+0602 cd 1a 06		            CALL    INTEL_LOADER                        ;CALL THE LOADER ROUTINE  
+0605 c2 10 06		            JP      NZ, INTEL_ERR                       ;IF RETURNS NON ZERO, ERROR  
+0608 11 72 07		            LD      DE, LOAD_DA_P                       ;LOAD PASS  
+060b 21 5a 07		            LD      HL, LOAD_AD_P                       ;MESSAGE  
+060e 18 06		            JR      INTEL_RET                           ;DISPLAY MESSAGE  
+0610			INTEL_ERR:  
+0610 11 74 07		            LD      DE, LOAD_DA_F                       ;LOAD FAIL  
+0613 21 5e 07		            LD      HL, LOAD_AD_F                       ;MESSAGE  
+0616			INTEL_RET:  
+0616 af			            XOR     A                                   ;RESET A AND ZERO FLAG  
+0617 c3 ed 03		            JP      MENU_SFT                            ;DIPSLAY MENU WITH EITHER PASS/FAIL MESSAGE  
+061a			  
+061a			;THIS IS THE MAIN LOADING ROUTINE.  IT WILL LOAD ONE LINE OF INTEL HEX.  WHILE THE LOAD IS   
+061a			;HAPPENING, THE ADDRESS WHERE THE DATA IS BEING SAVED WILL DISPLAY ON THE SCREEN.   
+061a			INTEL_LOADER:  
+061a af			        	XOR	    A                                   ;ZERO A  
+061b 4f				        LD      C, A	                            ;CLEAR CHECKSUM  
+061c			INTEL_MARK:  
+061c cd 1b 05			        CALL	RXCHAR	                            ;WAIT FOR THE MARK  
+061f fe 3a			        CP	    ':'	                                ;TO BE TRANSMITTED  
+0621 20 f9			        JR      NZ, INTEL_MARK	                    ;LOOP UNTIL START OF LINE FOUND  
+0623 cd 53 06		        	CALL	ASCII_2_BYTE                        ;GET LINE LENGTH IN BYTES  
+0626 47				        LD	    B, A                                ;STORE NUMBER OF DATA BYTES IN B  
+0627 cd 53 06		        	CALL	ASCII_2_BYTE                        ;GET ADDRESS HIGH BYTE  
+062a 67			            LD      H, A                                ;STORE HIGH ADDRESS IN H  
+062b cd 53 06		        	CALL	ASCII_2_BYTE                        ;GET ADDRESS LOW BYTE  
+062e 6f			            LD      L, A                                ;STORE LOW ADDRESS IN L  
+062f			  
+062f c5			            PUSH    BC                                  ;SAVE BC  
+0630 ed 4b 2c 08	            LD      BC, (V_DISPLAY)                     ;PUT DISPLAY BUFFER ADDRESS IN BC  
+0634 cd 30 08		            CALL    HL_2_DIS                            ;CALL HL TO DISPLAY CODE ROUTINE  
+0637 c1			            POP     BC                                  ;RESTORE BC  
+0638			  
+0638 cd 53 06		        	CALL	ASCII_2_BYTE                        ;GET RECORD TYPE  
+063b 20 10		            JR      NZ, CHECKSUM                        ;IF 01 THEN END OF FILE  
+063d			INTEL_DATA:  
+063d c5			            PUSH    BC  
+063e df			            RST     18H                                 ;SCAN THE DISPLAY TO SHOW CURRENT LOADING ADDRESS  
+063f c1			            POP     BC    
+0640 cd 53 06		        	CALL	ASCII_2_BYTE                        ;GET DATA  
+0643 77			            LD      (HL), A                             ;STORE DATA BYTE IN HL  
+0644 23			        	INC     HL                                  ;MOVE TO NEXT ADDRESS  
+0645 10 f6		            DJNZ    INTEL_DATA                          ;LOAD MORE BYTES  
 0647			  
-0647			CHECKSUM:                                               ;THE SUM OF ALL BYTES INCLUDING CHECKSUM SHOULD EQUAL ZERO  
-0647 cd 4d 06		            CALL    ASCII_2_BYTE                        ;GET CHECKSUM BYTE  
-064a 79			            LD      A, C         	                    ;CONVERT CHECKSUM TO  
-064b b7			            OR      A                                   ;CHECK IF A=0, CHECKSUM IS OKAY  
-064c c9			            RET                                         ;RETURN ZERO FLAG  
+0647 cd 4d 06		        	CALL    CHECKSUM                            ;COMPARE CHECK SUM  
+064a 28 ce			        JR      Z, INTEL_LOADER	                    ;CHECKSUM OK,NEXT RECORD              
+064c c9			            RET                                         ;EXIT FOR ERROR  
 064d			  
-064d			;GET HEX ASCII CHARACTER FROM SERIAL PORT AND CONVERT IT TO A BYTE.  THIS ALSO  
-064d			;UPDATES THE HEX_CHECKSUM FOR USE LATER ON  
-064d			ASCII_2_BYTE:  
-064d cd 56 06		            CALL    A_2_BYTE                            ;GET 2 ASCII CHARS AND CONVERT TYPE BYTE  
-0650 b2			            OR      D                                   ;ADD IT TO A TO COMPLETE THE BYTE  
-0651 f5			            PUSH    AF                                  ;SAVE BYTE  
-0652 81			            ADD     A, C                                ;ADD CHECKSUM TO BYTE  
-0653 4f			            LD	    C, A	                            ;STORE BACK IN CHECKSUM  
-0654 f1			            POP     AF                                  ;RESTORE BYTE  
-0655 c9			            RET  
-0656			;THIS ROUTINE GETS THE NEXT TWO ASCII CHARACTERS AND CONVERTS THEM INTO ONE BYTE,  D HOLDS  
-0656			;THE FIRST CHARACTER IN THE UPPER NIBBLE, A HOLDS THE LOW NIBBLE.  GET NIBBLE IS CALLED TWICE WITH  
-0656			;A FALL TRHOUGH  
-0656			A_2_BYTE:  
-0656 cd 5e 06		            CALL    GET_NIBBLE                          ;GET THE CHARACTER FROM THE SIO  
-0659 07			            RLCA                                        ;MOVE TO UPPER NIBBLE  
-065a 07			            RLCA  
-065b 07			            RLCA  
-065c 07			            RLCA  
-065d 57				        LD      D, A                                ;STORE IN HIGH NIBBLE OF D  
-065e			GET_NIBBLE:  
-065e cd 1b 05			        CALL    RXCHAR                              ;GET ONE CHARACTER  
-0661 cb 77			        BIT     6, A                                ;IS THE CHARACTER BETWEEN 30-39 (0-9) OR 41-46 (A-F)  
-0663 28 02			        JR      Z, NOTA2F                           ;0-9 JUST MASK OUT UPPER BITS  
-0665 c6 09			        ADD     A, 0x09                             ;ADD 0x09 TO FIX FOR A-F  
-0667			NOTA2F:  
-0667 e6 0f			        AND	    0x0F                                ;MASK OUT HIGH NuBBLE AND CONVERT TO BINARY  
-0669 c9			            RET  
-066a			  
-066a			;THIS ROUTINE SWITCHES BETWEEN THE STANDARD TEC KEYBOARD LAYOUT AND MARK JELIC'S ALTERNATE ONE.  IT  
-066a			;CAN BE MODIFED TO SUIT YOUR OWN LAYOUT.  IT WORKS BY USING SETTING THE KEYBOARD PATCH IN THE KEYBOARD  
-066a			;ROUTINE TO THE J_KEY_MOD ROUTINE.  THIS WILL MODIFY THE CURRENT KEY PRESSED BEFORE THE KEYBOARD HANDLER  
-066a			;RETURNS.   
-066a			J_ALT_KEY:  
-066a 3a 26 08		            LD      A, (V_ALT_KEYB)                     ;GET THE ALTERNATIVE KEYBOARD FLAG  
-066d 2f			            CPL                                         ;SET IT TO EITHER 00 OR FF  
-066e b7			            OR      A                                   ;IS IT ZERO (NORMAL KEYPAD)  
-066f 32 26 08		            LD      (V_ALT_KEYB), A                     ;SAVE THE ALTERNATE KEYBOARD FLAG  
-0672 21 54 08		            LD      HL, PATCH_KEY                       ;LOAD HL WITH THE PATCH KEYBOARD ENTRY  
-0675 c2 7d 06		            JP      NZ,SET_ALTK                         ;IF NOT NORNAL, SET ALTERATE  
-0678 36 c9		            LD      (HL), 0xC9                          ;JUST SET KEYBOARD PATCH TO EXIT  
-067a			EXIT_KEY:  
-067a c3 a2 00		            JP      SOFT_RST                            ;DO A SOFT RESET  
+064d			CHECKSUM:                                               ;THE SUM OF ALL BYTES INCLUDING CHECKSUM SHOULD EQUAL ZERO  
+064d cd 53 06		            CALL    ASCII_2_BYTE                        ;GET CHECKSUM BYTE  
+0650 79			            LD      A, C         	                    ;CONVERT CHECKSUM TO  
+0651 b7			            OR      A                                   ;CHECK IF A=0, CHECKSUM IS OKAY  
+0652 c9			            RET                                         ;RETURN ZERO FLAG  
+0653			  
+0653			;GET HEX ASCII CHARACTER FROM SERIAL PORT AND CONVERT IT TO A BYTE.  THIS ALSO  
+0653			;UPDATES THE HEX_CHECKSUM FOR USE LATER ON  
+0653			ASCII_2_BYTE:  
+0653 cd 5c 06		            CALL    A_2_BYTE                            ;GET 2 ASCII CHARS AND CONVERT TYPE BYTE  
+0656 b2			            OR      D                                   ;ADD IT TO A TO COMPLETE THE BYTE  
+0657 f5			            PUSH    AF                                  ;SAVE BYTE  
+0658 81			            ADD     A, C                                ;ADD CHECKSUM TO BYTE  
+0659 4f			            LD	    C, A	                            ;STORE BACK IN CHECKSUM  
+065a f1			            POP     AF                                  ;RESTORE BYTE  
+065b c9			            RET  
+065c			;THIS ROUTINE GETS THE NEXT TWO ASCII CHARACTERS AND CONVERTS THEM INTO ONE BYTE,  D HOLDS  
+065c			;THE FIRST CHARACTER IN THE UPPER NIBBLE, A HOLDS THE LOW NIBBLE.  GET NIBBLE IS CALLED TWICE WITH  
+065c			;A FALL TRHOUGH  
+065c			A_2_BYTE:  
+065c cd 64 06		            CALL    GET_NIBBLE                          ;GET THE CHARACTER FROM THE SIO  
+065f 07			            RLCA                                        ;MOVE TO UPPER NIBBLE  
+0660 07			            RLCA  
+0661 07			            RLCA  
+0662 07			            RLCA  
+0663 57				        LD      D, A                                ;STORE IN HIGH NIBBLE OF D  
+0664			GET_NIBBLE:  
+0664 cd 1b 05			        CALL    RXCHAR                              ;GET ONE CHARACTER  
+0667 cb 77			        BIT     6, A                                ;IS THE CHARACTER BETWEEN 30-39 (0-9) OR 41-46 (A-F)  
+0669 28 02			        JR      Z, NOTA2F                           ;0-9 JUST MASK OUT UPPER BITS  
+066b c6 09			        ADD     A, 0x09                             ;ADD 0x09 TO FIX FOR A-F  
+066d			NOTA2F:  
+066d e6 0f			        AND	    0x0F                                ;MASK OUT HIGH NuBBLE AND CONVERT TO BINARY  
+066f c9			            RET  
+0670			  
+0670			;THIS ROUTINE SWITCHES BETWEEN THE STANDARD TEC KEYBOARD LAYOUT AND MARK JELIC'S ALTERNATE ONE.  IT  
+0670			;CAN BE MODIFED TO SUIT YOUR OWN LAYOUT.  IT WORKS BY USING SETTING THE KEYBOARD PATCH IN THE KEYBOARD  
+0670			;ROUTINE TO THE J_KEY_MOD ROUTINE.  THIS WILL MODIFY THE CURRENT KEY PRESSED BEFORE THE KEYBOARD HANDLER  
+0670			;RETURNS.   
+0670			J_ALT_KEY:  
+0670 21 26 08		            LD      HL, V_ALT_KEYB                      ;GET THE ALTERNATIVE KEYBOARD FLAG  
+0673 cb 0e		            RRC     (HL)                                ;ROTATE A CARRY CHECK  
+0675 21 54 08		            LD      HL, PATCH_KEY                       ;LOAD HL WITH THE PATCH KEYBOARD ENTRY  
+0678 38 03		            JR      C,SET_ALTK                          ;IF NOT NORNAL, SET ALTERATE  
+067a 36 c9		            LD      (HL), 0xC9                          ;JUST SET KEYBOARD PATCH TO EXIT  
+067c			EXIT_KEY:  
+067c c9			            RET                                         ;EXIT   
 067d			SET_ALTK:  
 067d 36 c3		            LD      (HL), 0xC3                          ;SET THE KEYBOARD PATCH TO CALL  
 067f 01 88 06		            LD      BC, J_KEY_MOD                       ;THE J_KEY_MOD ROUTINE  
 0682 ed 43 55 08	            LD      (PATCH_KEY+1), BC   
-0686 18 f2		            JR      EXIT_KEY                            ;DO A SOFT RESET  
+0686 18 f4		            JR      EXIT_KEY                            ;DO A SOFT RESET  
 0688			  
 0688			;HERE IS THE KEYBOARD MOD ROUTINE.  IT TAKES IN THE KEY KEY PRESSED STORED IN THE 'A'  
 0688			;REGISTER AND USES THIS KEY TO INDEX A TABLE TO MODIFY IT TO AN ALTERNATE KEY.  HERE ARE  
@@ -1732,7 +1732,7 @@
 0700 c3 26 04		            JP      J_SIO_TRANS                        ;SIO TRANSFER IN  
 0703 c3 26 04		            JP      J_SIO_TRANS                        ;SIO TRANSFER OUT  
 0706 c3 fc 05		            JP      J_INTEL_IN                         ;SIO INTEL HEX FILE INPUT  
-0709 c3 6a 06		            JP      J_ALT_KEY                          ;SWITCH BETWEEN ALTERNATE KEYBOARD LAYOUT  
+0709 c3 70 06		            JP      J_ALT_KEY                          ;SWITCH BETWEEN ALTERNATE KEYBOARD LAYOUT  
 070c c3 b4 05		            JP      J_MSG_SCRL                         ;MESSAGE SCROLL ROUTINE  
 070f			  
 070f			;BELOW ARE THE JMON DEFAULT RESET VARIABLES (A ZERO IS THE ACTIVE RAM  
@@ -1746,7 +1746,7 @@
 0712 ff			L0712:      DB      0xFF                                ;GO AT ALTERNATE GO ADDRESS IF AA 0823*  
 0713 ff			L0713:      DB      0xFF                                ;STEPPER KEY CONTROL/TIMER 0824  
 0714 00			L0714:      DB      0x00                                ;KEY PRESSED FLAG 0825  
-0715 00			L0715:      DB      0x00                                ;ALTERNATIVE KEYBOARD LAYOUT FLAG 0826  
+0715 55			L0715:      DB      0x55                                ;ALTERNATIVE KEYBOARD LAYOUT FLAG 0826  
 0716 00			L0716:      DB      0x00                                ;AUTO INCREMENT ON/OFF 0827*  
 0717 00 09		L0717:      DB      0x00, 0x09                          ;ALT GO ADDR/SOFT RESET EDIT LOCATION ($2000) 0828*  
 0719 70			L0719:      DB      0x70                                ;AUTO KEY REPEAT TIMER 082A  
@@ -1888,7 +1888,7 @@
 07f6 ff ff		            DW      0xFFFF                              ;#B N/A  
 07f8 ff ff		            DW      0xFFFF                              ;#C N/A  
 07fa ff ff		            DW      0xFFFF                              ;#D N/A  
-07fc ff ff		            DW      0xFFFF                              ;#E N/A  
+07fc bd 05		            DW      ASCII_SCRL                          ;#E ASCII SCROLL ROUTINE  
 07fe ff ff		            DW      0xFFFF                              ;#F N/A  
 # End of file /Users/slarti/Documents/TEC1x/TEC-1D-Stuff/code/bmon/bmon_2K_TEC1F.z80
 0800

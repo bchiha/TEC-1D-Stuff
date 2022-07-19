@@ -358,6 +358,7 @@ DO2:
             JR      DO5
 DO3:
             CALL    RANDOM          ;Get Random Value
+            CPL                     ;Mix to make more random
             AND     03H             ;Get the last two bits
             CP      03H             ;Is it Three?
             JR      Z, DO3          ;No, index is okay
@@ -524,6 +525,7 @@ SPSTART:
             LD      (DELAYSP),A     ;Initial Delay speed
 ;Get Random Alien
             CALL    RANDOM          ;RNG
+            CPL 
             AND     03H             ;Mask out last three bits
 ;Get Alien
             LD      D,A             ;Save Alien Key match
@@ -573,8 +575,8 @@ SP7:
             PUSH    BC              ;Save BC
             CALL    DELAY           ;Wait
             LD      HL,DELAYSP      ;Get Delay Speed
-            LD      B,07H           ;Get Subtraction
-SP8:        DEC     (HL)            ;Take 7 off
+            LD      B,0EH           ;Get Subtraction
+SP8:        DEC     (HL)            ;Take 14 off
             DJNZ    SP8    
             LD      A,(DELAYSP)
             LD      L,A
@@ -585,8 +587,8 @@ SP8:        DEC     (HL)            ;Take 7 off
             INC     HL              ;Get next Segment
             DJNZ    SP7             ;Repeat until all segments printed
             RLC     C               ;Move to next segment
-            INC     C               ;Increase E
-            BIT     6,C             ;It it passed all segments
+            INC     C               ;Increase C
+            BIT     3,C             ;It it passed all segments
             JR      Z,SP6           ;Do next segment
             POP     BC              ;Restore Score/Rounds
             LD      A,80H           ;Check for hit/miss
@@ -638,7 +640,7 @@ LOSTUNE:    DB      01H,18H,01H,18H,01H,18H,01H,18H,01H,1FH
 WINMESG:    DB      "ALIENS DESTROYED!      ",0DH
 LOSMESG:    DB      "END OF EARTH!      ",0DH
 
-            DB      0FFH,0FFH,0FFH,0FFH
+            DB      0FFH,0FFH
 
 ;NIM Game -- John Hardie's Favourite Game!!
 ;Remove a match 1,2,3 and don’t be the last.  This is a re-write, nothing wrong with the
@@ -766,7 +768,7 @@ PTLOOP1:    LD      A,(DE)          ;a = (de); a = note
             LD      H,00H           
             CALL    PLAYTONE        ;c and hl
             JR      PTLOOP1         ;play next note
-PTSILENCE:  LD      HL,4000H        ;delay count = 4000
+PTSILENCE:  LD      HL,2000H        ;delay count = 2000
 PTLOOP2:    DEC     HL              ;hl--
             LD      A,H
             OR      L               ;if (hl != 0)
@@ -776,12 +778,18 @@ PTLOOP2:    DEC     HL              ;hl--
 ;The Play tone routine can be called from anywhere.  Use HL as the 
 ;duration and C as the wavelength.  Duration's maximum is 7FH.
 PLAYTONE:   ADD     HL,HL           ;hl = hl + h1
+            ADD     HL,HL           ;double again for 4Mhz
             XOR     A               ;a = 0
             PUSH    DE
             LD      DE,0001H
 MTLOOP:     OUT     (01),A          ;toggle speaker bit
+            LD      B,03H           ;Lenghten wave lenght
+MTDELAY2:
+            PUSH    BC              ;Save B
             LD      B,C             ;b = c
 MTDELAY:    DJNZ    MTDELAY         ;delay?
+            POP     BC              ;Restore B
+            DJNZ    MTDELAY2        ;Do for 3 cycles
             XOR     80H             ;invert bit 7 of a
             SBC     HL,DE           ;hl = hl - 1
             JR      NZ,MTLOOP       ;repeat until l = 0
@@ -789,12 +797,12 @@ MTDELAY:    DJNZ    MTDELAY         ;delay?
             RET
 
 ;frequency table, contains wavelength and frequency combined sequentially
-FREQTBL:    DB      0FCH,59H,0F3H,5AH,0ECH,5CH,0E5H,5DH
-            DB      0E0H,5EH,0D7H,60H,0D2H,63H,0CCH,65H
-            DB      0C7H,67H,0C2H,69H,0BEH,6CH,0B8H,6EH
-            DB      0B5H,71H,0B1H,73H,0ACH,77H,0A9H,7AH
-            DB      0A6H,7DH,0A2H,81H,09FH,85H,09CH,89H
-            DB      09AH,8DH,097H,92H,095H,97H,093H,9CH
+FREQTBL:    DB      8CH,19H,83H,1AH,7CH,1CH,75H,1DH
+            DB      70H,1EH,67H,20H,62H,23H,5CH,25H
+            DB      57H,27H,52H,29H,4EH,2CH,48H,2EH
+            DB      45H,31H,41H,33H,3CH,37H,39H,3AH
+            DB      36H,3DH,32H,41H,2FH,45H,2CH,49H
+            DB      2AH,4DH,27H,52H,25H,57H,23H,5CH
 
 ;LUNALANDER
 ;you must land your luna module on the moon as gently as possible while
@@ -910,7 +918,7 @@ MASTERMIND:
             LD      (TUNEADR),HL
             LD      HL,DISP_BUFF    ;Load HL with Display
             XOR     A
-            LD      B,05H           ;five Segments
+            LD      B,04H           ;four Segments
 MM00:            
             LD      (HL),A          ;Blank Segment
             INC     HL
@@ -921,14 +929,15 @@ MM0:
             JR      Z,MM2           ;Key Press Exit
             DEC     D
             JR      NZ,MM0
-            LD      C,06H           ;Loop for all segments
+            LD      C,02H           ;Loop for all segments
 MM1:
             CALL    RANDOM          ;Get Random Number
             DAA                     ;Convert to 0-9
             LD      (HL),A          ;Fill Screen
             DEC     C               ;Reduce C
+            INC     HL
             JR      NZ,MM1          ;Do for second byte
-            JP      MASTERMIND      ;Keep going until key press
+            JR      MASTERMIND      ;Keep going until key press
 MM2:
             LD      DE,MMANSWER     ;Load DE with Answer Location
             LD      C,02H           ;Two Bytes
@@ -941,6 +950,7 @@ MM4:
             INC     DE              ;Move to next location
             DJNZ    MM4             ;Do for second nibble
             DEC     C               ;Second Byte
+            INC     HL      
             JR      NZ,MM3          ;Do Again
 ;Game Starts
 MM5:
@@ -1099,5 +1109,5 @@ MENU_DA_TBL:        ; Menu Display for DATA LEDs
             DB      0xC7,0x4B ; "ER"
             DB      0xC7,0x4B ; "ER"
  
-            DS      13H,00H   ;Pad out 
+            DS      0BH,00H   ;Pad out 
 
