@@ -1715,7 +1715,7 @@ KEY_GET:    IN      A, (KEYBOARD)                       ;GET INPUT KEY FROM ENCO
 
 LCD_RESET:  LD      HL, LCDRST_TBL                      ;POINT HL TO LCD INITIALIZE TABLE
             LD      BC, 0x0404                          ;B=4 BYTES, C=PORT 4
-L06DE:      LD      DE, 0500H                           ;DELAY BETWEEN
+L06DE:      LD      DE, 1000H                           ;DELAY BETWEEN
 L06E1:      DEC     DE                                  ;EACH BYTE
             LD      A, D                                ;AS PER
             OR      E                                   ;LCD MANUFACTER'S
