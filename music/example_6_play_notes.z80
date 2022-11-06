@@ -1,0 +1,85 @@
+
+
+            ORG     2000H
+
+START:
+            CALL   PSG_JUMP_TBL + 1EH  ;MUTE_ALL
+
+
+            LD     C,CH1
+            LD     B,VOLUME
+            CALL   PSG_JUMP_TBL + 1BH  ;SET_VOLUME
+
+
+            LD     A,G4
+            LD     D,MINIM
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+            LD     A,E4
+            LD     D,CROTCHET
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+            LD     A,E4
+            LD     D,CROTCHET
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+
+            LD     A,D4
+            LD     D,CROTCHET
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+            LD     A,D4
+            LD     D,MINIM_DOT
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+
+            LD     A,G4
+            LD     D,CROTCHET
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+            LD     A,G4
+            LD     D,CROTCHET
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+            LD     A,E4
+            LD     D,MINIM
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+
+            LD     A,D4
+            LD     D,SEMIBREVE
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+
+            LD     A,G4
+            LD     D,MINIM
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+            LD     A,E4
+            LD     D,MINIM
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+
+            LD     A,D4
+            LD     D,MINIM
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+            LD     A,E4
+            LD     D,CROTCHET
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+            LD     A,E4
+            LD     D,CROTCHET
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+
+            LD     A,B3
+            LD     D,CROTCHET
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+            LD     A,B3
+            LD     D,CROTCHET
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+            LD     A,A3
+            LD     D,CROTCHET
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+            LD     A,A3
+            LD     D,CROTCHET
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+
+            LD     A,G3
+            LD     D,SEMIBREVE
+            CALL   PSG_JUMP_TBL + 0FH  ;PLAY_NOTE
+
+            CALL   PSG_JUMP_TBL + 1EH  ;MUTE_ALL
+
+            RST    08H    ;Wait for key press
+            JP     START  ;Loop
+
+INCLUDE 'TEC_sn76489_lbr.z80' 
+
