@@ -135,6 +135,7 @@ END_S2:
 ;Plays notes on one channel
 ;
 ;Entry:  HL = Address of Tune data.
+;        E = Note Type (1=Single, 0=Continuous)
 ;
 ;        Tune Data is in the format of:
 ;        <NOTEID>
@@ -212,7 +213,7 @@ PLAY_VGM:
             JR     NZ,PV1
             INC    HL
             LD     A,(HL)     
-            OUT    (07),A     ;Send Note data to chip
+            OUT    (PORT),A     ;Send Note data to chip
             JR     PV4        ;Move to next byte
 PV1:
             CP     PAUSEID    ;Is it a delay 0x61?
@@ -252,7 +253,7 @@ PLAY_VGM_STREAM:
             CALL   RXBYTE    ;Get Serial Byte, (BMON routine), returns
             CP     ENDID     ;the byte received in Register A
             RET    Z         ;Exit if ENDID found
-            OUT    (07),A    ;Play tone
+            OUT    (PORT),A    ;Play tone
             JR     PLAY_VGM_STREAM
 
 ;TEC Piano
@@ -270,7 +271,7 @@ PLOOP:
             JR     NZ, P_MUTE     ;No Key, Mute Channel
             IN     A, (00H)       ;Get Actual Key pressed
             BIT    5, A           
-            RET    Z              ;If Shift key is pressed (bit 5) exit
+            RET    Z              ;If Shift key is pressed (bit 5 low) exit
             AND    1FH            ;Mask out irrelavent bits on key press
             LD     B,A
             LD     A,(LAST_KEY)   ;Save Key pressed
@@ -291,20 +292,39 @@ P_MUTE:
 ;Play a Note
 ;-----------
 ;Plays a Note with Delay (Hold).  Note will continue until another note
-;or Volume Change is done.
+;or Volume Change is done.  If Note Type = 1, notes will have a small
+;no volume delay at the end.
 ;
 ;Entry:  A = Note Index. (See Table Below)
 ;        C = Channel Constant
 ;        D = Delay, (See Note Speed)
+;        E = Note Type (1=Single, 0=Continuous)
 ;
 ;        EG:   LD A,C4
 ;              LD C,CH2
 ;              LD D,CROTCHET
+;              LD E,01H
 ;              CALL PLAY_NOTE
 ;
 PLAY_NOTE:
             CALL   PLAY_TONE
-            JP     DELAY
+            CALL   DELAY
+            BIT    0,E       ;Check if a small pause is needed
+            RET    Z         ;No, Just exit
+
+            LD     B,00H
+            CALL   SET_VOLUME    ;Mute Volume
+            PUSH   DE
+            LD     DE,1000H      ;For 1000 bytes
+PN1:
+            DEC    DE
+            LD     A,E
+            OR     D
+            JR     NZ,PN1
+            POP    DE
+
+            LD     B,VOLUME      ;Reset Volume
+            JP     SET_VOLUME
 
 ;Play Pause
 ;----------
@@ -318,8 +338,8 @@ PLAY_PAUSE:
             CALL   SET_VOLUME
             CALL   DELAY        ;Hold
             LD     B,VOLUME
-            CALL   SET_VOLUME   ;Reset Volume
-            RET
+            JP     SET_VOLUME   ;Reset Volume
+
 ;Delay
 ;-----
 ;Delays the code for one note speed.  Delay is based off approximately
@@ -328,6 +348,7 @@ PLAY_PAUSE:
 ;Entry:  D = Delay, (See Note Speed)
 ;
 DELAY:
+            PUSH   DE
             LD     B,D
 DE1:
             LD     DE,SQ_DELAY   ;Base Delay of 1 Semiquaver
@@ -337,6 +358,7 @@ DE2:
             OR     D
             JR     NZ,DE2
             DJNZ   DE1
+            POP    DE
             RET
 
 ;Mute all Channels
@@ -355,7 +377,8 @@ MUTE_ALL:
 
 ;Play a Tone
 ;-----------
-;Play a tone based on a note
+;Play a tone based on a note.  Uses a Frequency Lookup table to
+;match the note with the actual frequency.
 ;
 ;Entry:  A = Note Index, (See Table Below)
 ;
@@ -364,15 +387,15 @@ MUTE_ALL:
 PLAY_TONE:
             PUSH   HL
             PUSH   DE
-            RLCA
+            RLCA                ;Double for 2 byte index
             LD     H,00H
             LD     L,A
             LD     DE,FREQ_TBL  ;Frequnecy Table Lookup
-            ADD    HL,DE
+            ADD    HL,DE        ;Get address value
             LD     A,(HL)
             INC    HL
             LD     H,(HL)
-            LD     L,A
+            LD     L,A          ;Set HL to value at address
             CALL   SET_TONE     ;Play the tone
             POP    DE
             POP    HL
@@ -385,7 +408,7 @@ PLAY_TONE:
 ;Entry:  HL = 10 bit data
 ;        C = Channel
 ;        HL contains the 10 bit information to be sent to the SN76489.
-;        To make it slightly quick to work H contains the BITs for the 
+;        To make it slightly quicker to work H contains the BITs for the 
 ;        second latch byte and L contains the BITs for the first latch
 ;        byte:  IE: if HL = 1F0AH, The first latch byte will be
 ;        1CCV1010B, where 0A will be the Bits 0-3. and the second latch byte
@@ -395,7 +418,7 @@ SET_TONE:
             LD     A,L
             AND    0FH         ;Ensure only use Bits 0-3
             OR     LATCH_BYTE  ;Add Latch Byte
-            OR     C  ;Add channel ;Add Channel
+            OR     C           ;Add Channel
             OUT    (PORT),A    ;Output to chip
             LD     A,H 
             AND    3FH         ;Ensure only use Bits 0-5
@@ -411,13 +434,17 @@ SET_TONE:
 SET_VOLUME:
             LD     A,0FH       ;Ensure only use Bits 0-3
             SUB    B
-            OR     LATCH_BYTE | 10H ;Set Latch and Volume on Byte
+            OR     LATCH_BYTE | VOLUME_BIT ;Set Latch and Volume on Byte
             OR     C
             OUT    (PORT),A    ;Output to chip
             RET
 
-;Note Index.  Use these contants to set the correct Note if using routines
+;Constants and Frequency Table below.  Use in your code to make it more readable.
+;-----------------------------------
+
+;Note Index.  Use these constants to set the correct Note if using routines
 ;that use the Frequency Table.
+;Note: As I'm using a 4MHz oscillator, the lowest note that the PSG can produce is C3
 REST:       EQU    00H
 C3:         EQU    01H
 C3S:        EQU    02H
@@ -427,7 +454,7 @@ E3:         EQU    05H
 F3:         EQU    06H
 F3S:        EQU    07H
 G3:         EQU    08H
-G3S:        EQU    09H
+A3F:        EQU    09H
 A3:         EQU    0AH
 A3S:        EQU    0BH
 B3:         EQU    0CH
@@ -440,7 +467,7 @@ E4:         EQU    11H
 F4:         EQU    12H
 F4S:        EQU    13H
 G4:         EQU    14H
-G4S:        EQU    15H
+A4F:        EQU    15H
 A4:         EQU    16H
 A4S:        EQU    17H
 B4:         EQU    18H
@@ -453,7 +480,7 @@ E5:         EQU    1DH
 F5:         EQU    1EH
 F5S:        EQU    1FH
 G5:         EQU    20H
-G5S:        EQU    21H
+A5F:        EQU    21H
 A5:         EQU    22H
 A5S:        EQU    23H
 B5:         EQU    24H
@@ -466,7 +493,7 @@ E6:         EQU    29H
 F6:         EQU    2AH
 F6S:        EQU    2BH
 G6:         EQU    2CH
-G6S:        EQU    2DH
+A6F:        EQU    2DH
 A6:         EQU    2EH
 A6S:        EQU    2FH
 B6:         EQU    30H
@@ -486,7 +513,7 @@ SEMIBREVE:  EQU    MINIM * 2
 ;Note Frequencies Table.  Table is reference from the Notes Index
 ;constants above.  Based off A4 = 440Hz with a Note Index of 0.  
 ;The formula used to to work these numbers are:
-;         freq = 440.0 * (Note Index / 12)^2 
+;         freq = 440.0 * 2^(Note Index / 12) 
 ;         10 Bit Number = 4000000 / (32.0 * freq)
 ;
 ;Note: To make use easer, the 10 Bit number has been rearranged from
