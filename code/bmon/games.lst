@@ -5,6 +5,10 @@
 0000			; These games can be used on the TEC with no add ons.  They are coded 
 0000			; to be used inconjuction with BMON and running at 4MHz 
 0000			; 
+0000			;IO Port ASSIGNMENTS 
+0000			DSCAN:      EQU     0x01                                ;DISPLAY CATHODE DRIVER LATCH 
+0000			DSEGMENT:   EQU     0x02                                ;DISPLAY SEGMENT DRIVER LATCH 
+0000			 
 0000			            ORG    18E0H  
 18e0			GAMES: 
 18e0			            ; Copy Menu Data to JMON location 
@@ -51,9 +55,9 @@
 1902 78			            LD      A,B         ;Check if last segment which is 0xFF 
 1903 fe ff		            CP      0FFH        ;Its game over if zero 
 1905 28 3e		            JR      Z,SH6  
-1907 d3 01		            OUT     (01),A      ;Light up LED and Segment 
+1907 d3 01		            OUT     (DSCAN),A      ;Light up LED and Segment 
 1909 79			            LD      A,C  
-190a d3 02		            OUT     (02),A  
+190a d3 02		            OUT     (DSEGMENT),A  
 190c cd 18 19		            CALL    SH3      ;Delay the movement 
 190f cd 22 19		            CALL    SH5      ;Check for key hit 
 1912 fe 12		            CP      12H      ;If segment is hit, KEYCHK returns 12H in A register 
@@ -93,25 +97,25 @@
 1945 11 00 ff		            LD      DE,0FF00H    ;Some random address  
 1948 ed 53 01 3d	            LD      (SEGSPEED),DE  ;Set it to Speed (assume FF) 
 194c 3e bf		            LD      A,0BFH  
-194e d3 01		            OUT     (01),A      ;Light up all LEDS and speaker 
+194e d3 01		            OUT     (DSCAN),A      ;Light up all LEDS and speaker 
 1950 3e 85		            LD      A,85H  
-1952 d3 02		            OUT     (02),A      ;Light up horizontal segments only  
+1952 d3 02		            OUT     (DSEGMENT),A      ;Light up horizontal segments only  
 1954 cd 18 19		            CALL    SH3  
 1957 c3 41 00		            JP      0041H       ;Quit 
 195a 06 80		SH7:        LD      B,80H       ;Multiplex 
 195c c5			SH8:        PUSH    BC 
 195d af			            XOR     A            
-195e d3 02		            OUT     (02),A 
+195e d3 02		            OUT     (DSEGMENT),A 
 1960 3e 01		            LD      A,01H 
-1962 d3 01		            OUT     (01),A 
+1962 d3 01		            OUT     (DSCAN),A 
 1964 79			            LD      A,C 
 1965 cd 86 19		            CALL    SH11 
 1968 06 00		            LD      B,00H 
 196a 10 fe		SH9:        DJNZ    SH9 
 196c af			            XOR     A 
-196d d3 02		            OUT     (02),A 
+196d d3 02		            OUT     (DSEGMENT),A 
 196f 3e 02		            LD      A,02H 
-1971 d3 01		            OUT     (01),A 
+1971 d3 01		            OUT     (DSCAN),A 
 1973 79			            LD      A,C 
 1974 0f			            RRCA 
 1975 0f			            RRCA 
@@ -121,7 +125,7 @@
 197b 06 00		            LD      B,00H 
 197d 10 fe		SH10:       DJNZ    SH10 
 197f af			            XOR     A 
-1980 d3 01		            OUT     (01),A 
+1980 d3 01		            OUT     (DSCAN),A 
 1982 c1			            POP     BC 
 1983 10 d7		            DJNZ    SH8 
 1985 c9			            RET 
@@ -131,7 +135,7 @@
 198b 85			            ADD     A,L 
 198c 6f			            LD      L,A 
 198d 7e			            LD      A,(HL)     ;Get Segment 
-198e d3 02		            OUT     (02),A     ;Display number 
+198e d3 02		            OUT     (DSEGMENT),A     ;Display number 
 1990 c9			            RET 
 1991			 
 1991			            ;Data for Segments, First Byte is LED to select (Port 1), 
@@ -208,17 +212,17 @@
 1a0c 27			            DAA 
 1a0d 4f			            LD      C,A 
 1a0e af			SM8:        XOR     A           ;Multiplex 
-1a0f d3 02		            OUT     (02),A 
+1a0f d3 02		            OUT     (DSEGMENT),A 
 1a11 3e 04		            LD      A,04H 
-1a13 d3 01		            OUT     (01),A 
+1a13 d3 01		            OUT     (DSCAN),A 
 1a15 79			            LD      A,C 
 1a16 cd 41 1a		            CALL    SM11 
 1a19 06 00		            LD      B,00H 
 1a1b 10 fe		SM9:        DJNZ    SM9 
 1a1d af			            XOR     A 
-1a1e d3 02		            OUT     (02),A 
+1a1e d3 02		            OUT     (DSEGMENT),A 
 1a20 3e 08		            LD      A,08H 
-1a22 d3 01		            OUT     (01),A 
+1a22 d3 01		            OUT     (DSCAN),A 
 1a24 79			            LD      A,C 
 1a25 0f			            RRCA 
 1a26 0f			            RRCA 
@@ -233,7 +237,7 @@
 1a36 20 d6		            JR      NZ,SM8    ;Keep scanning until GO pressed 
 1a38 6a			            LD      L,D        ;Put random number in L 
 1a39 af			            XOR     A 
-1a3a d3 01		            OUT     (01),A 
+1a3a d3 01		            OUT     (DSCAN),A 
 1a3c cd 60 1a		            CALL    SM15 
 1a3f 18 81		            JR      SM1 
 1a41			SM11: 
@@ -242,7 +246,7 @@
 1a46 85			            ADD     A,L 
 1a47 6f			            LD      L,A 
 1a48 7e			            LD      A,(HL)     ;Get Segment 
-1a49 d3 02		            OUT     (02),A     ;Display number 
+1a49 d3 02		            OUT     (DSEGMENT),A     ;Display number 
 1a4b c9			            RET 
 1a4c			SM12: 
 1a4c 11 00 80		            LD      DE,8000H 
@@ -259,7 +263,7 @@
 1a58 b3			            OR      E 
 1a59 20 fb		            JR      NZ,SM14 
 1a5b 3e 04		            LD      A,04H 
-1a5d d3 02		            OUT     (02),A 
+1a5d d3 02		            OUT     (DSEGMENT),A 
 1a5f c9			            RET 
 1a60			SM15: 
 1a60 e5			            PUSH    HL 
@@ -275,7 +279,7 @@
 1a6f 48			            LD      C,B 
 1a70 e6 0f		            AND     0FH 
 1a72			SM16: 
-1a72 d3 01		            OUT     (01),A     ;Display value 
+1a72 d3 01		            OUT     (DSCAN),A     ;Display value 
 1a74 41			            LD      B,C 
 1a75 10 fe		SM17:       DJNZ    SM17 
 1a77 ee 80		            XOR     80H        ;Toggle speaker bit 
@@ -285,9 +289,9 @@
 1a7e d1			            POP     DE 
 1a7f e1			            POP     HL 
 1a80 3e 04		            LD      A,04H      ;G segment 
-1a82 d3 02		            OUT     (02),A 
+1a82 d3 02		            OUT     (DSEGMENT),A 
 1a84 af			            XOR     A 
-1a85 d3 01		            OUT     (01),A 
+1a85 d3 01		            OUT     (DSCAN),A 
 1a87 c9			            RET 
 1a88			SM18: 
 1a88 e7			            RST     20H 
@@ -445,7 +449,7 @@
 1b4c 69			            LD      L, C 
 1b4d af			            XOR     A 
 1b4e			FS3: 
-1b4e d3 01		            OUT     (01) ,A 
+1b4e d3 01		            OUT     (DSCAN) ,A 
 1b50 41			            LD      B,C 
 1b51 10 fe		FS4:        DJNZ    FS4 
 1b53 ee 80		            XOR     80H 
@@ -469,18 +473,18 @@
 1b6b 21 00 2d		            LD      HL, DOSCREEN      ;Set HL to Display Buffer 
 1b6e			DO7: 
 1b6e 7e			            LD      A, (HL)         ;Get Segment Value at HL 
-1b6f d3 02		            OUT     (02), A         ;Set on Segment 
+1b6f d3 02		            OUT     (DSEGMENT), A         ;Set on Segment 
 1b71 78			            LD      A, B            ;Get Segment reference 
-1b72 d3 01		            OUT     (01), A         ;Activate segment 
+1b72 d3 01		            OUT     (DSCAN), A         ;Activate segment 
 1b74 06 80		            LD      B, 80H          ;Segment delay 
 1b76 10 fe		DO8:        DJNZ    DO8 
 1b78 23			            INC     HL              ;Move to next location 
 1b79 47			            LD      B, A            ;Save Segment reference 
 1b7a af			            XOR     A               ;Clear A 
-1b7b d3 01		            OUT     (01), A         ;Deactivate Segment 
+1b7b d3 01		            OUT     (DSCAN), A         ;Deactivate Segment 
 1b7d cb 08		            RRC     B               ;Move Segment Reference on to the Right 
 1b7f 30 ed		            JR      NC, DO7         ;Scan next segment if more to do 
-1b81 d3 02		            OUT     (02), A         ;Clear port 2 
+1b81 d3 02		            OUT     (DSEGMENT), A         ;Clear port 2 
 1b83 c9			            RET 
 1b84			 
 1b84			;Convert HL and A to Seven Segment Display 
@@ -536,10 +540,10 @@
 1bb6 6f			            LD      L,A 
 1bb7 7e			            LD      A,(HL)          ;Get Alian Glyph 
 1bb8			;Game Loop 
-1bb8 d3 02		            OUT     (02),A          ;Send Glyph to Segments 
+1bb8 d3 02		            OUT     (DSEGMENT),A          ;Send Glyph to Segments 
 1bba			SP2: 
 1bba 7b			            LD      A,E             ;Get Scan Port 
-1bbb d3 01		            OUT     (01),A          ;Turn on Segment 
+1bbb d3 01		            OUT     (DSCAN),A          ;Turn on Segment 
 1bbd cd 38 1c		            CALL    DELAY           ;Pause for a bit 
 1bc0 21 20 00		            LD      HL,0020H        ;get delay 
 1bc3 0e 40		            LD      C,40H           ;wavylength 
@@ -569,9 +573,9 @@
 1be4 06 06		            LD      B,06H           ;Six Segments 
 1be6			SP7: 
 1be6 7e			            LD      A,(HL)          ;Get Segment 
-1be7 d3 02		            OUT     (02),A          ;Light Segment 
+1be7 d3 02		            OUT     (DSEGMENT),A          ;Light Segment 
 1be9 79			            LD      A,C             ;Get Scan Bit 
-1bea d3 01		            OUT     (01),A          ;Turn on Segment 
+1bea d3 01		            OUT     (DSCAN),A          ;Turn on Segment 
 1bec e5			            PUSH    HL              ;Save HL 
 1bed c5			            PUSH    BC              ;Save BC 
 1bee cd 38 1c		            CALL    DELAY           ;Wait 
@@ -783,7 +787,7 @@
 1d93 af			            XOR     A               ;a = 0 
 1d94 d5			            PUSH    DE 
 1d95 11 01 00		            LD      DE,0001H 
-1d98 d3 01		MTLOOP:     OUT     (01),A          ;toggle speaker bit 
+1d98 d3 01		MTLOOP:     OUT     (DSCAN),A          ;toggle speaker bit 
 1d9a 06 03		            LD      B,03H           ;Lenghten wave lenght 
 1d9c			MTDELAY2: 
 1d9c c5			            PUSH    BC              ;Save B 

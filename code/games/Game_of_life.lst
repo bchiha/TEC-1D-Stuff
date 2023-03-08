@@ -1,4 +1,4 @@
-# File /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/games/Game_of_life.z80
+# File /Users/slarti/Documents/TEC1x/TEC-1D-Stuff/code/games/Game_of_life.z80
 0000			; Conway's Game of Life 
 0000			; --------------------- 
 0000			; 
@@ -306,5 +306,5 @@
 0a99 18 24 42 81 81 42 24 18	            DB      18H,24H,42H,81H,81H,42H,24H,18H      ;Octagon 
 0aa1 38 44 82 41 41 82 44 38	            DB      38H,44H,82H,41H,41H,82H,44H,38H      ;Heart 
 0aa9			 
-# End of file /Users/slarti/Documents/TEC1D/TEC-1D-Stuff/code/games/Game_of_life.z80
+# End of file /Users/slarti/Documents/TEC1x/TEC-1D-Stuff/code/games/Game_of_life.z80
 0aa9

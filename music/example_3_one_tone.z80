@@ -5,6 +5,7 @@
 START:
             CALL   PSG_JUMP_TBL + 1EH  ;MUTE_ALL
 
+            LD     E,00H  ;Continuous Notes
             LD     HL,SONG_DATA
             CALL   PSG_JUMP_TBL + 03H  ;PLAY_TUNE_SC
             RST    08H    ;Wait for key press

@@ -4,6 +4,10 @@
 ; These games can be used on the TEC with no add ons.  They are coded
 ; to be used inconjuction with BMON and running at 4MHz
 ;
+;IO Port ASSIGNMENTS
+DSCAN:      EQU     0x01                                ;DISPLAY CATHODE DRIVER LATCH
+DSEGMENT:   EQU     0x02                                ;DISPLAY SEGMENT DRIVER LATCH
+
             ORG    18E0H 
 GAMES:
             ; Copy Menu Data to JMON location
@@ -50,9 +54,9 @@ SH2:
             LD      A,B         ;Check if last segment which is 0xFF
             CP      0FFH        ;Its game over if zero
             JR      Z,SH6 
-            OUT     (01),A      ;Light up LED and Segment
+            OUT     (DSCAN),A      ;Light up LED and Segment
             LD      A,C 
-            OUT     (02),A 
+            OUT     (DSEGMENT),A 
             CALL    SH3      ;Delay the movement
             CALL    SH5      ;Check for key hit
             CP      12H      ;If segment is hit, KEYCHK returns 12H in A register
@@ -92,25 +96,25 @@ SH6:
             LD      DE,0FF00H    ;Some random address 
             LD      (SEGSPEED),DE  ;Set it to Speed (assume FF)
             LD      A,0BFH 
-            OUT     (01),A      ;Light up all LEDS and speaker
+            OUT     (DSCAN),A      ;Light up all LEDS and speaker
             LD      A,85H 
-            OUT     (02),A      ;Light up horizontal segments only 
+            OUT     (DSEGMENT),A      ;Light up horizontal segments only 
             CALL    SH3 
             JP      0041H       ;Quit
 SH7:        LD      B,80H       ;Multiplex
 SH8:        PUSH    BC
             XOR     A           
-            OUT     (02),A
+            OUT     (DSEGMENT),A
             LD      A,01H
-            OUT     (01),A
+            OUT     (DSCAN),A
             LD      A,C
             CALL    SH11
             LD      B,00H
 SH9:        DJNZ    SH9
             XOR     A
-            OUT     (02),A
+            OUT     (DSEGMENT),A
             LD      A,02H
-            OUT     (01),A
+            OUT     (DSCAN),A
             LD      A,C
             RRCA
             RRCA
@@ -120,7 +124,7 @@ SH9:        DJNZ    SH9
             LD      B,00H
 SH10:       DJNZ    SH10
             XOR     A
-            OUT     (01),A
+            OUT     (DSCAN),A
             POP     BC
             DJNZ    SH8
             RET
@@ -130,7 +134,7 @@ SH11:
             ADD     A,L
             LD      L,A
             LD      A,(HL)     ;Get Segment
-            OUT     (02),A     ;Display number
+            OUT     (DSEGMENT),A     ;Display number
             RET
 
             ;Data for Segments, First Byte is LED to select (Port 1),
@@ -207,17 +211,17 @@ SM7:
             DAA
             LD      C,A
 SM8:        XOR     A           ;Multiplex
-            OUT     (02),A
+            OUT     (DSEGMENT),A
             LD      A,04H
-            OUT     (01),A
+            OUT     (DSCAN),A
             LD      A,C
             CALL    SM11
             LD      B,00H
 SM9:        DJNZ    SM9
             XOR     A
-            OUT     (02),A
+            OUT     (DSEGMENT),A
             LD      A,08H
-            OUT     (01),A
+            OUT     (DSCAN),A
             LD      A,C
             RRCA
             RRCA
@@ -232,7 +236,7 @@ SM10:       DJNZ    SM10
             JR      NZ,SM8    ;Keep scanning until GO pressed
             LD      L,D        ;Put random number in L
             XOR     A
-            OUT     (01),A
+            OUT     (DSCAN),A
             CALL    SM15
             JR      SM1
 SM11:
@@ -241,7 +245,7 @@ SM11:
             ADD     A,L
             LD      L,A
             LD      A,(HL)     ;Get Segment
-            OUT     (02),A     ;Display number
+            OUT     (DSEGMENT),A     ;Display number
             RET
 SM12:
             LD      DE,8000H
@@ -258,7 +262,7 @@ SM14:
             OR      E
             JR      NZ,SM14
             LD      A,04H
-            OUT     (02),A
+            OUT     (DSEGMENT),A
             RET
 SM15:
             PUSH    HL
@@ -274,7 +278,7 @@ SM15:
             LD      C,B
             AND     0FH
 SM16:
-            OUT     (01),A     ;Display value
+            OUT     (DSCAN),A     ;Display value
             LD      B,C
 SM17:       DJNZ    SM17
             XOR     80H        ;Toggle speaker bit
@@ -284,9 +288,9 @@ SM17:       DJNZ    SM17
             POP     DE
             POP     HL
             LD      A,04H      ;G segment
-            OUT     (02),A
+            OUT     (DSEGMENT),A
             XOR     A
-            OUT     (01),A
+            OUT     (DSCAN),A
             RET
 SM18:
             RST     20H
@@ -444,7 +448,7 @@ DO14:
             LD      L, C
             XOR     A
 FS3:
-            OUT     (01) ,A
+            OUT     (DSCAN) ,A
             LD      B,C
 FS4:        DJNZ    FS4
             XOR     80H
@@ -468,18 +472,18 @@ DOSCAN:
             LD      HL, DOSCREEN      ;Set HL to Display Buffer
 DO7:
             LD      A, (HL)         ;Get Segment Value at HL
-            OUT     (02), A         ;Set on Segment
+            OUT     (DSEGMENT), A         ;Set on Segment
             LD      A, B            ;Get Segment reference
-            OUT     (01), A         ;Activate segment
+            OUT     (DSCAN), A         ;Activate segment
             LD      B, 80H          ;Segment delay
 DO8:        DJNZ    DO8
             INC     HL              ;Move to next location
             LD      B, A            ;Save Segment reference
             XOR     A               ;Clear A
-            OUT     (01), A         ;Deactivate Segment
+            OUT     (DSCAN), A         ;Deactivate Segment
             RRC     B               ;Move Segment Reference on to the Right
             JR      NC, DO7         ;Scan next segment if more to do
-            OUT     (02), A         ;Clear port 2
+            OUT     (DSEGMENT), A         ;Clear port 2
             RET
 
 ;Convert HL and A to Seven Segment Display
@@ -535,10 +539,10 @@ SPSTART:
             LD      L,A
             LD      A,(HL)          ;Get Alian Glyph
 ;Game Loop
-            OUT     (02),A          ;Send Glyph to Segments
+            OUT     (DSEGMENT),A          ;Send Glyph to Segments
 SP2:
             LD      A,E             ;Get Scan Port
-            OUT     (01),A          ;Turn on Segment
+            OUT     (DSCAN),A          ;Turn on Segment
             CALL    DELAY           ;Pause for a bit
             LD      HL,0020H        ;get delay
             LD      C,40H           ;wavylength
@@ -568,9 +572,9 @@ SP6:
             LD      B,06H           ;Six Segments
 SP7:
             LD      A,(HL)          ;Get Segment
-            OUT     (02),A          ;Light Segment
+            OUT     (DSEGMENT),A          ;Light Segment
             LD      A,C             ;Get Scan Bit
-            OUT     (01),A          ;Turn on Segment
+            OUT     (DSCAN),A          ;Turn on Segment
             PUSH    HL              ;Save HL
             PUSH    BC              ;Save BC
             CALL    DELAY           ;Wait
@@ -782,7 +786,7 @@ PLAYTONE:   ADD     HL,HL           ;hl = hl + h1
             XOR     A               ;a = 0
             PUSH    DE
             LD      DE,0001H
-MTLOOP:     OUT     (01),A          ;toggle speaker bit
+MTLOOP:     OUT     (DSCAN),A          ;toggle speaker bit
             LD      B,03H           ;Lenghten wave lenght
 MTDELAY2:
             PUSH    BC              ;Save B
