@@ -1546,117 +1546,113 @@
 061c cd 1b 05			        CALL	RXCHAR	                            ;WAIT FOR THE MARK  
 061f fe 3a			        CP	    ':'	                                ;TO BE TRANSMITTED  
 0621 20 f9			        JR      NZ, INTEL_MARK	                    ;LOOP UNTIL START OF LINE FOUND  
-0623 cd 53 06		        	CALL	ASCII_2_BYTE                        ;GET LINE LENGTH IN BYTES  
+0623 cd 4d 06		        	CALL	ASCII_2_BYTE                        ;GET LINE LENGTH IN BYTES  
 0626 47				        LD	    B, A                                ;STORE NUMBER OF DATA BYTES IN B  
-0627 cd 53 06		        	CALL	ASCII_2_BYTE                        ;GET ADDRESS HIGH BYTE  
+0627 cd 4d 06		        	CALL	ASCII_2_BYTE                        ;GET ADDRESS HIGH BYTE  
 062a 67			            LD      H, A                                ;STORE HIGH ADDRESS IN H  
-062b cd 53 06		        	CALL	ASCII_2_BYTE                        ;GET ADDRESS LOW BYTE  
+062b cd 4d 06		        	CALL	ASCII_2_BYTE                        ;GET ADDRESS LOW BYTE  
 062e 6f			            LD      L, A                                ;STORE LOW ADDRESS IN L  
 062f			  
-062f c5			            PUSH    BC                                  ;SAVE BC  
-0630 ed 4b 2c 08	            LD      BC, (V_DISPLAY)                     ;PUT DISPLAY BUFFER ADDRESS IN BC  
-0634 cd 30 08		            CALL    HL_2_DIS                            ;CALL HL TO DISPLAY CODE ROUTINE  
-0637 c1			            POP     BC                                  ;RESTORE BC  
-0638			  
-0638 cd 53 06		        	CALL	ASCII_2_BYTE                        ;GET RECORD TYPE  
-063b 20 10		            JR      NZ, CHECKSUM                        ;IF 01 THEN END OF FILE  
-063d			INTEL_DATA:  
-063d c5			            PUSH    BC  
-063e df			            RST     18H                                 ;SCAN THE DISPLAY TO SHOW CURRENT LOADING ADDRESS  
-063f c1			            POP     BC    
-0640 cd 53 06		        	CALL	ASCII_2_BYTE                        ;GET DATA  
-0643 77			            LD      (HL), A                             ;STORE DATA BYTE IN HL  
-0644 23			        	INC     HL                                  ;MOVE TO NEXT ADDRESS  
-0645 10 f6		            DJNZ    INTEL_DATA                          ;LOAD MORE BYTES  
+062f d3 02		            OUT     (DSEGMENT),A                        ;GIVE INDICATION  
+0631 3e 01		            LD      A,01H                               ;THAT TRANSFER IS  
+0633 d3 01		            OUT     (DSCAN),A                           ;ACTIVE  
+0635			  
+0635 cd 4d 06		        	CALL	ASCII_2_BYTE                        ;GET RECORD TYPE  
+0638 20 0d		            JR      NZ, CHECKSUM                        ;IF 01 THEN END OF FILE  
+063a			INTEL_DATA:  
+063a cd 4d 06		        	CALL	ASCII_2_BYTE                        ;GET DATA  
+063d 77			            LD      (HL), A                             ;STORE DATA BYTE IN HL  
+063e 23			        	INC     HL                                  ;MOVE TO NEXT ADDRESS  
+063f 10 f9		            DJNZ    INTEL_DATA                          ;LOAD MORE BYTES  
+0641			  
+0641 cd 47 06		        	CALL    CHECKSUM                            ;COMPARE CHECK SUM  
+0644 28 d4			        JR      Z, INTEL_LOADER	                    ;CHECKSUM OK,NEXT RECORD              
+0646 c9			            RET                                         ;EXIT FOR ERROR  
 0647			  
-0647 cd 4d 06		        	CALL    CHECKSUM                            ;COMPARE CHECK SUM  
-064a 28 ce			        JR      Z, INTEL_LOADER	                    ;CHECKSUM OK,NEXT RECORD              
-064c c9			            RET                                         ;EXIT FOR ERROR  
+0647			CHECKSUM:                                               ;THE SUM OF ALL BYTES INCLUDING CHECKSUM SHOULD EQUAL ZERO  
+0647 cd 4d 06		            CALL    ASCII_2_BYTE                        ;GET CHECKSUM BYTE  
+064a 79			            LD      A, C         	                    ;CONVERT CHECKSUM TO  
+064b b7			            OR      A                                   ;CHECK IF A=0, CHECKSUM IS OKAY  
+064c c9			            RET                                         ;RETURN ZERO FLAG  
 064d			  
-064d			CHECKSUM:                                               ;THE SUM OF ALL BYTES INCLUDING CHECKSUM SHOULD EQUAL ZERO  
-064d cd 53 06		            CALL    ASCII_2_BYTE                        ;GET CHECKSUM BYTE  
-0650 79			            LD      A, C         	                    ;CONVERT CHECKSUM TO  
-0651 b7			            OR      A                                   ;CHECK IF A=0, CHECKSUM IS OKAY  
-0652 c9			            RET                                         ;RETURN ZERO FLAG  
-0653			  
-0653			;GET HEX ASCII CHARACTER FROM SERIAL PORT AND CONVERT IT TO A BYTE.  THIS ALSO  
-0653			;UPDATES THE HEX_CHECKSUM FOR USE LATER ON  
-0653			ASCII_2_BYTE:  
-0653 cd 5c 06		            CALL    A_2_BYTE                            ;GET 2 ASCII CHARS AND CONVERT TYPE BYTE  
-0656 b2			            OR      D                                   ;ADD IT TO A TO COMPLETE THE BYTE  
-0657 f5			            PUSH    AF                                  ;SAVE BYTE  
-0658 81			            ADD     A, C                                ;ADD CHECKSUM TO BYTE  
-0659 4f			            LD	    C, A	                            ;STORE BACK IN CHECKSUM  
-065a f1			            POP     AF                                  ;RESTORE BYTE  
-065b c9			            RET  
-065c			;THIS ROUTINE GETS THE NEXT TWO ASCII CHARACTERS AND CONVERTS THEM INTO ONE BYTE,  D HOLDS  
-065c			;THE FIRST CHARACTER IN THE UPPER NIBBLE, A HOLDS THE LOW NIBBLE.  GET NIBBLE IS CALLED TWICE WITH  
-065c			;A FALL TRHOUGH  
-065c			A_2_BYTE:  
-065c cd 64 06		            CALL    GET_NIBBLE                          ;GET THE CHARACTER FROM THE SIO  
-065f 07			            RLCA                                        ;MOVE TO UPPER NIBBLE  
-0660 07			            RLCA  
-0661 07			            RLCA  
-0662 07			            RLCA  
-0663 57				        LD      D, A                                ;STORE IN HIGH NIBBLE OF D  
-0664			GET_NIBBLE:  
-0664 cd 1b 05			        CALL    RXCHAR                              ;GET ONE CHARACTER  
-0667 cb 77			        BIT     6, A                                ;IS THE CHARACTER BETWEEN 30-39 (0-9) OR 41-46 (A-F)  
-0669 28 02			        JR      Z, NOTA2F                           ;0-9 JUST MASK OUT UPPER BITS  
-066b c6 09			        ADD     A, 0x09                             ;ADD 0x09 TO FIX FOR A-F  
-066d			NOTA2F:  
-066d e6 0f			        AND	    0x0F                                ;MASK OUT HIGH NuBBLE AND CONVERT TO BINARY  
-066f c9			            RET  
-0670			  
-0670			;THIS ROUTINE SWITCHES BETWEEN THE STANDARD TEC KEYBOARD LAYOUT AND MARK JELIC'S ALTERNATE ONE.  IT  
-0670			;CAN BE MODIFED TO SUIT YOUR OWN LAYOUT.  IT WORKS BY USING SETTING THE KEYBOARD PATCH IN THE KEYBOARD  
-0670			;ROUTINE TO THE J_KEY_MOD ROUTINE.  THIS WILL MODIFY THE CURRENT KEY PRESSED BEFORE THE KEYBOARD HANDLER  
-0670			;RETURNS.   
-0670			J_ALT_KEY:  
-0670 21 26 08		            LD      HL, V_ALT_KEYB                      ;GET THE ALTERNATIVE KEYBOARD FLAG  
-0673 cb 0e		            RRC     (HL)                                ;ROTATE A CARRY CHECK  
-0675 21 54 08		            LD      HL, PATCH_KEY                       ;LOAD HL WITH THE PATCH KEYBOARD ENTRY  
-0678 38 03		            JR      C,SET_ALTK                          ;IF NOT NORNAL, SET ALTERATE  
-067a 36 c9		            LD      (HL), 0xC9                          ;JUST SET KEYBOARD PATCH TO EXIT  
-067c			EXIT_KEY:  
-067c c9			            RET                                         ;EXIT   
-067d			SET_ALTK:  
-067d 36 c3		            LD      (HL), 0xC3                          ;SET THE KEYBOARD PATCH TO CALL  
-067f 01 88 06		            LD      BC, J_KEY_MOD                       ;THE J_KEY_MOD ROUTINE  
-0682 ed 43 55 08	            LD      (PATCH_KEY+1), BC   
-0686 18 f4		            JR      EXIT_KEY                            ;DO A SOFT RESET  
-0688			  
-0688			;HERE IS THE KEYBOARD MOD ROUTINE.  IT TAKES IN THE KEY KEY PRESSED STORED IN THE 'A'  
-0688			;REGISTER AND USES THIS KEY TO INDEX A TABLE TO MODIFY IT TO AN ALTERNATE KEY.  HERE ARE  
-0688			;THE TWO KEYBOARD LAYOUT FOR REFERENCE.  ARGUABLY THE ALTERNATE LAYOUT MAKES MORE SENSE.  
-0688			;FEEL FREE TO CHANGE THIS TO SUIT YOUR OWN SETUP!  
-0688			;  
-0688			;    STANDARD LAYOUT           ALTERNATE LAYOUT  
-0688			; |----|---|---|---|---|    |----|---|---|---|---|  
-0688			; | AD | 3 | 7 | B | F |    | AD | 7 | 8 | 9 | A |   
-0688			; |----|---|---|---|---|    |----|---|---|---|---|  
-0688			; | GO | 2 | 6 | A | E |    | GO | 4 | 5 | 6 | B |   
-0688			; |----|---|---|---|---|    |----|---|---|---|---|  
-0688			; | -  | 1 | 5 | 9 | D |    | -  | 1 | 2 | 3 | C |   
-0688			; |----|---|---|---|---|    |----|---|---|---|---|  
-0688			; | +  | 0 | 4 | 8 | C |    | +  | 0 | F | E | D |   
-0688			; |----|---|---|---|---|    |----|---|---|---|---|  
-0688			J_KEY_MOD:  
-0688 e5			            PUSH    HL                                  ;SAVE HL  
-0689 21 91 06		            LD      HL, ALT_KEY_TBL                     ;POINT HL TO ALTERNATE KEYBOARD TABLE  
-068c 85			            ADD     A, L                                ;INDEX L WITH A  
-068d 6f			            LD      L, A                                ;SAVE L  
-068e 7e			            LD      A, (HL)                             ;RETRIEVE NEW KEY  
-068f e1			            POP     HL                                  ;RESTORE HL  
-0690 c9			            RET                                         ;EXIT  
-0691			  
-0691			ALT_KEY_TBL:  
-0691 00 01 04 07 0f 02 05 08	            DB      0x00, 0x01, 0x04, 0x07, 0x0F, 0x02, 0x05, 0x08 ; 0 1 4 7 F 2 5 8  
-0699 0e 03 06 09 0d 0c 0b 0a	            DB      0x0E, 0x03, 0x06, 0x09, 0x0D, 0x0C, 0x0B, 0x0A ; E 3 6 9 D C B A  
-06a1 10 11 12 13	            DB      0x10, 0x11, 0x12, 0x13                         ; + - GO AD  
-06a5			  
-06a5 ff ff		            DB      0xFF, 0xFF                          ;SPARE  
-06a7 ff ff ff ff ff ff	            DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;FILL   
+064d			;GET HEX ASCII CHARACTER FROM SERIAL PORT AND CONVERT IT TO A BYTE.  THIS ALSO  
+064d			;UPDATES THE HEX_CHECKSUM FOR USE LATER ON  
+064d			ASCII_2_BYTE:  
+064d cd 56 06		            CALL    A_2_BYTE                            ;GET 2 ASCII CHARS AND CONVERT TYPE BYTE  
+0650 b2			            OR      D                                   ;ADD IT TO A TO COMPLETE THE BYTE  
+0651 f5			            PUSH    AF                                  ;SAVE BYTE  
+0652 81			            ADD     A, C                                ;ADD CHECKSUM TO BYTE  
+0653 4f			            LD	    C, A	                            ;STORE BACK IN CHECKSUM  
+0654 f1			            POP     AF                                  ;RESTORE BYTE  
+0655 c9			            RET  
+0656			;THIS ROUTINE GETS THE NEXT TWO ASCII CHARACTERS AND CONVERTS THEM INTO ONE BYTE,  D HOLDS  
+0656			;THE FIRST CHARACTER IN THE UPPER NIBBLE, A HOLDS THE LOW NIBBLE.  GET NIBBLE IS CALLED TWICE WITH  
+0656			;A FALL TRHOUGH  
+0656			A_2_BYTE:  
+0656 cd 5e 06		            CALL    GET_NIBBLE                          ;GET THE CHARACTER FROM THE SIO  
+0659 07			            RLCA                                        ;MOVE TO UPPER NIBBLE  
+065a 07			            RLCA  
+065b 07			            RLCA  
+065c 07			            RLCA  
+065d 57				        LD      D, A                                ;STORE IN HIGH NIBBLE OF D  
+065e			GET_NIBBLE:  
+065e cd 1b 05			        CALL    RXCHAR                              ;GET ONE CHARACTER  
+0661 cb 77			        BIT     6, A                                ;IS THE CHARACTER BETWEEN 30-39 (0-9) OR 41-46 (A-F)  
+0663 28 02			        JR      Z, NOTA2F                           ;0-9 JUST MASK OUT UPPER BITS  
+0665 c6 09			        ADD     A, 0x09                             ;ADD 0x09 TO FIX FOR A-F  
+0667			NOTA2F:  
+0667 e6 0f			        AND	    0x0F                                ;MASK OUT HIGH NuBBLE AND CONVERT TO BINARY  
+0669 c9			            RET  
+066a			  
+066a			;THIS ROUTINE SWITCHES BETWEEN THE STANDARD TEC KEYBOARD LAYOUT AND MARK JELIC'S ALTERNATE ONE.  IT  
+066a			;CAN BE MODIFED TO SUIT YOUR OWN LAYOUT.  IT WORKS BY USING SETTING THE KEYBOARD PATCH IN THE KEYBOARD  
+066a			;ROUTINE TO THE J_KEY_MOD ROUTINE.  THIS WILL MODIFY THE CURRENT KEY PRESSED BEFORE THE KEYBOARD HANDLER  
+066a			;RETURNS.   
+066a			J_ALT_KEY:  
+066a 21 26 08		            LD      HL, V_ALT_KEYB                      ;GET THE ALTERNATIVE KEYBOARD FLAG  
+066d cb 0e		            RRC     (HL)                                ;ROTATE A CARRY CHECK  
+066f 21 54 08		            LD      HL, PATCH_KEY                       ;LOAD HL WITH THE PATCH KEYBOARD ENTRY  
+0672 38 03		            JR      C,SET_ALTK                          ;IF NOT NORNAL, SET ALTERATE  
+0674 36 c9		            LD      (HL), 0xC9                          ;JUST SET KEYBOARD PATCH TO EXIT  
+0676			EXIT_KEY:  
+0676 c9			            RET                                         ;EXIT   
+0677			SET_ALTK:  
+0677 36 c3		            LD      (HL), 0xC3                          ;SET THE KEYBOARD PATCH TO CALL  
+0679 01 82 06		            LD      BC, J_KEY_MOD                       ;THE J_KEY_MOD ROUTINE  
+067c ed 43 55 08	            LD      (PATCH_KEY+1), BC   
+0680 18 f4		            JR      EXIT_KEY                            ;DO A SOFT RESET  
+0682			  
+0682			;HERE IS THE KEYBOARD MOD ROUTINE.  IT TAKES IN THE KEY KEY PRESSED STORED IN THE 'A'  
+0682			;REGISTER AND USES THIS KEY TO INDEX A TABLE TO MODIFY IT TO AN ALTERNATE KEY.  HERE ARE  
+0682			;THE TWO KEYBOARD LAYOUT FOR REFERENCE.  ARGUABLY THE ALTERNATE LAYOUT MAKES MORE SENSE.  
+0682			;FEEL FREE TO CHANGE THIS TO SUIT YOUR OWN SETUP!  
+0682			;  
+0682			;    STANDARD LAYOUT           ALTERNATE LAYOUT  
+0682			; |----|---|---|---|---|    |----|---|---|---|---|  
+0682			; | AD | 3 | 7 | B | F |    | AD | 7 | 8 | 9 | A |   
+0682			; |----|---|---|---|---|    |----|---|---|---|---|  
+0682			; | GO | 2 | 6 | A | E |    | GO | 4 | 5 | 6 | B |   
+0682			; |----|---|---|---|---|    |----|---|---|---|---|  
+0682			; | -  | 1 | 5 | 9 | D |    | -  | 1 | 2 | 3 | C |   
+0682			; |----|---|---|---|---|    |----|---|---|---|---|  
+0682			; | +  | 0 | 4 | 8 | C |    | +  | 0 | F | E | D |   
+0682			; |----|---|---|---|---|    |----|---|---|---|---|  
+0682			J_KEY_MOD:  
+0682 e5			            PUSH    HL                                  ;SAVE HL  
+0683 21 8b 06		            LD      HL, ALT_KEY_TBL                     ;POINT HL TO ALTERNATE KEYBOARD TABLE  
+0686 85			            ADD     A, L                                ;INDEX L WITH A  
+0687 6f			            LD      L, A                                ;SAVE L  
+0688 7e			            LD      A, (HL)                             ;RETRIEVE NEW KEY  
+0689 e1			            POP     HL                                  ;RESTORE HL  
+068a c9			            RET                                         ;EXIT  
+068b			  
+068b			ALT_KEY_TBL:  
+068b 00 01 04 07 0f 02 05 08	            DB      0x00, 0x01, 0x04, 0x07, 0x0F, 0x02, 0x05, 0x08 ; 0 1 4 7 F 2 5 8  
+0693 0e 03 06 09 0d 0c 0b 0a	            DB      0x0E, 0x03, 0x06, 0x09, 0x0D, 0x0C, 0x0B, 0x0A ; E 3 6 9 D C B A  
+069b 10 11 12 13	            DB      0x10, 0x11, 0x12, 0x13                         ; + - GO AD  
+069f			  
+069f ff ff ff ff ff ff ff	            DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;SPARE  
+06a6 ff ff ff ff ff ff ff	            DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;FILL   
 06ad			              
 06ad			  
 06ad			;THIS ROUTINE IS THE KEYBOARD READER/VALIDATER  
@@ -1710,7 +1706,7 @@
 06d8			  
 06d8 21 b5 07		LCD_RESET:  LD      HL, LCDRST_TBL                      ;POINT HL TO LCD INITIALIZE TABLE  
 06db 01 04 04		            LD      BC, 0x0404                          ;B=4 BYTES, C=PORT 4  
-06de 11 00 05		L06DE:      LD      DE, 0500H                           ;DELAY BETWEEN  
+06de 11 00 10		L06DE:      LD      DE, 1000H                           ;DELAY BETWEEN  
 06e1 1b			L06E1:      DEC     DE                                  ;EACH BYTE  
 06e2 7a			            LD      A, D                                ;AS PER  
 06e3 b3			            OR      E                                   ;LCD MANUFACTER'S  
@@ -1718,11 +1714,12 @@
 06e6 ed a3		            OUTI                                        ;OUTPUT (HL) TO (C). HL=HL+1,B=B-1  
 06e8 20 f4		            JR      NZ, L06DE                           ;JUMP IF B NOT 0  
 06ea 10 fe		L06EA:      DJNZ    L06EA                               ;SHORT DELAY  
-06ec db 84		            IN      A, (P_LCDDATA)                      ;INPUT FROM LCD TO SEE IF IT'S THERE  
-06ee d6 20		            SUB     0x20                                ;SUBTRACT ASCII SPACE, IF LCD FITTED  
-06f0 32 21 08		            LD      (V_LCD), A                          ;RESULT WILL BE ZERO: STORE THIS IN  
-06f3 c9			            RET                                         ;LCD MASK: DONE  
-06f4			              
+06ec db 04		            IN      A, (P_LCDINST)                      ;INPUT FROM LCD TO SEE IF IT'S THERE  
+06ee			                                                        ;BUSY FLAG IS LOW AND CGRAM ADDRESS IS 0  
+06ee 32 21 08		            LD      (V_LCD), A                          ;RESULT WILL BE ZERO: STORE THIS IN  
+06f1 c9			            RET                                         ;LCD MASK: DONE  
+06f2			              
+06f2 ff ff		            DB      0xFF, 0xFF                          ;FILL  
 06f4 ff ff ff ff ff ff	            DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;FILL   
 06fa ff ff ff ff ff ff	            DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;FILL   
 0700			  
@@ -1732,7 +1729,7 @@
 0700 c3 26 04		            JP      J_SIO_TRANS                        ;SIO TRANSFER IN  
 0703 c3 26 04		            JP      J_SIO_TRANS                        ;SIO TRANSFER OUT  
 0706 c3 fc 05		            JP      J_INTEL_IN                         ;SIO INTEL HEX FILE INPUT  
-0709 c3 70 06		            JP      J_ALT_KEY                          ;SWITCH BETWEEN ALTERNATE KEYBOARD LAYOUT  
+0709 c3 6a 06		            JP      J_ALT_KEY                          ;SWITCH BETWEEN ALTERNATE KEYBOARD LAYOUT  
 070c c3 b4 05		            JP      J_MSG_SCRL                         ;MESSAGE SCROLL ROUTINE  
 070f			  
 070f			;BELOW ARE THE JMON DEFAULT RESET VARIABLES (A ZERO IS THE ACTIVE RAM  

@@ -1558,17 +1558,13 @@ INTEL_MARK:
         	CALL	ASCII_2_BYTE                        ;GET ADDRESS LOW BYTE
             LD      L, A                                ;STORE LOW ADDRESS IN L
 
-            PUSH    BC                                  ;SAVE BC
-            LD      BC, (V_DISPLAY)                     ;PUT DISPLAY BUFFER ADDRESS IN BC
-            CALL    HL_2_DIS                            ;CALL HL TO DISPLAY CODE ROUTINE
-            POP     BC                                  ;RESTORE BC
+            OUT     (DSEGMENT),A                        ;GIVE INDICATION
+            LD      A,01H                               ;THAT TRANSFER IS
+            OUT     (DSCAN),A                           ;ACTIVE
 
         	CALL	ASCII_2_BYTE                        ;GET RECORD TYPE
             JR      NZ, CHECKSUM                        ;IF 01 THEN END OF FILE
 INTEL_DATA:
-            PUSH    BC
-            RST     18H                                 ;SCAN THE DISPLAY TO SHOW CURRENT LOADING ADDRESS
-            POP     BC  
         	CALL	ASCII_2_BYTE                        ;GET DATA
             LD      (HL), A                             ;STORE DATA BYTE IN HL
         	INC     HL                                  ;MOVE TO NEXT ADDRESS
@@ -1660,8 +1656,8 @@ ALT_KEY_TBL:
             DB      0x0E, 0x03, 0x06, 0x09, 0x0D, 0x0C, 0x0B, 0x0A ; E 3 6 9 D C B A
             DB      0x10, 0x11, 0x12, 0x13                         ; + - GO AD
 
-            DB      0xFF, 0xFF                          ;SPARE
-            DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;FILL 
+            DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;SPARE
+            DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;FILL 
             
 
 ;THIS ROUTINE IS THE KEYBOARD READER/VALIDATER
@@ -1723,11 +1719,12 @@ L06E1:      DEC     DE                                  ;EACH BYTE
             OUTI                                        ;OUTPUT (HL) TO (C). HL=HL+1,B=B-1
             JR      NZ, L06DE                           ;JUMP IF B NOT 0
 L06EA:      DJNZ    L06EA                               ;SHORT DELAY
-            IN      A, (P_LCDDATA)                      ;INPUT FROM LCD TO SEE IF IT'S THERE
-            SUB     0x20                                ;SUBTRACT ASCII SPACE, IF LCD FITTED
+            IN      A, (P_LCDINST)                      ;INPUT FROM LCD TO SEE IF IT'S THERE
+                                                        ;BUSY FLAG IS LOW AND CGRAM ADDRESS IS 0
             LD      (V_LCD), A                          ;RESULT WILL BE ZERO: STORE THIS IN
             RET                                         ;LCD MASK: DONE
             
+            DB      0xFF, 0xFF                          ;FILL
             DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;FILL 
             DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;FILL 
 
