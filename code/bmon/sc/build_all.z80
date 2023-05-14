@@ -1,0 +1,6 @@
+; All files build
+
+include 'bmon_8k_SC.z80'
+incbin 'mint_SC.bin'
+incbin 'tiny_basic_SC.bin'
+incbin 'games_SC.bin'

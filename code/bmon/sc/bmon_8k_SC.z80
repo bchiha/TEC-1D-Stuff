@@ -1,6 +1,14 @@
 ;
-;BMON - THE BIG (BRIAN'S) MONITOR (8K VERSION TEC-1F)
+;BMON - THE BIG (BRIAN'S) MONITOR (8K SOUTHERN CROSS VERSION)
 ;BY BRIAN CHIHA AND JIM ROBINSON
+;
+;SOUTHERN CROSS MODIFICATIONS
+; * Keyboard, Segment Ports changed
+; * AD,FN,+,- buttons remapped to AD,GO,+,-
+; * Shift Key wired to DIN line
+; * All Seven Segment mapping change for SC wiring
+; * Keyboard detection fixed
+; * Full stop dot fixed
 ;
 ;THIS IS A MODIFIED VERSION OF JMON (JIM'S MONITOR).  IT KEEPS ALL THE GOOD THINGS OF
 ;THE MONITOR, LIKE AUTO INCREMENT, MENU AND PERIMETER HANDLERS, BREAK POINTS AND 
@@ -198,20 +206,20 @@ J_XROM:     EQU     5F70H                               ;EXPANSION ROM MENU
 PLAY_TUNE:  EQU     1D60H                               ;TUNE ROUTINE
 
 ;IO Port ASSIGNMENTS
-KEYBOARD:   EQU     0x00                                ;KEYBOARD ENCODER
-DSCAN:      EQU     0x01                                ;DISPLAY CATHODE DRIVER LATCH
-DSEGMENT:   EQU     0x02                                ;DISPLAY SEGMENT DRIVER LATCH
+KEYBOARD:   EQU     0x86                                ;KEYBOARD ENCODER
+DSCAN:      EQU     0x85                                ;DISPLAY CATHODE DRIVER LATCH
+DSEGMENT:   EQU     0x84                                ;DISPLAY SEGMENT DRIVER LATCH
 
 ;DAT BOARD
-P_DAT:      EQU     0x00                                ;DAT BOARD LATCH COMBINED ON KEYBOARD LATCH
-P_LCDDATA:  EQU     0x84                                ;LCD DATA REGISTER
+P_DAT:      EQU     0x86                                ;DAT BOARD LATCH COMBINED ON KEYBOARD LATCH
+P_LCDDATA:  EQU     0x24                                ;LCD DATA REGISTER
 P_LCDINST:  EQU     0x04                                ;LCD INSTRUCTION REGISTER
 
 ;KEYBOARD REFERENCES
-K_PLUS:     EQU     0x10                                ;+ KEY
-K_MINUS:    EQU     0x11                                ;- KEY
-K_GO:       EQU     0x12                                ;GO KEY
-K_ADDR:     EQU     0x13                                ;ADDRESS KEY
+K_PLUS:     EQU     0x12                                ;+ KEY
+K_MINUS:    EQU     0x13                                ;- KEY
+K_GO:       EQU     0x10                                ;GO KEY
+K_ADDR:     EQU     0x11                                ;ADDRESS KEY
 
 
 ;AT THE START OF JMON, HL IS SAVED IN ITS SINGLE STEPPER BUFFER ADD THE SOFT RESET DISPLAY
@@ -416,7 +424,7 @@ L00FD:      LD      DE, DO_DISP                         ;PUT RETURN ADDRESS ON S
 ;TEST HERE FOR ADDRESS KEY. IF THE KEY PRESSED IS NOT THE ADDRESS KEY, THEN A JUMP IS
 ;PERFORMED. OTHERWISE THE ADDRESS KEY IS PROCESSED.
 
-KEY_ADDR:   CP      0x13                                ;TEST FOR ADDRESS KEY
+KEY_ADDR:   CP      K_ADDR                              ;TEST FOR ADDRESS KEY
             JR      NZ, L0111                           ;0= IF NOT TO DATA KEY HANDLER
             LD      A, B                                ;GET MONITOR CONTROL BYTE (MCB)
             BIT     5, B                                ;TEST FOR FUNCTION MODE AND JUMP TO
@@ -432,7 +440,7 @@ L0111:      LD      A, B                                ;GET MCB
 
 ;A TEST FOR SHIFT IS DONE AND A JUMP IS PERFORMED IF IN THE SHIFT MODE TO THE FUNCTION/SHIFT HANDLER.
             IN      A, (KEYBOARD)                       ;TEST FOR THE SHIFT KEY
-            BIT     5, A                                ;AND JUMP IF SHIFT IS PRESSED
+            BIT     6, A                                ;AND JUMP IF SHIFT IS PRESSED
             JR      Z, KEY_FUNC                         ;TO THE FUNCTION HANDLER
 
 ;ANY TIME A DATA KEY IS PRESSED WHILE IN THE DATA MODE, IT IS PROCESSED STARTING HERE.
@@ -628,7 +636,7 @@ J_SETDOTS:
             BIT     5, A                                ;TEST ONLY FOR FUNCTION MODE
             JR      NZ, L0206                           ;JUMP IF FUNCTION MODE
             LD      B, 4                                ;ADDRESS MODE SO SET B FOR 4 DOTS
-L0200:      SET     4, (HL)                             ;SET DOT IN DISPLAY BUFFER
+L0200:      SET     7, (HL)                             ;SET DOT IN DISPLAY BUFFER
             INC     HL                                  ;NEXT LOCATION
             DJNZ    L0200                               ;DO 4 TIMES
             RET                                         ;DONE
@@ -684,7 +692,7 @@ J_LCD:
             LD      A, (V_LCD)                          ;TEST LCD MASK
             OR      A
             RET     NZ                                  ;NOT ZERO = LCD NOT REQUIRED OR FITTED
-            LD      A, 0x01                             ;SET LCD CURSOR TO CLEAR & HOME
+            LD      A, 0x80                             ;SET LCD CURSOR TO HOME
             OUT     (P_LCDINST), A
             RST     30H                                 ;WAIT UNTIL LCD READY
             CALL    LCD_LINE1                           ;CALL SET-UP AND OUTPUT FIRST LINE
@@ -1433,18 +1441,18 @@ BITIME1:
 ;ASCII TO SEVEN SEGMENT LOOKUP TABLE,  PLACED HERE SO TO BE SITTING IN THE SAME PAGE
 ;OF MEMORY, 0555H TO 055B4H
 ASCII_SEG_TBL:
-            DB      0x00, 0x18, 0x0A, 0xEE, 0xA7, 0x5C, 0x2C, 0x02 ;  ! " # $ % & '
-            DB      0x83, 0x89, 0xA3, 0x46, 0x40, 0x04, 0x10, 0x4C ;( ) * + , - . /
-            DB      0xEB, 0x28, 0xCD, 0xAD, 0x2E, 0xA7, 0xE7, 0x29 ;0 1 2 3 4 5 6 7
-            DB      0xEF, 0xAF, 0x81, 0xA1, 0x07, 0x84, 0x0D, 0x5D ;8 9 : ; < = > ?
-            DB      0xED, 0x6F, 0xE6, 0xC3, 0xEC, 0xC7, 0x47, 0xE3 ;@ A B C D E F G
-            DB      0x6E, 0x42, 0xE8, 0x67, 0xC2, 0x61, 0x6B, 0xEB ;H I J K L M N O
-            DB      0x4F, 0x8F, 0x4B, 0xA7, 0xC6, 0xEA, 0xEA, 0x8A ;P Q R S T U V W
-            DB      0x6E, 0xAE, 0xCD, 0xC3, 0x26, 0xA9, 0x0B, 0x80 ;X Y Z [ \ ] ^ _
-            DB      0x08, 0xED, 0xE6, 0xC4, 0xEC, 0xCF, 0x47, 0xAF ;` a b c d e f g
-            DB      0x66, 0x40, 0xA0, 0x67, 0x42, 0x60, 0x64, 0xE4 ;h i j k l m n o
-            DB      0x4F, 0x2F, 0x44, 0xA7, 0xC6, 0xE0, 0xE0, 0x60 ;p q r s t u v w
-            DB      0x6E, 0xAE, 0xCD, 0x2C, 0x42, 0x46, 0x01       ;x y z { | } ~  
+            DB      0x00, 0x82, 0x22, 0x7E, 0x6D, 0xD2, 0x46, 0x20 ;  ! " # $ % & '
+            DB      0x29, 0x0B, 0x2D, 0x70, 0x10, 0x40, 0x80, 0x52 ;( ) * + , - . /
+            DB      0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07 ;0 1 2 3 4 5 6 7
+            DB      0x7F, 0x6F, 0x09, 0x0D, 0x61, 0x48, 0x43, 0xD3 ;8 9 : ; < = > ?
+            DB      0x5F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71, 0x3D ;@ A B C D E F G
+            DB      0x76, 0x30, 0x1E, 0x75, 0x38, 0x15, 0x37, 0x3F ;H I J K L M N O
+            DB      0x73, 0x6B, 0x33, 0x6D, 0x78, 0x3E, 0x3E, 0x2A ;P Q R S T U V W
+            DB      0x76, 0x6E, 0x5B, 0x39, 0x64, 0x0F, 0x23, 0x08 ;X Y Z [ \ ] ^ _
+            DB      0x02, 0x5F, 0x7C, 0x58, 0x5E, 0x7B, 0x71, 0x6F ;` a b c d e f g
+            DB      0x74, 0x10, 0x0C, 0x75, 0x30, 0x14, 0x54, 0x5C ;h i j k l m n o
+            DB      0x73, 0x67, 0x50, 0x6D, 0x78, 0x1C, 0x1C, 0x14 ;p q r s t u v w
+            DB      0x76, 0x6E, 0x5B, 0x46, 0x30, 0x70, 0x01       ;x y z { | } ~  
 
 ;THIS ROUTINE DISPLAYS ASCII CHARACTERS ON THE SEVEN SEGMENTS AND SCROLLS THE MESSAGE 
 ;FROM RIGHT TO LEFT.  TO CREATE A MESSAGE, ENTER IN ASCII IN HEXADECIMAL AND ONCE
@@ -1634,7 +1642,7 @@ J_KEY_MOD:
 ALT_KEY_TBL:
             DB      0x00, 0x01, 0x04, 0x07, 0x0F, 0x02, 0x05, 0x08 ; 0 1 4 7 F 2 5 8
             DB      0x0E, 0x03, 0x06, 0x09, 0x0D, 0x0C, 0x0B, 0x0A ; E 3 6 9 D C B A
-            DB      0x10, 0x11, 0x12, 0x13                         ; + - GO AD
+            DB      0x12, 0x13, 0x10, 0x11                         ; + - GO AD
 
             DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;SPARE
             DB      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  ;FILL 
@@ -1658,8 +1666,8 @@ ALT_KEY_TBL:
 
 ORG     $06AD
 KEY_READ:   IN      A, (P_DAT)                          ;TEST FOR KEY PRESSED
-            BIT     6, A
-            JR      Z, L06BB                            ;DA IS LOW = KEYPRESS
+            BIT     5, A
+            JR      NZ, L06BB                           ;DA IS HIGH = KEYPRESS
             DJNZ    KEY_READ                            ;LOOP LOOKING FOR KEY UNTIL B=0
             XOR     A                                   ;CLEAR KEY PRESS FLAG
             LD      (V_KEY_PRES), A
@@ -1752,34 +1760,34 @@ L0740:      JP      J_LCD                               ;LCD ROUTINE 3F48
 
 ;BELOW ARE THE DISPLAY TABLES FOR THE MAIN MENU ADDRESS DISPLAYS
 MAIN_AD_TBL:
-            DB      0xA7, 0x28, 0xEB, 0x04              ;"SIO-"
-            DB      0xA7, 0x28, 0xEB, 0x04              ;"SIO-"
-            DB      0x28, 0x6B, 0xC6, 0xC7              ;"INtE"
-            DB      0x6F, 0xC2, 0xC6, 0x67              ;"ALTK"
-            DB      0xEF, 0x6F, 0x6B, 0x6B              ;"BANN"
+            DB      0x6D, 0x30, 0x3F, 0x40              ;"SIO-"
+            DB      0x6D, 0x30, 0x3F, 0x40              ;"SIO-"
+            DB      0x30, 0x37, 0x78, 0x79              ;"INtE"
+            DB      0x77, 0x38, 0x78, 0x75              ;"ALTK"
+            DB      0x7C, 0x77, 0x37, 0x37              ;"BANN"
 ;EXTENDED MENU
-            DB      0x61, 0x28, 0x6B, 0xC6              ;"MINT"
-            DB      0xEF, 0x6F, 0xA7, 0x28              ;"BASI"
-            DB      0xE3, 0x6F, 0x61, 0xC7              ;"GAME"
+            DB      0x15, 0x30, 0x37, 0x78              ;"MINT"
+            DB      0x7C, 0x77, 0x6D, 0x30              ;"BASI"
+            DB      0x3D, 0x77, 0x15, 0x79              ;"GAME"
 
 ;INTEL PASS/FAIL MESSAGE
-LOAD_AD_P:  DB      0x4F, 0x6F, 0xA7, 0xA7              ;"PASS"
-LOAD_AD_F:  DB      0x47, 0x6F, 0x28, 0xC2              ;"FAIL"
+LOAD_AD_P:  DB      0x73, 0x77, 0x6D, 0x6D              ;"PASS"
+LOAD_AD_F:  DB      0x71, 0x77, 0x30, 0x38              ;"FAIL"
 
 ;BELOW ARE THE MAIN MENU DATA DISPLAYS.
 MAIN_DA_TBL:
-            DB      0x20, 0x64                          ;"in"
-            DB      0xE4, 0xC6                          ;"ot"
-            DB      0xC2, 0x00                          ;"L "
-            DB      0xC7, 0xAE                          ;"EY"
-            DB      0xC7, 0x4B                          ;"ER"
+            DB      0x10, 0x54                          ;"in"
+            DB      0x5C, 0x78                          ;"ot"
+            DB      0x38, 0x00                          ;"L "
+            DB      0x79, 0x6E                          ;"EY"
+            DB      0x79, 0x33                          ;"ER"
 ;EXTENDED MENU
             DB      0x00, 0x00                          ;"  "
-            DB      0xC3, 0x00                          ;"C "
-            DB      0xC7, 0xA7                          ;"ES"
+            DB      0x39, 0x00                          ;"C "
+            DB      0x79, 0x6D                          ;"ES"
 ;INTEL PASS/FAIL MESSAGE
-LOAD_DA_P:  DB      0x04, 0x04                          ;"--"
-LOAD_DA_F:  DB      0xC2, 0xEC                          ;"Ld"
+LOAD_DA_P:  DB      0x40, 0x40                          ;"--"
+LOAD_DA_F:  DB      0x38, 0x5E                          ;"Ld"
 
 ;BELOW IS THE PERIMETER HANDLER COMMAND STRING FOR THE SIO ROUTINES.
 ORG      $077F
@@ -1806,18 +1814,18 @@ MAIN_M_DRIVER:
                                                         ;ROUTINE JUMP VECTOR (A RETURN INSTRUCTION).
 ;BELOW IS THE STEPPERS DATA DISPLAY CODES.
 ORG     $0797
-SEGREG_TBL: DB      0x4F, 0xC3                          ;"PC"
-            DB      0x6F, 0x47                          ;"AF"
-            DB      0xE6, 0xC3                          ;"BC"
-            DB      0xEC, 0xC7                          ;"DE"
-            DB      0x6E, 0xC2                          ;"HL"
-            DB      0x28, 0x6E                          ;"IX"
-            DB      0x28, 0xAE                          ;"IY"
-            DB      0x7F, 0x57                          ;“AF'"
-            DB      0xF6, 0xD3                          ;"BC'"
-            DB      0xFC, 0xD7                          ;"DE'"
-            DB      0x7E, 0xD2                          ;"HL'"
-            DB      0xA7, 0x4F                          ;"SP"
+SEGREG_TBL: DB      0x73, 0x39                          ;"PC"
+            DB      0x77, 0x71                          ;"AF"
+            DB      0x7C, 0x39                          ;"BC"
+            DB      0x5E, 0x79                          ;"DE"
+            DB      0x76, 0x38                          ;"HL"
+            DB      0x30, 0x76                          ;"IX"
+            DB      0x30, 0x6E                          ;"IY"
+            DB      0xF7, 0xF1                          ;“AF'"
+            DB      0xFC, 0xB9                          ;"BC'"
+            DB      0xDE, 0xF9                          ;"DE'"
+            DB      0xF6, 0xB8                          ;"HL'"
+            DB      0x6D, 0x73                          ;"SP"
             DB      0xFF                                ;(UNUSED)
 
 ;START OF STAGGERED TABLE OF JMON MODE WORDS FOR LCD
@@ -1843,15 +1851,15 @@ LCDPMT_TBL: DB      0x84, 0x87, 0x8A, 0x8D, 0xC4, 0xC7, 0xCA, 0xCD, 0x80
 ;SIO PERIMETER HANDLER DATA DISPLAYS
 ORG     $07C9
 PERM_DA_TBL:
-            DB      0x04, 0xA7                          ;"-S" - ADDRESS START LOCATION
-            DB      0x04, 0xC7                          ;"-E" - ADDRESS END LOCATION
+            DB      0x40, 0x6D                          ;"-S" - ADDRESS START LOCATION
+            DB      0x40, 0x79                          ;"-E" - ADDRESS END LOCATION
 
             DB      0xFF, 0xFF, 0xFF                    ;(UNUSED)
 
 ;BELOW ARE THE DISPLAY CODE EQUIVALENTS OF THE HEX DIGITS 0 TO F LISTED IN ASCENDING ORDER.
 ORG     $07D0
-SEG_TBL:    DB      0xEB, 0x28, 0xCD, 0xAD, 0x2E, 0xA7, 0xE7, 0x29, 0xEF, 0x2F, 0x6F, 0xE6, 0xC3, 0xEC
-            DB      0xC7, 0x47                      ;MJ: Split out to allow for a Label that is used
+SEG_TBL:    DB      0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E
+            DB      0x79, 0x71                      ;MJ: Split out to allow for a Label that is used
 
 ;FINALLY AT 07E0 IS THE FUNCTION-1 AND SHIFT JUMP ADDRESSES.  ACCESS BY PRESSING "SHIFT" + "NUMBER"
 ;OR "ADDRESS", then "+", then "NUMBER" TO ENTER FUNCTION-! MODE

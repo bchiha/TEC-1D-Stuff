@@ -1,0 +1,100 @@
+; *************************************************************************
+;
+;       MINT Minimal Interpreter for the Z80 
+;
+;       Ken Boak, John Hardy and Craig Jones. 
+;
+;       GNU GENERAL PUBLIC LICENSE                   Version 3, 29 June 2007
+;
+;       see the LICENSE file in this repo for more information 
+;
+; *****************************************************************************
+
+; SC BMON Build
+
+ROMSTART    EQU $0800
+;PGMSTART    EQU $0180
+RAMSTART    EQU $2000
+
+; SC I/O port addresses
+IO0:         .equ 80H             ;IO port 0
+IO1:         .equ 81H             ;IO port 1
+IO2:         .EQU 82H             ;IO port 2
+IO3:         .EQU 83H             ;IO port 3
+DISPLY:      .EQU 84H             ;display latch
+SCAN:        .EQU 85H             ;display scan latch
+KEYBUF:      .EQU 86H             ;keyboard buffer
+IO7:         .EQU 87H             ;toggle single stepper (if fitted)
+
+;            .ORG  ROMSTART+$03
+;iotable: 
+;        LD HL,ioports
+;        JR bytable
+
+;TEC-1 hexadecimal to 7 segment display code table
+
+;            .ORG    ROMSTART+$40
+;sevensegment:
+;            .DB 0EBH,28H,0CDH,0ADH ;0,1,2,3
+;            .DB 2EH,0A7H,0E7H,29H ;4,5,6,7
+;            .DB 0EFH,2FH,6FH,0E6H ;8,9,A,B
+;            .DB 0C3H,0ECH,0C7H,47H ;C,D,E,F
+            
+; TEC-1 IO Port locations
+;            .ORG    ROMSTART+$50
+;ioports:            
+;            .DB   $00               ;KEYBUF
+;            .DB   $01               ;SCAN
+;            .DB   $02               ;DISPLY
+;            .DB   $03               ;PORT3
+;            .DB   $04               ;PORT4
+;            .DB   $05               ;PORT5
+;            .DB   $06               ;PORT6
+;            .DB   $07               ;PORT7
+;segmentcode: 
+;        LD HL,sevensegment
+;bytable:
+;       POP    DE           ;discard return address
+;       POP    DE           ;get index
+;       ADD    HL,DE
+;       LD     L,(HL)
+;       LD     H,$00
+;       PUSH   HL
+;       JP     (IY)
+       
+;.include "ROMStartup.asm"
+        .ORG  ROMSTART
+        
+SerialInit:
+        LD HL,RxChar
+        LD (GETCVEC),HL
+        LD HL,TxChar
+        LD (PUTCVEC),HL
+
+        call  InitialiseSerial
+
+        jp   start
+
+getchar:
+        LD HL,(GETCVEC)
+        JP (HL)
+        
+putchar:
+        PUSH HL
+        LD HL,(PUTCVEC)
+        EX (SP),HL
+IntRet:        
+        RET
+
+;serial port
+.include "BitBangSerial.asm"
+;.include "Char-6850.asm"
+;.include "RC2014-6850.asm"
+
+;Intel Hex File Load
+;.include "IntelHexLoader.asm"
+;MINT
+.include "MINT.asm"
+.include "ram.asm"
+.binfrom 0x800
+.binto 0x1000
