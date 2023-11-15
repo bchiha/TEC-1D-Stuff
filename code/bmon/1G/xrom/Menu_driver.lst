@@ -1,0 +1,62 @@
+0000                             ;General Menu Driver for My Game Chips
+FF70                          .ORG   0FF70H   
+FF70                START:       
+FF70                             ; Copy Menu Data to JMON location
+FF70   21 7E FF               LD   HL,M_DATA   ; Menu data
+FF73   11 8D 08               LD   DE,088DH   ; Destination for menu/perimiter to use
+FF76   01 0B 00               LD   BC,000BH   ; Number of bytes to copy
+FF79   ED B0                  LDIR      ; Copy it
+FF7B                MENU:        
+FF7B   C3 41 00               JP   0041H   ; Call the menu
+FF7E                             ;Menu Command String
+FF7E                M_DATA:      
+FF7E   FF FF                  DB   0xFF,0xFF   ; Blank
+FF80   00 07                  DB   0x00,0x07   ; First menu item and number of menu items, = 8
+FF82   89 FF                  DW   MENU_JP_TBL   ; Jump table for menu items
+FF84   A1 FF                  DW   MENU_AD_TBL   ; Menu Address LED display table
+FF86   C1 FF                  DW   MENU_DA_TBL   ; Menu Data LED display table
+FF88   C9                     DB   0xC9   ; return (unused)
+FF89                MENU_JP_TBL:      ; Menu Jump table
+FF89                             ; Seven Segment Routines
+FF89   C3 00 F0               JP   0F000H   ; TEC Invaders
+FF8C   C3 00 F4               JP   0F400H   ; TEC Maze
+FF8F   C3 70 FA               JP   0FA70H   ; TEC Runner
+FF92   C3 F0 FD               JP   0FDF0H   ; Magic Square
+FF95   C3 00 F8               JP   0F800H   ; Game Of Life
+FF98   C3 00 E8               JP   0E800H   ; TEC Magazine Code
+FF9B   C3 20 FD               JP   0FD20H   ; Fast Forward
+FF9E   C3 40 FF               JP   0FF40H   ; Banger
+FFA1                MENU_AD_TBL:      ; Menu Display for ADDRESS LEDs
+FFA1                             ; Seven Segment Routines
+FFA1   28 6B E0 6F            DB   0x28,0x6B,0xE0,0x6F   ; "InvA"
+FFA5   65 6F C9 C7            DB   0x65,0x6F,0xC9,0xC7   ; "mAzE"
+FFA9   44 EA 6B 6B            DB   0x44,0xEA,0x6B,0x6B   ; "runn"
+FFAD   65 6F E3 28            DB   0x65,0x6F,0xE3,0x28   ; "mAGI"
+FFB1   E3 6F C2 28            DB   0xE3,0x6F,0xC2,0x28   ; "GALI"
+FFB5   C6 C7 C3 65            DB   0xC6,0xC7,0xC3,0x65   ; "TECm"
+FFB9   47 6F A7 C6            DB   0x47,0x6F,0xA7,0xC6   ; "FAST"
+FFBD   E6 6F 6B E3            DB   0xE6,0x6F,0x6B,0xE3   ; "bAnG"
+FFC1                MENU_DA_TBL:      ; Menu Display for DATA LEDs
+FFC1                             ; Seven Segment Routines
+FFC1   EC C7                  DB   0xEC,0xC7   ; "dE"
+FFC3   85 04                  DB   0x85,0x04   ; "=-"
+FFC5   C7 44                  DB   0xC7,0x44   ; "Er"
+FFC7   C3 EB                  DB   0xC3,0xEB   ; "C0"
+FFC9   47 C7                  DB   0x47,0xC7   ; "FE"
+FFCB   6F E3                  DB   0x6F,0xE3   ; "AG"
+FFCD   47 EC                  DB   0x47,0xEC   ; "Fd"
+FFCF   C7 44                  DB   0xC7,0x44   ; "Er"
+FFD1   00 00 00 00 00 00 00 00 DB   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00   ;Fill
+FFD9   00 00 00 00 00 00 00   DB   0x00,0x00,0x00,0x00,0x00,0x00,0x00   ;Fill
+
+
+START:              FF70 DEFINED AT LINE 4
+MENU:               FF7B DEFINED AT LINE 10
+M_DATA:             FF7E DEFINED AT LINE 14
+                    > USED AT LINE 6
+MENU_JP_TBL:        FF89 DEFINED AT LINE 22
+                    > USED AT LINE 17
+MENU_AD_TBL:        FFA1 DEFINED AT LINE 33
+                    > USED AT LINE 18
+MENU_DA_TBL:        FFC1 DEFINED AT LINE 44
+                    > USED AT LINE 19

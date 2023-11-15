@@ -1,0 +1,370 @@
+0000                             ; Conway's Game of Life
+0000                             ; ---------------------
+0000                             ; 
+0000                             ; Written by Brian Chiha
+0000                             ; brian.chiha@gmail.com  -- July 2020
+0000                             ; 
+0000                             ; Game of Life is a cellular automation simulation.  Each cell evolves based on the number
+0000                             ; of cells that surround it.  The basic cell rules are:
+0000                             ; 
+0000                             ;    * Any live cell with two or three live neighbours survives.
+0000                             ;    * Any dead cell with three live neighbours becomes a live cell.
+0000                             ;    * All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+0000                             ; 
+0000                             ; The simulation is written for the TEC using the 8x8 LED matrix.
+0000                             ; 
+0000                             ; Setup
+0000                             ; -----
+0000                             ; 
+0000                             ; To be run on the TEC-1D with any Monitor.  For the keyboard to work
+0000                             ; it requires EITHER a 4k7 resistor between the NMI (pin 17 on Z-80) and D6 (pin
+0000                             ; 10 on the Z-80) OR the DAT (LCD) expanstion board fitted to port 3.  The
+0000                             ; current TEC-1D boards have the JMON MOD resitor connection already there.
+0000                             ; The 8x8 LED board is fitted to ports 5 and 6 with the port select strobe of the
+0000                             ; left hand latch going to port 6.
+0000                             ; 
+0000                             ; To Use
+0000                             ; ------
+0000                             ; 
+0000                             ; Press "GO" to start with a random cell placement.
+0000                             ; Press "+" or "-" to cycle through pre defined cell placement.
+0000                             ; Press the above keys at anytime to restart a simulation.
+0000                             ; 
+0000                             ; Enjoy life taking on its own.....
+0000                             ; 
+0000                             ; The 8x8 cells are structured using 64 bytes, where each memory location is a live cell EG:
+0000                             ;  CURMAT:
+0000                             ;  0x0D10      1 0 1 1 1 0 1 1  = BB
+0000                             ;  0x0D18      0 1 0 0 1 1 0 0  = 4C
+0000                             ;  0x0D20      1 1 1 0 0 0 1 0  = E2
+0000                             ;  0x0D28      0 1 0 1 1 0 1 0  = 5A
+0000                             ;  0x0D30      1 0 1 1 1 0 1 1  = BB
+0000                             ;  0x0D38      0 1 0 0 1 1 0 0  = 4C
+0000                             ;  0x0D40      1 1 1 0 0 0 1 0  = E2
+0000                             ;  0x0D48      0 1 0 1 1 0 1 0  = 5A
+0000                             ; 
+0000                             ; Cells are then printed vertically from left to right like so:
+0000                             ;              1  0  1  0  1  0  1  0
+0000                             ;              0  1  1  1  0  1  1  1
+0000                             ;              1  0  1  0  1  0  1  0
+0000                             ;              1  0  0  1  1  0  0  1
+0000                             ;              1  1  0  1  1  1  0  1
+0000                             ;              0  1  0  0  0  1  0  0
+0000                             ;              1  0  1  1  1  0  1  1
+0000                             ;              1  0  0  0  1  0  0  0
+0000                             ; SCREEN:      BB 4C E2 5A BB 4C E2 5A
+0000                             ; 
+0000                             ; Development Notes:
+0000                             ; To make adding up the surrounding cells easier, I put an upper and lower zero buffer on either end
+0000                             ; of the matrix.  This handles up and down checks.  For side checks, I see if the current cell is
+0000                             ; on the left or right edge. If on the edge, I just ignore the cell.
+0000                SCREEN:   EQU   3000H   ;Game Screen                                           (8-bytes)
+0000                UPBUFF:   EQU   3008H   ;Zero row for up checks                                (8-bytes)
+0000                CURMAT:   EQU   3010H   ;Current Cell Matrix, 8 bytes x 8 bytes                (64-bytes)
+0000                DNBUFF:   EQU   3050H   ;Zero row for down checks                              (8-bytes)
+0000                NEXMAT:   EQU   3058H   ;Next Interation Cell Matrix, 8 bytes x 8 bytes        (64-bytes)
+0000                DATALC:   EQU   3A00H   ;Data location for pre-defined examples                (160-bytes)
+0000                KEYBOARD:   EQU   0x00   ;KEYBOARD ENCODER
+0000                KEYPRESS:   EQU   0x03   ;KEYBOARD PRESS
+0000                LEDROW:   EQU   0x06   ;8x8 LCD ROW Port
+0000                LEDCOL:   EQU   0x05   ;8x8 LCD COLUMN Port
+F800                          .ORG   0F800H   
+F800                START:       
+F800                             ;Copy Data to 0x3A00
+F800   21 11 F9               LD   HL,DSPTBL   
+F803   11 00 3A               LD   DE,DATALC   
+F806   01 98 00               LD   BC,0098H   
+F809   ED B0                  LDIR      
+F80B                             ;Blank Buffs and Current Matrix
+F80B   CD DF F8               CALL   CLEAR   
+F80E                             ;Fill Current Matrix with Random cells for first iteration
+F80E   CD C4 F8               CALL   RANFIL   
+F811                             ;Game Loop
+F811                GAME:        
+F811   CD 78 F8               CALL   KEYHIT   ; Check if a Key was pressed and action it
+F814   CD AA F8               CALL   MATSCR   ; Convert the Matrix to Screen
+F817   CD F0 F8               CALL   SCAN   ; Display the current Screen
+F81A                             ;Update the matrix with Conway Rules
+F81A   DD 21 10 30            LD   IX,CURMAT   
+F81E   21 58 30               LD   HL,NEXMAT   
+F821   06 40                  LD   B,40H   ; 64 cells
+F823                CELLS:       
+F823   AF                     XOR   A   ; Cell Counter
+F824                             ;Look up
+F824   DD 86 F8               ADD   A,(IX-08H)   ; Minus 8
+F827                             ;Look down
+F827   DD 86 08               ADD   A,(IX+08H)   ; Plus 8
+F82A                CHECKLT:      ;Check if on left edge
+F82A   4F                     LD   C,A   ; Save A (Counter)
+F82B   DD E5                  PUSH   IX   
+F82D   D1                     POP   DE   
+F82E   7B                     LD   A,E   
+F82F                             ;            LD      A,IXL
+F82F   E6 07                  AND   07H   ; On a wall
+F831   79                     LD   A,C   ; Restore A (Counter)
+F832   28 15                  JR   Z,CELLRT   ; On edge, skip left cells
+F834                CELLLT:      
+F834                             ;Look upper left
+F834   DD 86 F7               ADD   A,(IX-09H)   ; Minus 9
+F837                             ;Look left
+F837   DD 86 FF               ADD   A,(IX-01H)   ; Minus 1
+F83A                             ;Look lower left
+F83A   DD 86 07               ADD   A,(IX+07H)   ; Plus 7
+F83D                CHECKRT:      ;Check if on right edge
+F83D   4F                     LD   C,A   ; Save A (Counter)
+F83E   DD E5                  PUSH   IX   
+F840   D1                     POP   DE   
+F841   7B                     LD   A,E   
+F842                             ;            LD      A,IXL
+F842   E6 07                  AND   07H   ; On a wall
+F844   FE 07                  CP   07H   
+F846   79                     LD   A,C   ; Restore A (Counter)
+F847   28 09                  JR   Z,EVAL   ; On edge, skip right cells
+F849                CELLRT:      
+F849                             ;Look upper right
+F849   DD 86 F9               ADD   A,(IX-07H)   ; Minus 7
+F84C                             ;Look right
+F84C   DD 86 01               ADD   A,(IX+01H)   ; Plus 1
+F84F                             ;Look lower right
+F84F   DD 86 09               ADD   A,(IX+09H)   ; Plus 9
+F852                EVAL:        ;Evaluate surrounding cell count to create or destroy current cell
+F852   0E 01                  LD   C,01H   ; Alive
+F854   FE 03                  CP   03H   ; Check if 3 cells around
+F856   28 0C                  JR   Z,STOREC   
+F858   0E 00                  LD   C,00H   ; Dead
+F85A   FE 02                  CP   02H   ; Check if 2 cells around
+F85C   20 06                  JR   NZ,STOREC   
+F85E   DD 7E 00               LD   A,(IX+0)   ; Current Cell
+F861   E6 01                  AND   01H   ; Keep it alive if already alive.
+F863   4F                     LD   C,A   
+F864                STOREC:      
+F864   79                     LD   A,C   ; C stores cell evaluation
+F865   77                     LD   (HL),A   ; Update cell on Next Matric
+F866   23                     INC   HL   
+F867   DD 23                  INC   IX   
+F869   10 B8                  DJNZ   CELLS   
+F86B                             ;Move next matrix to current
+F86B   21 58 30               LD   HL,NEXMAT   
+F86E   11 10 30               LD   DE,CURMAT   
+F871   01 40 00               LD   BC,0040H   
+F874   ED B0                  LDIR      
+F876   18 99                  JR   GAME   
+F878                             ;Keyboard Check
+F878                KEYHIT:      
+F878   DB 03                  IN   A,(KEYPRESS)   ;Check if key is pressed
+F87A   CB 77                  BIT   6,A   
+F87C   C0                     RET   NZ   ;No key pressed
+F87D   DB 00                  IN   A,(KEYBOARD)   ;Get actual key
+F87F   E6 1F                  AND   1FH   ;Mask upper bits
+F881   5F                     LD   E,A   
+F882   AF                     XOR   A   ;Clear flags
+F883   7B                     LD   A,E   
+F884   B7                     OR   A   ;Check for zero (random option)
+F885   20 04                  JR   NZ,PREDEF   
+F887   CD C4 F8               CALL   RANFIL   
+F88A   C9                     RET      
+F88B                PREDEF:      
+F88B   3D                     DEC   A   ;Start at index 0
+F88C   87                     ADD   A,A   ;2 bytes index
+F88D   87                     ADD   A,A   ;4 bytes index
+F88E   87                     ADD   A,A   ;8 bytes index
+F88F   21 00 3A               LD   HL,DATALC   ;Display Table
+F892   6F                     LD   L,A   ;Index it
+F893   11 10 30               LD   DE,CURMAT   ;Current Matrix
+F896                             ;Based on the load a pre-defined cells to the Matrix, Uses A for index
+F896   06 08                  LD   B,08H   
+F898                L1:          
+F898   7E                     LD   A,(HL)   
+F899   C5                     PUSH   BC   
+F89A   4F                     LD   C,A   
+F89B   06 08                  LD   B,08H   
+F89D                L2:          
+F89D   AF                     XOR   A   
+F89E   CB 01                  RLC   C   
+F8A0   8F                     ADC   A,A   
+F8A1   12                     LD   (DE),A   
+F8A2   13                     INC   DE   
+F8A3   10 F8                  DJNZ   L2   
+F8A5   23                     INC   HL   
+F8A6   C1                     POP   BC   
+F8A7   10 EF                  DJNZ   L1   
+F8A9   C9                     RET      
+F8AA                             ;Convert Matrix to screen.  Convert each row to bits in byte.  Save to screen
+F8AA                MATSCR:      
+F8AA   21 10 30               LD   HL,CURMAT   
+F8AD   11 00 30               LD   DE,SCREEN   
+F8B0   06 08                  LD   B,08H   
+F8B2                M1:          
+F8B2   C5                     PUSH   BC   
+F8B3   01 00 08               LD   BC,0800H   
+F8B6                M2:          
+F8B6   7E                     LD   A,(HL)   
+F8B7   81                     ADD   A,C   
+F8B8   07                     RLCA      
+F8B9   4F                     LD   C,A   
+F8BA   23                     INC   HL   
+F8BB   10 F9                  DJNZ   M2   
+F8BD   0F                     RRCA      
+F8BE   12                     LD   (DE),A   
+F8BF   1C                     INC   E   
+F8C0   C1                     POP   BC   
+F8C1   10 EF                  DJNZ   M1   
+F8C3   C9                     RET      
+F8C4                             ;Fill the Current Matrix with random cells (live or dead)
+F8C4                RANFIL:      
+F8C4   21 10 30               LD   HL,CURMAT   
+F8C7   06 40                  LD   B,40H   ;Eight rows of eight bytes
+F8C9                RF1:         
+F8C9   C5                     PUSH   BC   
+F8CA   ED 5F                  LD   A,R   ;Random Number Generation
+F8CC   47                     LD   B,A   
+F8CD   0F                     RRCA      ;Multiply by 32
+F8CE   0F                     RRCA      
+F8CF   0F                     RRCA      
+F8D0   EE 1F                  XOR   1FH   
+F8D2   80                     ADD   A,B   
+F8D3   DE FF                  SBC   A,0FFH   
+F8D5   C1                     POP   BC   
+F8D6   0F                     RRCA      ;Check bit 0 if set then make live
+F8D7   3E 00                  LD   A,00H   
+F8D9   8F                     ADC   A,A   ;Just add the carry flag
+F8DA   77                     LD   (HL),A   
+F8DB   23                     INC   HL   
+F8DC   10 EB                  DJNZ   RF1   
+F8DE   C9                     RET      
+F8DF                             ; Blank out Matrix
+F8DF                CLEAR:       
+F8DF   21 08 30               LD   HL,UPBUFF   
+F8E2   11 09 30               LD   DE,UPBUFF+1   
+F8E5   AF                     XOR   A   
+F8E6   77                     LD   (HL),A   
+F8E7   01 4F 00               LD   BC,NEXMAT-UPBUFF-1   
+F8EA   ED B0                  LDIR      
+F8EC   32 10 30               LD   (CURMAT),A   
+F8EF   C9                     RET      
+F8F0                             ; Multiplex the 8x8 Display
+F8F0                SCAN:        
+F8F0   E5                     PUSH   HL   
+F8F1   06 80                  LD   B,80H   ;Wait on Scan
+F8F3                S81:         
+F8F3   C5                     PUSH   BC   
+F8F4   06 01                  LD   B,01H   ;Counter for 8x8
+F8F6   21 00 30               LD   HL,SCREEN   
+F8F9                S82:         
+F8F9   7E                     LD   A,(HL)   
+F8FA   D3 06                  OUT   (LEDROW),A   
+F8FC   78                     LD   A,B   
+F8FD   D3 05                  OUT   (LEDCOL),A   
+F8FF   06 60                  LD   B,60H   
+F901   10 FE        S83:      DJNZ   S83   
+F903   23                     INC   HL   
+F904   47                     LD   B,A   
+F905   AF                     XOR   A   
+F906   D3 05                  OUT   (LEDCOL),A   
+F908   CB 00                  RLC   B   
+F90A   30 ED                  JR   NC,S82   
+F90C   C1                     POP   BC   
+F90D   10 E4                  DJNZ   S81   
+F90F   E1                     POP   HL   
+F910   C9                     RET      
+F911                             ; Dipslay Table.  16 Predefined shapes, stored as in 8 byte screen format
+F911                             ;            ORG     2300H    ;This address is important, lower byte must be 00
+F911   00 E7 00 00 00 00 E7 00 DSPTBL:   DB   00H,0E7H,00H,00H,00H,00H,0E7H,00H   ;Blinkers
+F919   00 07 0E 00 00 70 E0 00 DB   00H,07H,0EH,00H,00H,70H,0E0H,00H   ;Toad
+F921   C0 C0 0C 0C 30 30 03 03 DB   0C0H,0C0H,0CH,0CH,30H,30H,03H,03H   ;Beacon
+F929   00 04 04 06 00 73 15 06 DB   00H,04H,04H,06H,00H,73H,15H,06H   ;Pulsar
+F931   20 A0 60 00 00 00 00 00 DB   20H,0A0H,60H,00H,00H,00H,00H,00H   ;Glider
+F939   08 2A 08 6B 08 14 08 00 DB   08H,2AH,08H,6BH,08H,14H,08H,00H   ;Why Not
+F941   10 28 58 A6 65 1A 14 08 DB   10H,28H,58H,0A6H,65H,1AH,14H,08H   ;Boat
+F949   C0 80 50 00 14 00 05 03 DB   0C0H,80H,50H,00H,14H,00H,05H,03H   ;Barbers Pole
+F951   00 08 18 00 72 15 09 06 DB   00H,08H,18H,00H,72H,15H,09H,06H   ;Drummer
+F959   00 00 00 30 18 10 00 00 DB   00H,00H,00H,30H,18H,10H,00H,00H   ;R-pentomino
+F961   00 00 77 08 63 08 77 00 DB   00H,00H,77H,08H,63H,08H,77H,00H   ;Carnival
+F969   00 08 18 38 18 08 00 00 DB   00H,08H,18H,38H,18H,08H,00H,00H   ;Arrow
+F971   00 00 00 1C 14 1C 00 00 DB   00H,00H,00H,1CH,14H,1CH,00H,00H   ;Square
+F979   00 A0 20 A0 00 00 00 00 DB   00H,0A0H,20H,0A0H,00H,00H,00H,00H   ;Face to Pulsar
+F981   03 19 36 30 30 36 19 03 DB   03H,19H,36H,30H,30H,36H,19H,03H   ;Fumarole
+F989   08 28 02 C0 03 40 14 10 DB   08H,28H,02H,0C0H,03H,40H,14H,10H   ;Phoenix
+F991   00 62 95 89 A1 81 42 3C DB   00H,62H,95H,89H,0A1H,81H,42H,3CH   ;Pacman
+F999   18 24 42 81 81 42 24 18 DB   18H,24H,42H,81H,81H,42H,24H,18H   ;Octagon
+F9A1   38 44 82 41 41 82 44 38 DB   38H,44H,82H,41H,41H,82H,44H,38H   ;Heart
+F9A9   00 00 00 00 00 00 00   DB   00H,00H,00H,00H,00H,00H,00H   ;Fill
+
+
+SCREEN:             3000 DEFINED AT LINE 63
+                    > USED AT LINE 212
+                    > USED AT LINE 272
+UPBUFF:             3008 DEFINED AT LINE 64
+                    > USED AT LINE 256
+                    > USED AT LINE 257
+                    > USED AT LINE 260
+CURMAT:             3010 DEFINED AT LINE 65
+                    > USED AT LINE 96
+                    > USED AT LINE 162
+                    > USED AT LINE 189
+                    > USED AT LINE 211
+                    > USED AT LINE 233
+                    > USED AT LINE 262
+DNBUFF:             3050 DEFINED AT LINE 66
+NEXMAT:             3058 DEFINED AT LINE 67
+                    > USED AT LINE 97
+                    > USED AT LINE 161
+                    > USED AT LINE 260
+DATALC:             3A00 DEFINED AT LINE 68
+                    > USED AT LINE 79
+                    > USED AT LINE 187
+KEYBOARD:           0000 DEFINED AT LINE 70
+                    > USED AT LINE 173
+KEYPRESS:           0003 DEFINED AT LINE 71
+                    > USED AT LINE 170
+LEDROW:             0006 DEFINED AT LINE 72
+                    > USED AT LINE 275
+LEDCOL:             0005 DEFINED AT LINE 73
+                    > USED AT LINE 277
+                    > USED AT LINE 283
+START:              F800 DEFINED AT LINE 76
+GAME:               F811 DEFINED AT LINE 90
+                    > USED AT LINE 166
+CELLS:              F823 DEFINED AT LINE 99
+                    > USED AT LINE 158
+CHECKLT:            F82A DEFINED AT LINE 106
+CELLLT:             F834 DEFINED AT LINE 115
+CHECKRT:            F83D DEFINED AT LINE 123
+CELLRT:             F849 DEFINED AT LINE 133
+                    > USED AT LINE 114
+EVAL:               F852 DEFINED AT LINE 141
+                    > USED AT LINE 132
+STOREC:             F864 DEFINED AT LINE 151
+                    > USED AT LINE 144
+                    > USED AT LINE 147
+KEYHIT:             F878 DEFINED AT LINE 169
+                    > USED AT LINE 91
+PREDEF:             F88B DEFINED AT LINE 182
+                    > USED AT LINE 179
+L1:                 F898 DEFINED AT LINE 192
+                    > USED AT LINE 206
+L2:                 F89D DEFINED AT LINE 197
+                    > USED AT LINE 203
+MATSCR:             F8AA DEFINED AT LINE 210
+                    > USED AT LINE 92
+M1:                 F8B2 DEFINED AT LINE 214
+                    > USED AT LINE 228
+M2:                 F8B6 DEFINED AT LINE 217
+                    > USED AT LINE 223
+RANFIL:             F8C4 DEFINED AT LINE 232
+                    > USED AT LINE 87
+                    > USED AT LINE 180
+RF1:                F8C9 DEFINED AT LINE 235
+                    > USED AT LINE 251
+CLEAR:              F8DF DEFINED AT LINE 255
+                    > USED AT LINE 84
+SCAN:               F8F0 DEFINED AT LINE 266
+                    > USED AT LINE 93
+S81:                F8F3 DEFINED AT LINE 269
+                    > USED AT LINE 287
+S82:                F8F9 DEFINED AT LINE 273
+                    > USED AT LINE 285
+S83:                F901 DEFINED AT LINE 279
+                    > USED AT LINE 279
+DSPTBL:             F911 DEFINED AT LINE 293
+                    > USED AT LINE 78

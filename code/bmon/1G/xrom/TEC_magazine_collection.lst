@@ -1,0 +1,1886 @@
+0000                             ; TEC Magazine Master ROM
+0000                             ; -----------------------
+0000                             ; 
+0000                             ; This ROM is a collection of almost all of the code written for the Talking
+0000                             ; Electronics Computer.
+0000                             ; 
+0000                             ; Compiled by Brian Chiha
+0000                             ; July 2020
+0000                             ; 
+0000                             ; To use:
+0000                             ; -------
+0000                             ; Requires JMON Monitor for the Menu Selection and to be placed at 0x1000 in RAM.
+0000                             ; Simply go to address 0x1000 and press "GO".  Then use "+" or "-" to select the
+0000                             ; program to run and hit "GO".
+0000                             ; 
+0000                             ; For 8x8 LED programs, connect the 8x8 to ports 05 and 06.
+0000                             ; 
+0000                             ; To exit the programs press "Shift-GO".  This will exit the current program and
+0000                             ; go back to the main menu.
+0000                             ; 
+0000                             ; ROM Contents:
+0000                             ; -------------
+0000                             ; #   Address   Name							Reference
+0000                             ; -   -------	----------------------------	-------------
+0000                             ; 1.  0x100E	Segment Move 					Issue 11 P 26
+0000                             ; 2.  0x101D    Segment Cycle					Issue 11 P 20
+0000                             ; 3.  0x102E    Segment Flash					Issue 11 P 28
+0000                             ; 4.  0x1044    Segment Move Around #1			Issue 11 P 29
+0000                             ; 5.  0x109C    Segment Move Around #2			Issue 12 P 16
+0000                             ; 6.  0x10D3    Segment Move Around #3			Issue 12 P 17
+0000                             ; 7.  0x1100    Segment Back and Forth			Issue 11 P 28
+0000                             ; 8.  0x1120	Segment Keyboard Move    		Issue 12 P 17
+0000                             ; 9.  0x113C    Segment Keyboard Move w Run 	Issue 12 P 18
+0000                             ; 10. 0x1161	Display two Segments at Once   	Issue 12 P 18
+0000                             ; 11. 0x11B4    The Box Animation				Issue 14 P 14
+0000                             ; 12. 0x125C    Aussie Boomerang 				Issue 14 P 14
+0000                             ; 13. 0x1297    8x8 LED Around 					Issue 11 P 33
+0000                             ; 14. 0x12E9    8x8 LED Back and Forth 			Issue 11 P 33
+0000                             ; 15. 0x1311    8x8 LED Fan Out #1 				Issue 11 P 34
+0000                             ; 16. 0x1323    8x8 LED Fan Out #2				Issue 12 P 26
+0000                             ; 17. 0x1345	8x8 LED Fan Out #3				Issue 14 P 15
+0000                             ; 18. 0x1366	8x8 LED Mystery Effect 			Issue 11 P 34
+0000                             ; 19. 0x13B3    8x8 LED Key Movement    		Issue 11 P 36
+0000                             ; 20. 0x13E6    8x8 LED Ball Bounce 			Issue 12 P 26
+0000                             ; 21. 0x1416	8x8 Animation Example 			B Chiha
+0000                             ; 22. 0x145F    Aliens Attack					Issue 11 P 36
+0000                             ; 23. 0x1497	Speaker Oscillator				Issue 12 P 22
+0000                             ; 24. 0x14AD	Frequency Sweep					Issue 12 P 22
+0000                             ; 25. 0x14D9	Space Invaders Sound 			Issue 14 P 14
+0000                             ; 26. 0x1503    Quick Draw 						Issue 12 P 21
+0000                             ; 27. 0x152E    TEC Clock 						Issue 12 P 23
+0000                             ; 28. 0x15C4    Counter #1						Issue 13 P 14
+0000                             ; 29. 0x15DD	Counter #2						Issue 13 P 15
+0000                             ; 30. 0x161A	Counter #3						Issue 13 P 16
+0000                             ;IO Port ASSIGNMENTS
+0000                KEYBOARD:   EQU   0x00   ;KEYBOARD ENCODER
+0000                DSCAN:    EQU   0x01   ;DISPLAY CATHODE DRIVER LATCH
+0000                DSEGMENT:   EQU   0x02   ;DISPLAY SEGMENT DRIVER LATCH
+0000                KEYPRESS:   EQU   0x03   ;KEYBOARD PRESS PORT
+0000                LEDROW:   EQU   0x06   
+0000                LEDCOL:   EQU   0x05   
+E800                          .ORG   0E800H   
+E800                START:       
+E800                             ; Copy Menu Data to JMON location
+E800   21 E4 EE               LD   HL,M_DATA   ; Menu data
+E803   11 8D 08               LD   DE,088DH   ; Destination for menu/perimiter to use
+E806   01 0B 00               LD   BC,000BH   ; Number of bytes to copy
+E809   ED B0                  LDIR      ; Copy it
+E80B                MENU:        
+E80B   C3 41 00               JP   0041H   ; Call the menu
+E80E                             ;Magazine Code
+E80E                             ;-------------
+E80E                             ;-----------------------------;
+E80E                             ;Segment Move - Issue 11 P 26 ;
+E80E                             ;-----------------------------;
+E80E                             ;Move a Seven Segment Display from Right to Left and loop around
+E80E                SEGMOV:      
+E80E   3E 01                  LD   A,01H   
+E810   D3 02                  OUT   (DSEGMENT),A   
+E812                SML1:        
+E812   D3 01                  OUT   (DSCAN),A   
+E814   CD A8 EE               CALL   DELAY_M   
+E817   07                     RLCA      
+E818   CD BF EE               CALL   CHKSHIFT   
+E81B   18 F5                  JR   SML1   
+E81D                             ;------------------------------;
+E81D                             ;Segment Cycle - Issue 11 P 20 ;
+E81D                             ;------------------------------;
+E81D                             ;Cycle through all 255 positions of the seven segment display
+E81D                SEGCYC:      
+E81D   3E 3F                  LD   A,3FH   ;Use All Displays
+E81F   D3 01                  OUT   (DSCAN),A   
+E821   A8                     XOR   B   ;Zero B
+E822                SEGC1:       
+E822   78                     LD   A,B   
+E823   D3 02                  OUT   (DSEGMENT),A   ;Output B
+E825   04                     INC   B   ;Increase B
+E826   CD A3 EE               CALL   DELAY_Q   
+E829   CD BF EE               CALL   CHKSHIFT   
+E82C   18 F4                  JR   SEGC1   
+E82E                             ;------------------------------;
+E82E                             ;Segment Flash - Issue 11 P 28 ;
+E82E                             ;------------------------------;
+E82E                             ;Turn a Segment On and Off --- Flash it!
+E82E                SEGFLH:      
+E82E   3E FF                  LD   A,0FFH   
+E830   D3 02                  OUT   (DSEGMENT),A   ;All Segments on
+E832                SEGF1:       
+E832   3E 01                  LD   A,01H   
+E834   D3 01                  OUT   (DSCAN),A   ;Activate Segment
+E836   CD A8 EE               CALL   DELAY_M   
+E839   AF                     XOR   A   
+E83A   D3 01                  OUT   (DSCAN),A   ;Deactivate Segment
+E83C   CD A8 EE               CALL   DELAY_M   
+E83F   CD BF EE               CALL   CHKSHIFT   
+E842   18 EE                  JR   SEGF1   
+E844                             ;---------------------------------------;
+E844                             ;Segment Move Around #1 - Issue 11 P 29 ;
+E844                             ;---------------------------------------;
+E844                             ;Move A Segment Around all Seven Segment Displays in a Anticlockwise Direction
+E844                SEGRND1:      
+E844   3E 01                  LD   A,01H   ;Move from Right to Left
+E846   D3 02                  OUT   (DSEGMENT),A   
+E848   0E 06                  LD   C,06H   
+E84A   3E 01                  LD   A,01H   
+E84C                SEGR11:      
+E84C   D3 01                  OUT   (DSCAN),A   
+E84E   47                     LD   B,A   
+E84F   CD A3 EE               CALL   DELAY_Q   
+E852   CD BF EE               CALL   CHKSHIFT   
+E855   78                     LD   A,B   
+E856   CB 07                  RLC   A   
+E858   0D                     DEC   C   
+E859   20 F1                  JR   NZ,SEGR11   
+E85B   3E 02                  LD   A,02H   ;Move Down
+E85D   D3 02                  OUT   (DSEGMENT),A   
+E85F   CD A3 EE               CALL   DELAY_Q   
+E862   CD BF EE               CALL   CHKSHIFT   
+E865   3E 40                  LD   A,40H   
+E867   D3 02                  OUT   (DSEGMENT),A   
+E869   CD A3 EE               CALL   DELAY_Q   
+E86C   CD BF EE               CALL   CHKSHIFT   
+E86F   3E 80                  LD   A,80H   ;Move From Left to Right
+E871   D3 02                  OUT   (DSEGMENT),A   
+E873   0E 06                  LD   C,06H   
+E875   3E 20                  LD   A,20H   
+E877                SEGR12:      
+E877   D3 01                  OUT   (DSCAN),A   
+E879   47                     LD   B,A   
+E87A   CD A3 EE               CALL   DELAY_Q   
+E87D   CD BF EE               CALL   CHKSHIFT   
+E880   78                     LD   A,B   
+E881   CB 0F                  RRC   A   
+E883   0D                     DEC   C   
+E884   20 F1                  JR   NZ,SEGR12   
+E886   3E 20                  LD   A,20H   ;Move Up
+E888   D3 02                  OUT   (DSEGMENT),A   
+E88A   CD A3 EE               CALL   DELAY_Q   
+E88D   CD BF EE               CALL   CHKSHIFT   
+E890   3E 08                  LD   A,08H   
+E892   D3 02                  OUT   (DSEGMENT),A   
+E894   CD A3 EE               CALL   DELAY_Q   
+E897   CD BF EE               CALL   CHKSHIFT   
+E89A   18 A8                  JR   SEGRND1   
+E89C                             ;---------------------------------------;
+E89C                             ;Segment Move Around #2 - Issue 12 P 16 ;
+E89C                             ;---------------------------------------;
+E89C                             ;Move A Segment Around a single Seven Segment Display (hard coded)
+E89C                SEGRND2:      
+E89C   3E 3F                  LD   A,3FH   
+E89E   D3 01                  OUT   (DSCAN),A   ;First Display
+E8A0   3E 01                  LD   A,01H   ;Hard code segment positions
+E8A2   CD CA E8               CALL   SEGR21   
+E8A5   3E 02                  LD   A,02H   
+E8A7   CD CA E8               CALL   SEGR21   
+E8AA   3E 04                  LD   A,04H   
+E8AC   CD CA E8               CALL   SEGR21   
+E8AF   3E 20                  LD   A,20H   
+E8B1   CD CA E8               CALL   SEGR21   
+E8B4   3E 80                  LD   A,80H   
+E8B6   CD CA E8               CALL   SEGR21   
+E8B9   3E 40                  LD   A,40H   
+E8BB   CD CA E8               CALL   SEGR21   
+E8BE   3E 04                  LD   A,04H   
+E8C0   CD CA E8               CALL   SEGR21   
+E8C3   3E 08                  LD   A,08H   
+E8C5   CD CA E8               CALL   SEGR21   
+E8C8   18 D2                  JR   SEGRND2   
+E8CA                SEGR21:      
+E8CA   D3 02                  OUT   (DSEGMENT),A   
+E8CC   CD A8 EE               CALL   DELAY_M   
+E8CF   CD BF EE               CALL   CHKSHIFT   
+E8D2   C9                     RET      
+E8D3                             ;---------------------------------------;
+E8D3                             ;Segment Move Around #3 - Issue 12 P 17 ;
+E8D3                             ;---------------------------------------;
+E8D3                             ;Move A Segment Around a single Seven Segment Display (using lookup table)
+E8D3                SEGRND3:      
+E8D3   0E 20                  LD   C,20H   
+E8D5                SEGR31:      
+E8D5   79                     LD   A,C   
+E8D6   D3 01                  OUT   (DSCAN),A   
+E8D8   CD E3 E8               CALL   SEGLKP   
+E8DB   CB 09                  RRC   C   
+E8DD   CB 79                  BIT   7,C   
+E8DF   28 F4                  JR   Z,SEGR31   
+E8E1   18 F0                  JR   SEGRND3   
+E8E3                SEGLKP:      
+E8E3   21 F7 E8               LD   HL,SEGTAB   ;Table start address
+E8E6   06 09                  LD   B,09H   ;Size of table
+E8E8                SEGR32:      
+E8E8   7E                     LD   A,(HL)   
+E8E9   D3 02                  OUT   (DSEGMENT),A   
+E8EB   CD A3 EE               CALL   DELAY_Q   
+E8EE   CD BF EE               CALL   CHKSHIFT   
+E8F1   23                     INC   HL   
+E8F2   05                     DEC   B   
+E8F3   C2 E8 E8               JP   NZ,SEGR32   
+E8F6   C9                     RET      
+E8F7                SEGTAB:      
+E8F7   01 02 04 20 80 40 04 08 01 DB   01H,02H,04H,20H,80H,40H,04H,08H,01H   
+E900                             ;---------------------------------------;
+E900                             ;Segment Back and Forth - Issue 11 P 28 ;
+E900                             ;---------------------------------------;
+E900                             ;Move A Segment From Right to Left and Back
+E900                SEGBAF:      
+E900   3E 01                  LD   A,01H   
+E902   D3 02                  OUT   (DSEGMENT),A   
+E904                SEGB1:       
+E904   D3 01                  OUT   (DSCAN),A   
+E906   CD A8 EE               CALL   DELAY_M   
+E909   07                     RLCA      
+E90A   CB 77                  BIT   6,A   ;On Left Edge?
+E90C   CD BF EE               CALL   CHKSHIFT   
+E90F   28 F3                  JR   Z,SEGB1   
+E911                SEGB2:       
+E911   0F                     RRCA      
+E912   D3 01                  OUT   (DSCAN),A   
+E914   CD A8 EE               CALL   DELAY_M   
+E917   CB 47                  BIT   0,A   ;On Right Edge?
+E919   28 F6                  JR   Z,SEGB2   
+E91B   CD BF EE               CALL   CHKSHIFT   
+E91E   18 E4                  JR   SEGB1   
+E920                             ;------------------------------------------------------;
+E920                             ;Segment Back and Forth using keybaord - Issue 12 P 17 ;
+E920                             ;------------------------------------------------------;
+E920                             ;Move A Segment From Right to Left and Back using Keyboard.  "4" - Left and "7" - Right
+E920                SEGKBD:      
+E920   3E 04                  LD   A,04H   
+E922   D3 02                  OUT   (DSEGMENT),A   
+E924   47                     LD   B,A   
+E925                SEGK1:       
+E925   78                     LD   A,B   
+E926   D3 01                  OUT   (DSCAN),A   
+E928                SKEYWAIT:      
+E928   CF                     RST   08H   ;Get Key input
+E929   CD BF EE               CALL   CHKSHIFT   
+E92C                SLEFT:       
+E92C   FE 04                  CP   04H   ;"4" key
+E92E   20 04                  JR   NZ,SRIGHT   
+E930   CB 00                  RLC   B   ; Move left
+E932   18 F1                  JR   SEGK1   
+E934                SRIGHT:      
+E934   FE 07                  CP   07H   ;"7" key
+E936   20 F0                  JR   NZ,SKEYWAIT   
+E938   CB 08                  RRC   B   ; Move right
+E93A   18 E9                  JR   SEGK1   
+E93C                             ;---------------------------------------------------------------;
+E93C                             ;Segment Back and Forth with RUN using keybaord - Issue 12 P 18 ;
+E93C                             ;---------------------------------------------------------------;
+E93C                             ; Move Segment With the Keyboard with Auto move. "4" - Left, "7" - Right
+E93C                SEGKBR:      
+E93C   3E 01                  LD   A,01H   
+E93E   D3 02                  OUT   (DSEGMENT),A   
+E940   D3 01                  OUT   (DSCAN),A   
+E942   47                     LD   B,A   
+E943                SEGKR1:      
+E943   E7                     RST   20H   
+E944   28 01                  JR   Z,SRLEFT   ;key Pressed
+E946   79                     LD   A,C   ;Previous if a invalid
+E947                SRLEFT:      
+E947   FE 04                  CP   04H   
+E949   20 04                  JR   NZ,SRRIGHT   
+E94B   CB 00                  RLC   B   
+E94D   18 06                  JR   SRMOVE   
+E94F                SRRIGHT:      
+E94F   FE 07                  CP   07H   
+E951   20 F0                  JR   NZ,SEGKR1   
+E953   CB 08                  RRC   B   
+E955                SRMOVE:      
+E955   4F                     LD   C,A   ;Store current direction (key)
+E956   78                     LD   A,B   
+E957   D3 01                  OUT   (DSCAN),A   
+E959   CD A8 EE               CALL   DELAY_M   
+E95C   CD BF EE               CALL   CHKSHIFT   
+E95F   18 E2                  JR   SEGKR1   
+E961                             ;---------------------------------------------;
+E961                             ;Display two Segments at once - Issue 12 P 18 ;
+E961                             ;---------------------------------------------;
+E961                             ; Display 2 segments at the same time (multiplexing)
+E961                SEGTWO:      
+E961   0E 05                  LD   C,05H   
+E963                SEGT1:       
+E963   3E 01                  LD   A,01H   
+E965   D3 01                  OUT   (DSCAN),A   
+E967   3E C6                  LD   A,0C6H   ;T
+E969   D3 02                  OUT   (DSEGMENT),A   
+E96B   CD A3 EE               CALL   DELAY_Q   
+E96E   CD BF EE               CALL   CHKSHIFT   
+E971   CD A5 E9               CALL   SECOND   
+E974   0D                     DEC   C   
+E975   20 EC                  JR   NZ,SEGT1   
+E977   0E 05                  LD   C,05H   
+E979                SEGT2:       
+E979   3E 01                  LD   A,01H   
+E97B   D3 01                  OUT   (DSCAN),A   
+E97D   3E C7                  LD   A,0C7H   ;E
+E97F   D3 02                  OUT   (DSEGMENT),A   
+E981   CD A3 EE               CALL   DELAY_Q   
+E984   CD BF EE               CALL   CHKSHIFT   
+E987   CD A5 E9               CALL   SECOND   
+E98A   0D                     DEC   C   
+E98B   20 EC                  JR   NZ,SEGT2   
+E98D   0E 05                  LD   C,05H   
+E98F                SEGT3:       
+E98F   3E 01                  LD   A,01H   
+E991   D3 01                  OUT   (DSCAN),A   
+E993   3E C3                  LD   A,0C3H   ;C
+E995   D3 02                  OUT   (DSEGMENT),A   
+E997   CD A3 EE               CALL   DELAY_Q   
+E99A   CD BF EE               CALL   CHKSHIFT   
+E99D   CD A5 E9               CALL   SECOND   
+E9A0   0D                     DEC   C   
+E9A1   20 EC                  JR   NZ,SEGT3   
+E9A3   18 BC                  JR   SEGTWO   
+E9A5                SECOND:      ;Second Segment
+E9A5   3E 20                  LD   A,20H   
+E9A7   D3 01                  OUT   (DSCAN),A   
+E9A9   3E 80                  LD   A,80H   
+E9AB   D3 02                  OUT   (DSEGMENT),A   
+E9AD   CD A3 EE               CALL   DELAY_Q   
+E9B0   CD BF EE               CALL   CHKSHIFT   
+E9B3   C9                     RET      
+E9B4                             ;------------------------;
+E9B4                             ;The Box - Issue 14 P 14 ;
+E9B4                             ;------------------------;
+E9B4                             ;Seven Segment Box movement animation
+E9B4                SEGBOX:      
+E9B4   DD 21 EC E9            LD   IX,BOXTAB   ;Box Table Data
+E9B8   16 1C                  LD   D,1CH   ;Box Table Entry Count, Groups of 4
+E9BA   06 00                  LD   B,00H   ;Full Delay on Screen
+E9BC                BOX1:        
+E9BC   0E 40                  LD   C,40H   ;Screen Muliplex Delay
+E9BE                BOX2:        
+E9BE   DD 7E 00               LD   A,(IX+0)   ;Display Data 1,2
+E9C1   D3 01                  OUT   (DSCAN),A   
+E9C3   DD 7E 01               LD   A,(IX+1)   
+E9C6   D3 02                  OUT   (DSEGMENT),A   
+E9C8   10 FE        BOX3:     DJNZ   BOX3   
+E9CA   AF                     XOR   A   
+E9CB   D3 02                  OUT   (DSEGMENT),A   ;Clear Display
+E9CD   DD 7E 02               LD   A,(IX+2)   ;Display Data 3,4
+E9D0   D3 01                  OUT   (DSCAN),A   
+E9D2   DD 7E 03               LD   A,(IX+3)   
+E9D5   D3 02                  OUT   (DSEGMENT),A   
+E9D7   10 FE        BOX4:     DJNZ   BOX4   
+E9D9   CD BF EE               CALL   CHKSHIFT   
+E9DC   0D                     DEC   C   
+E9DD   20 DF                  JR   NZ,BOX2   ;More data to display?
+E9DF   DD 23                  INC   IX   
+E9E1   DD 23                  INC   IX   
+E9E3   DD 23                  INC   IX   
+E9E5   DD 23                  INC   IX   ;Move IX to next group of 4
+E9E7   15                     DEC   D   
+E9E8   20 D2                  JR   NZ,BOX1   
+E9EA   18 C8                  JR   SEGBOX   
+E9EC                BOXTAB:      ;First Byte = Segment, Second Byte = LED's on Segment to light up
+E9EC   01 E4 01 E4 01 E8 01 E8 DB   01H,0E4H,01H,0E4H,01H,0E8H,01H,0E8H   
+E9F4   01 E4 01 E4 01 E2 01 E2 DB   01H,0E4H,01H,0E4H,01H,0E2H,01H,0E2H   
+E9FC   01 E4 01 E4 01 E4 01 E4 DB   01H,0E4H,01H,0E4H,01H,0E4H,01H,0E4H   
+EA04   01 E2 01 E2 01 E4 01 E4 DB   01H,0E2H,01H,0E2H,01H,0E4H,01H,0E4H   
+EA0C   01 E1 01 E1 01 01 02 E0 DB   01H,0E1H,01H,0E1H,01H,01H,02H,0E0H   
+EA14   01 04 02 E0 01 80 02 E0 DB   01H,04H,02H,0E0H,01H,80H,02H,0E0H   
+EA1C   01 80 04 A4 01 80 08 64 DB   01H,80H,04H,0A4H,01H,80H,08H,64H   
+EA24   01 80 10 C4 01 80 20 E0 DB   01H,80H,10H,0C4H,01H,80H,20H,0E0H   
+EA2C   02 80 20 E0 04 80 20 E0 DB   02H,80H,20H,0E0H,04H,80H,20H,0E0H   
+EA34   08 80 20 E0 10 04 20 E0 DB   08H,80H,20H,0E0H,10H,04H,20H,0E0H   
+EA3C   20 E1 20 E1 20 E4 20 E4 DB   20H,0E1H,20H,0E1H,20H,0E4H,20H,0E4H   
+EA44   10 E4 10 E4 08 E4 08 E4 DB   10H,0E4H,10H,0E4H,08H,0E4H,08H,0E4H   
+EA4C   04 E0 08 04 02 E0 08 04 DB   04H,0E0H,08H,04H,02H,0E0H,08H,04H   
+EA54   01 E0 04 04 01 E0 02 04 DB   01H,0E0H,04H,04H,01H,0E0H,02H,04H   
+EA5C                             ;--------------------------;
+EA5C                             ;Boomerang - Issue 14 P 14 ;
+EA5C                             ;--------------------------;
+EA5C                             ;Seven Segment Boomerang animation
+EA5C                SEGBRG:      
+EA5C   21 73 EA               LD   HL,BRGTAB   ;Table
+EA5F   06 12                  LD   B,012H   ;Table Entries
+EA61                BRG1:        
+EA61   7E                     LD   A,(HL)   
+EA62   D3 01                  OUT   (DSCAN),A   ;First Entry Segment
+EA64   23                     INC   HL   
+EA65   7E                     LD   A,(HL)   
+EA66   D3 02                  OUT   (DSEGMENT),A   ;Second Entry LED's
+EA68   23                     INC   HL   
+EA69   CD A8 EE               CALL   DELAY_M   
+EA6C   CD BF EE               CALL   CHKSHIFT   
+EA6F   10 F0                  DJNZ   BRG1   
+EA71   18 E9                  JR   SEGBRG   
+EA73                BRGTAB:      ;First Byte = Segment, Second Byte = LED's on Segment to light up
+EA73   01 09 02 03 04 06 08 0C DB   01H,09H,02H,03H,04H,06H,08H,0CH   
+EA7B   10 09 20 03 20 C0 10 A0 DB   10H,09H,20H,03H,20H,0C0H,10H,0A0H   
+EA83   08 24 04 44 02 C0 01 A0 DB   08H,24H,04H,44H,02H,0C0H,01H,0A0H   
+EA8B   20 6F 10 EA 08 A7 04 A7 DB   20H,6FH,10H,0EAH,08H,0A7H,04H,0A7H   
+EA93   02 28 01 C7            DB   02H,28H,01H,0C7H   
+EA97                             ;-------------------------------;
+EA97                             ;8x8 LED Around - Issue 11 P 33 ;
+EA97                             ;-------------------------------;
+EA97                             ;Move an 8x8 LED around the perimeter of the display
+EA97                LEDRND:      
+EA97   3E 01                  LD   A,01H   ;Bottom Left to Right
+EA99   D3 06                  OUT   (LEDROW),A   
+EA9B   0E 08                  LD   C,08H   
+EA9D   3E 01                  LD   A,01H   
+EA9F                LEDR1:       
+EA9F   D3 05                  OUT   (LEDCOL),A   
+EAA1   CD A3 EE               CALL   DELAY_Q   
+EAA4   CD BF EE               CALL   CHKSHIFT   
+EAA7   07                     RLCA      
+EAA8   0D                     DEC   C   
+EAA9   20 F4                  JR   NZ,LEDR1   
+EAAB   3E 80                  LD   A,80H   ;Right Bottom to Top
+EAAD   D3 05                  OUT   (LEDCOL),A   
+EAAF   0E 07                  LD   C,07H   
+EAB1   3E 02                  LD   A,02H   
+EAB3                LEDR2:       
+EAB3   D3 06                  OUT   (LEDROW),A   
+EAB5   CD A3 EE               CALL   DELAY_Q   
+EAB8   CD BF EE               CALL   CHKSHIFT   
+EABB   07                     RLCA      
+EABC   0D                     DEC   C   
+EABD   20 F4                  JR   NZ,LEDR2   
+EABF   3E 80                  LD   A,80H   ;Top Right to Left
+EAC1   D3 06                  OUT   (LEDROW),A   
+EAC3   0E 07                  LD   C,07H   
+EAC5   3E 40                  LD   A,40H   
+EAC7                LEDR3:       
+EAC7   D3 05                  OUT   (LEDCOL),A   
+EAC9   CD A3 EE               CALL   DELAY_Q   
+EACC   CD BF EE               CALL   CHKSHIFT   
+EACF   0F                     RRCA      
+EAD0   0D                     DEC   C   
+EAD1   20 F4                  JR   NZ,LEDR3   
+EAD3   3E 01                  LD   A,01H   ;Left Top to Bottom
+EAD5   D3 05                  OUT   (LEDCOL),A   
+EAD7   0E 07                  LD   C,07H   
+EAD9   3E 40                  LD   A,40H   
+EADB                LEDR4:       
+EADB   D3 06                  OUT   (LEDROW),A   
+EADD   CD A3 EE               CALL   DELAY_Q   
+EAE0   CD BF EE               CALL   CHKSHIFT   
+EAE3   0F                     RRCA      
+EAE4   0D                     DEC   C   
+EAE5   20 F4                  JR   NZ,LEDR4   
+EAE7   18 AE                  JR   LEDRND   
+EAE9                             ;---------------------------------------;
+EAE9                             ;8x8 LED Back and Forth - Issue 11 P 33 ;
+EAE9                             ;---------------------------------------;
+EAE9                             ;Move an 8x8 LED from Left to Right and Increase in depth
+EAE9                LEDBAF:      
+EAE9   26 01                  LD   H,01H   
+EAEB                LEDB1:       
+EAEB   7C                     LD   A,H   
+EAEC   D3 05                  OUT   (LEDCOL),A   
+EAEE   0E 08                  LD   C,08H   
+EAF0   3E 01                  LD   A,01H   
+EAF2                LEDB2:       
+EAF2   D3 06                  OUT   (LEDROW),A   
+EAF4   CD 9E EE               CALL   DELAY_F   
+EAF7   CD BF EE               CALL   CHKSHIFT   
+EAFA   07                     RLCA      ;Move Upwards
+EAFB   0D                     DEC   C   
+EAFC   20 F4                  JR   NZ,LEDB2   
+EAFE   0E 08                  LD   C,08H   
+EB00   3E 80                  LD   A,80H   
+EB02                LEDB3:       
+EB02   D3 06                  OUT   (LEDROW),A   
+EB04   CD 9E EE               CALL   DELAY_F   
+EB07   CD BF EE               CALL   CHKSHIFT   
+EB0A   0F                     RRCA      ;Move Across
+EB0B   0D                     DEC   C   
+EB0C   20 F4                  JR   NZ,LEDB3   
+EB0E   24                     INC   H   ;Increase Binary view by one
+EB0F   18 DA                  JR   LEDB1   
+EB11                             ;-----------------------------------;
+EB11                             ;8x8 LED Fan Out #1 - Issue 11 P 34 ;
+EB11                             ;-----------------------------------;
+EB11                             ;Fan out the LEDs from bottom left to top right
+EB11                LEDFN1:      
+EB11   3E 01                  LD   A,01H   
+EB13                LEDF11:      
+EB13   D3 05                  OUT   (LEDCOL),A   
+EB15   D3 06                  OUT   (LEDROW),A   
+EB17   07                     RLCA      ;Move A one bit to the left
+EB18   CD A3 EE               CALL   DELAY_Q   
+EB1B   CD BF EE               CALL   CHKSHIFT   
+EB1E   3C                     INC   A   ;Add one (or set bit 0), This will fill A with bits
+EB1F   20 F2                  JR   NZ,LEDF11   
+EB21   18 EE                  JR   LEDFN1   
+EB23                             ;-----------------------------------;
+EB23                             ;8x8 LED Fan Out #2 - Issue 12 P 26 ;
+EB23                             ;-----------------------------------;
+EB23                             ;Fan out the LEDs from bottom left to top right and through
+EB23                LEDFN2:      
+EB23   3E 01                  LD   A,01H   ;One LED
+EB25                LEDF21:      
+EB25   D3 05                  OUT   (LEDCOL),A   ;Output A
+EB27   D3 06                  OUT   (LEDROW),A   
+EB29   07                     RLCA      ;Shift A
+EB2A   CD A3 EE               CALL   DELAY_Q   
+EB2D   CD BF EE               CALL   CHKSHIFT   
+EB30   3C                     INC   A   ;Add 1 to A
+EB31   20 F2                  JR   NZ,LEDF21   
+EB33   3E FE                  LD   A,0FEH   ;Full Screen
+EB35                LEDF22:      
+EB35   D3 05                  OUT   (LEDCOL),A   ;Output A
+EB37   D3 06                  OUT   (LEDROW),A   
+EB39   07                     RLCA      ;Shift A
+EB3A   CD A3 EE               CALL   DELAY_Q   
+EB3D   CD BF EE               CALL   CHKSHIFT   
+EB40   3D                     DEC   A   ;Sub 1 from A
+EB41   20 F2                  JR   NZ,LEDF22   
+EB43   18 E0                  JR   LEDF21   ;Start Again
+EB45                             ;-----------------------------------;
+EB45                             ;8x8 LED Fan Out #3 - Issue 14 P 15 ;
+EB45                             ;-----------------------------------;
+EB45                             ;Fan out the LEDs from the center to the outside and back using lookup table
+EB45                LEDFN3:      
+EB45   21 5A EB               LD   HL,FANTAB   ;Table Reference
+EB48   06 0C                  LD   B,0CH   ;Table Size
+EB4A                LEDF31:      
+EB4A   7E                     LD   A,(HL)   
+EB4B   D3 05                  OUT   (LEDCOL),A   
+EB4D   D3 06                  OUT   (LEDROW),A   
+EB4F   23                     INC   HL   
+EB50   CD A3 EE               CALL   DELAY_Q   
+EB53   CD BF EE               CALL   CHKSHIFT   
+EB56   10 F2                  DJNZ   LEDF31   
+EB58   18 EB                  JR   LEDFN3   
+EB5A                FANTAB:      ;This table is displayed which fans in and fans out
+EB5A   18 3C 7E FF E7 C3      DB   18H,3CH,7EH,0FFH,0E7H,0C3H   
+EB60   81 C3 E7 FF 7E 3C      DB   81H,0C3H,0E7H,0FFH,7EH,3CH   
+EB66                             ;---------------------------------------;
+EB66                             ;8x8 LED Mystery Effect - Issue 11 P 34 ;
+EB66                             ;---------------------------------------;
+EB66                             ;LED Mystery Effect!!!
+EB66                LEDMYS:      
+EB66   0E 20                  LD   C,20H   
+EB68   3E 01                  LD   A,01H   
+EB6A   D3 05                  OUT   (LEDCOL),A   
+EB6C   3E 01                  LD   A,01H   
+EB6E                LEDM1:       
+EB6E   D3 06                  OUT   (LEDROW),A   
+EB70   07                     RLCA      ;Move Up
+EB71   CD 99 EB               CALL   LEDMOV   
+EB74   0D                     DEC   C   
+EB75   20 F7                  JR   NZ,LEDM1   
+EB77   0E 20                  LD   C,20H   
+EB79   3E 01                  LD   A,01H   
+EB7B   D3 06                  OUT   (LEDROW),A   
+EB7D   3E 01                  LD   A,01H   
+EB7F                LEDM2:       
+EB7F   D3 05                  OUT   (LEDCOL),A   
+EB81   07                     RLCA      ;Move Across
+EB82   CD 99 EB               CALL   LEDMOV   
+EB85   0D                     DEC   C   
+EB86   20 F7                  JR   NZ,LEDM2   
+EB88   0E 20                  LD   C,20H   
+EB8A   3E 01                  LD   A,01H   
+EB8C                LEDM3:       
+EB8C   D3 05                  OUT   (LEDCOL),A   
+EB8E   D3 06                  OUT   (LEDROW),A   
+EB90   07                     RLCA      ;Move Up and Across
+EB91   CD 99 EB               CALL   LEDMOV   
+EB94   0D                     DEC   C   
+EB95   20 F5                  JR   NZ,LEDM3   
+EB97   18 CD                  JR   LEDMYS   
+EB99                LEDMOV:      
+EB99   CD A3 EE               CALL   DELAY_Q   
+EB9C   CD BF EE               CALL   CHKSHIFT   
+EB9F   3C                     INC   A   
+EBA0   CB 47                  BIT   0,A   
+EBA2   28 01                  JR   Z,LEDM4   
+EBA4   C9                     RET      
+EBA5                LEDM4:       
+EBA5   CD A3 EE               CALL   DELAY_Q   
+EBA8   CD BF EE               CALL   CHKSHIFT   
+EBAB   CD A3 EE               CALL   DELAY_Q   
+EBAE   CD BF EE               CALL   CHKSHIFT   
+EBB1   18 E6                  JR   LEDMOV   
+EBB3                             ;-------------------------------------;
+EBB3                             ;8x8 LED Key Movement - Issue 11 P 36 ;
+EBB3                             ;-------------------------------------;
+EBB3                             ;LED Keyboard Movement Routine. Use "4","9","6" and "7" Keys to move an LED light around
+EBB3                LEDKBD:      
+EBB3   01 01 01               LD   BC,0101H   
+EBB6   78                     LD   A,B   
+EBB7   D3 05                  OUT   (LEDCOL),A   
+EBB9   79                     LD   A,C   
+EBBA   D3 06                  OUT   (LEDROW),A   
+EBBC                LKEYWAIT:      
+EBBC   CF                     RST   08H   
+EBBD   CD BF EE               CALL   CHKSHIFT   
+EBC0                LLEFT:       
+EBC0   FE 04                  CP   04H   ;"4" Key Left
+EBC2   20 04                  JR   NZ,LRIGHT   
+EBC4   CB 08                  RRC   B   
+EBC6   18 06                  JR   UPDATEX   
+EBC8                LRIGHT:      
+EBC8   FE 06                  CP   06H   ;"6" Key Right
+EBCA   20 07                  JR   NZ,LUP   
+EBCC   CB 00                  RLC   B   
+EBCE                UPDATEX:      
+EBCE   78                     LD   A,B   
+EBCF   D3 05                  OUT   (LEDCOL),A   
+EBD1   18 E9                  JR   LKEYWAIT   
+EBD3                LUP:         
+EBD3   FE 09                  CP   09H   ;"1" Key Up
+EBD5   20 04                  JR   NZ,LDOWN   
+EBD7   CB 01                  RLC   C   
+EBD9   18 06                  JR   UPDATEY   
+EBDB                LDOWN:       
+EBDB   FE 01                  CP   01H   ;"1" Key Down
+EBDD   20 DD                  JR   NZ,LKEYWAIT   
+EBDF   CB 09                  RRC   C   
+EBE1                UPDATEY:      
+EBE1   79                     LD   A,C   
+EBE2   D3 06                  OUT   (LEDROW),A   
+EBE4   18 D6                  JR   LKEYWAIT   
+EBE6                             ;------------------------------------;
+EBE6                             ;8x8 LED Ball Bounce - Issue 12 P 26 ;
+EBE6                             ;------------------------------------;
+EBE6                             ;LED Moves up and down from left to right
+EBE6                             ;Modified to use bit shifting instead of repeating the same loop 4 times.
+EBE6                LEDBBL:      
+EBE6   06 01                  LD   B,01H   ;Start on bottom row
+EBE8                LEDBB1:      
+EBE8   78                     LD   A,B   
+EBE9   D3 05                  OUT   (LEDCOL),A   
+EBEB   0E 08                  LD   C,08H   
+EBED   3E 01                  LD   A,01H   
+EBEF                LEDBB2:      
+EBEF   D3 06                  OUT   (LEDROW),A   
+EBF1   CD A3 EE               CALL   DELAY_Q   
+EBF4   CD BF EE               CALL   CHKSHIFT   
+EBF7   CB 07                  RLC   A   ;Move up one bit
+EBF9   0D                     DEC   C   ;Do it 8 times
+EBFA   20 F3                  JR   NZ,LEDBB2   
+EBFC   CB 00                  RLC   B   ;Move to next column
+EBFE   78                     LD   A,B   
+EBFF   D3 05                  OUT   (LEDCOL),A   
+EC01   0E 08                  LD   C,08H   
+EC03   3E 80                  LD   A,80H   ;Start on top row
+EC05                LEDBB3:      
+EC05   D3 06                  OUT   (LEDROW),A   
+EC07   CD A3 EE               CALL   DELAY_Q   
+EC0A   CD BF EE               CALL   CHKSHIFT   
+EC0D   CB 0F                  RRC   A   ;Move down one bit
+EC0F   0D                     DEC   C   
+EC10   20 F3                  JR   NZ,LEDBB3   
+EC12   CB 00                  RLC   B   ;Move to next column
+EC14   18 D2                  JR   LEDBB1   ;Repeat
+EC16                             ;------------------------;
+EC16                             ;8x8 Animation - B Chiha ;
+EC16                             ;------------------------;
+EC16                             ;This is my code to animate the 8x8 by swapping page data to the 8x8
+EC16                LEDANI:      
+EC16   21 4E EC               LD   HL,ANIDAT   
+EC19   7E                     LD   A,(HL)   ;Page count
+EC1A   23                     INC   HL   
+EC1B   4F                     LD   C,A   
+EC1C                ANI1:        
+EC1C   C5                     PUSH   BC   
+EC1D   11 00 30               LD   DE,SCREEN   
+EC20   01 08 00               LD   BC,0008H   
+EC23   ED B0                  LDIR      ;Copy HL Through to screen area
+EC25   06 80                  LD   B,80H   
+EC27                ANI2:        
+EC27   E5                     PUSH   HL   ;Multiplex the 8x8
+EC28                ANI3:        
+EC28   C5                     PUSH   BC   
+EC29   06 01                  LD   B,01H   ;Counter for 8x8
+EC2B   21 00 30               LD   HL,SCREEN   
+EC2E                ANI4:        
+EC2E   7E                     LD   A,(HL)   ;Data
+EC2F   D3 06                  OUT   (LEDROW),A   
+EC31   78                     LD   A,B   ;Column
+EC32   D3 05                  OUT   (LEDCOL),A   
+EC34   06 20                  LD   B,20H   
+EC36   10 FE        ANI5:     DJNZ   ANI5   ;Wait
+EC38   CD BF EE               CALL   CHKSHIFT   
+EC3B   23                     INC   HL   
+EC3C   47                     LD   B,A   
+EC3D   AF                     XOR   A   ;Clear Data
+EC3E   D3 05                  OUT   (LEDCOL),A   
+EC40   CB 00                  RLC   B   ;Next Column
+EC42   30 EA                  JR   NC,ANI4   
+EC44   C1                     POP   BC   
+EC45   10 E1                  DJNZ   ANI3   ;Do it again
+EC47   E1                     POP   HL   
+EC48   C1                     POP   BC   
+EC49   0D                     DEC   C   ;Next Page
+EC4A   20 D0                  JR   NZ,ANI1   ;Do next screen
+EC4C   18 C8                  JR   LEDANI   
+EC4E   02           ANIDAT:   DB   02H   ;Page count
+EC4F   08 08 EB FC EA 09 04 00 DB   08H,08H,0EBH,0FCH,0EAH,09H,04H,00H   ;Boogie
+EC57   04 09 EA FC EB 08 08 00 DB   04H,09H,0EAH,0FCH,0EBH,08H,08H,00H   ;Woogie
+EC5F                             ;------------------------------;
+EC5F                             ;Aliens Attack - Issue 11 P 36 ;
+EC5F                             ;------------------------------;
+EC5F                             ;Aliens Attack Sound Effect, Uses Self changing code
+EC5F                ETATTC:      
+EC5F   21 72 EC               LD   HL,ET3+1   ;Updates DE data in code!
+EC62   3E 01                  LD   A,01H   
+EC64   77                     LD   (HL),A   
+EC65   06 30                  LD   B,30H   
+EC67                ET1:         
+EC67   CD 7F EC               CALL   ET5   ;Play Sound
+EC6A   34                     INC   (HL)   
+EC6B   10 FA                  DJNZ   ET1   
+EC6D   18 F0                  JR   ETATTC   
+EC6F                ET2:         ;SOUND  Delay
+EC6F   F5                     PUSH   AF   
+EC70   D5                     PUSH   DE   
+EC71                ET3:         
+EC71   11 20 00               LD   DE,0020H   
+EC74                ET4:         
+EC74   1B                     DEC   DE   
+EC75   7A                     LD   A,D   
+EC76   B3                     OR   E   
+EC77   20 FB                  JR   NZ,ET4   
+EC79   D1                     POP   DE   
+EC7A   F1                     POP   AF   
+EC7B   CD BF EE               CALL   CHKSHIFT   
+EC7E   C9                     RET      
+EC7F                ET5:         ;SOUND Play
+EC7F   F5                     PUSH   AF   
+EC80   C5                     PUSH   BC   
+EC81   01 AA 00               LD   BC,00AAH   
+EC84                ET6:         
+EC84   3E 80                  LD   A,80H   
+EC86   D3 01                  OUT   (DSCAN),A   
+EC88   3E 00                  LD   A,00H   
+EC8A   D3 01                  OUT   (DSCAN),A   
+EC8C   CD 6F EC               CALL   ET2   
+EC8F   0B                     DEC   BC   
+EC90   78                     LD   A,B   
+EC91   B1                     OR   C   
+EC92   20 F0                  JR   NZ,ET6   
+EC94   C1                     POP   BC   
+EC95   F1                     POP   AF   
+EC96   C9                     RET      
+EC97                             ;---------------------------;
+EC97                             ;Oscillator - Issue 12 P 22 ;
+EC97                             ;---------------------------;
+EC97                             ;Oscilate the Speaker
+EC97                OSCLAT:      
+EC97   3E 80                  LD   A,80H   
+EC99   D3 01                  OUT   (DSCAN),A   
+EC9B   CD 9E EE               CALL   DELAY_F   
+EC9E   CD BF EE               CALL   CHKSHIFT   
+ECA1   3E 00                  LD   A,00H   
+ECA3   D3 01                  OUT   (DSCAN),A   
+ECA5   CD 9E EE               CALL   DELAY_F   
+ECA8   CD BF EE               CALL   CHKSHIFT   
+ECAB   18 EA                  JR   OSCLAT   
+ECAD                             ;--------------------------------;
+ECAD                             ;Frequency Sweep - Issue 12 P 22 ;
+ECAD                             ;--------------------------------;
+ECAD                             ;Sweep through different Frequencies
+ECAD                FREQSP:      
+ECAD   26 FF                  LD   H,0FFH   
+ECAF   44                     LD   B,H   
+ECB0                FRQ1:        
+ECB0   3E 00                  LD   A,00H   ;Turn off
+ECB2   D3 01                  OUT   (DSCAN),A   
+ECB4   3E 80                  LD   A,80H   ;Turn on
+ECB6   D3 01                  OUT   (DSCAN),A   
+ECB8   78                     LD   A,B   
+ECB9                FRQ2:        
+ECB9   3D                     DEC   A   ;Quicken Delay
+ECBA   20 FD                  JR   NZ,FRQ2   
+ECBC   CD BF EE               CALL   CHKSHIFT   
+ECBF   10 EF                  DJNZ   FRQ1   
+ECC1   06 00                  LD   B,00H   
+ECC3                FRQ3:        
+ECC3   3E 00                  LD   A,00H   ;Turn off
+ECC5   D3 01                  OUT   (DSCAN),A   
+ECC7   3E 80                  LD   A,80H   ;Turn on
+ECC9   D3 01                  OUT   (DSCAN),A   
+ECCB   04                     INC   B   ;Longer Delay
+ECCC   78                     LD   A,B   
+ECCD                FRQ4:        
+ECCD   3D                     DEC   A   
+ECCE   20 FD                  JR   NZ,FRQ4   
+ECD0   7C                     LD   A,H   
+ECD1   90                     SUB   B   
+ECD2   CD BF EE               CALL   CHKSHIFT   
+ECD5   20 EC                  JR   NZ,FRQ3   
+ECD7   18 D4                  JR   FREQSP   
+ECD9                             ;-------------------------------------;
+ECD9                             ;Space Invaders Sound - Issue 14 P 14 ;
+ECD9                             ;-------------------------------------;
+ECD9                             ;Play a shooting space sound when the key "4" is pressed
+ECD9                SPCINV:      
+ECD9   26 FF                  LD   H,0FFH   
+ECDB   06 01                  LD   B,01H   
+ECDD                SPC1:        
+ECDD   04                     INC   B   
+ECDE   3E 80                  LD   A,80H   ;Toggle Speaker
+ECE0   D3 01                  OUT   (DSCAN),A   
+ECE2   CD FE EC               CALL   SPCDLY   
+ECE5   AF                     XOR   A   
+ECE6   D3 01                  OUT   (DSCAN),A   
+ECE8   CD FE EC               CALL   SPCDLY   
+ECEB   E7                     RST   20H   ;Check key "4"
+ECEC   FE 04                  CP   04H   
+ECEE   28 E9                  JR   Z,SPCINV   ;Start again if "4" pressed
+ECF0   25                     DEC   H   ;Just decrease sound
+ECF1   C2 DD EC               JP   NZ,SPC1   
+ECF4                SPC2:        
+ECF4   CD BF EE               CALL   CHKSHIFT   
+ECF7   E7                     RST   20H   ;If sound finished, wait for "4" to be pressed
+ECF8   FE 04                  CP   04H   
+ECFA   20 F8                  JR   NZ,SPC2   
+ECFC   18 DB                  JR   SPCINV   
+ECFE                SPCDLY:      
+ECFE   48                     LD   C,B   
+ECFF                SPC3:        
+ECFF   0D                     DEC   C   
+ED00   20 FD                  JR   NZ,SPC3   
+ED02   C9                     RET      
+ED03                             ;---------------------------;
+ED03                             ;Quick Draw - Issue 12 P 21 ;
+ED03                             ;---------------------------;
+ED03                             ;Who can press the key faster, When the letter "G" is shown, Player 1 uses the "+" key
+ED03                             ;and Player 2 uses the "C" key. Press any button to reset or Shift "GO" to exit
+ED03                QKDRAW:      
+ED03   AF                     XOR   A   
+ED04   D3 01                  OUT   (DSCAN),A   
+ED06   CD B6 EE               CALL   DELAY_FULL   
+ED09   3E E3                  LD   A,0E3H   ;G Letter
+ED0B   D3 02                  OUT   (DSEGMENT),A   
+ED0D   3E 08                  LD   A,08H   
+ED0F   D3 01                  OUT   (DSCAN),A   
+ED11                QKDL1:       
+ED11   CF                     RST   08H   ;Wait and Get Input
+ED12   FE 0C                  CP   0CH   ;If C is pressed Jump Right
+ED14   28 06                  JR   Z,QKDRT   
+ED16   FE 10                  CP   10H   ;If + is pressed Jump Left
+ED18   28 06                  JR   Z,QKDLT   
+ED1A   18 F5                  JR   QKDL1   
+ED1C                QKDRT:       
+ED1C   3E 01                  LD   A,01H   ;Right Segment
+ED1E   18 02                  JR   QDEND   
+ED20                QKDLT:       
+ED20   3E 20                  LD   A,20H   ;Left Segment
+ED22                QDEND:       
+ED22   D3 01                  OUT   (DSCAN),A   
+ED24   3E 28                  LD   A,28H   
+ED26   D3 02                  OUT   (DSEGMENT),A   
+ED28   CF                     RST   08H   ;Wait and Get Input
+ED29   CD BF EE               CALL   CHKSHIFT   
+ED2C   18 D5                  JR   QKDRAW   
+ED2E                             ;--------------------------;
+ED2E                             ;TEC Clock - Issue 12 P 23 ;
+ED2E                             ;--------------------------;
+ED2E                             ;A Real time Clock.  Works well with Crystal Oscillator set at 3.5795 MHz
+ED2E                             ;Initial Time set at 12:00:00.  Uses 3000 - 3009 for display and clock data
+ED2E                SCREEN:   EQU   3000H   ;Screen Display Start
+ED2E                SCREEN_E:   EQU   SCREEN+6   ;Screen Display End
+ED2E                CLKDATA:   EQU   3007H   ;Time Data
+ED2E                TECCLK:      
+ED2E   3E 00                  LD   A,00H   ;Set Time to 12:00:00
+ED30   32 07 30               LD   (CLKDATA),A   
+ED33   32 08 30               LD   (CLKDATA+1),A   
+ED36   3E 12                  LD   A,12H   
+ED38   32 09 30               LD   (CLKDATA+2),A   
+ED3B                CLKLOOP:      
+ED3B   FD 21 07 30            LD   IY,CLKDATA   
+ED3F   06 02                  LD   B,02H   
+ED41                CLK1:        
+ED41   FD 7E 00               LD   A,(IY+0)   ;Convert Seconds and Minutes
+ED44   C6 01                  ADD   A,01H   ;Increase by 1 Second
+ED46   27                     DAA      
+ED47   FE 60                  CP   60H   ;Reset at 60
+ED49   20 13                  JR   NZ,CLKDIS   ;If not 60 seconds then display clock
+ED4B   AF                     XOR   A   ;Set Min / Sec to 0
+ED4C   FD 77 00               LD   (IY+0),A   ;Save updated value
+ED4F   FD 23                  INC   IY   ;Inc from Sec to Min to Hour
+ED51   10 EE                  DJNZ   CLK1   ;If here update minutes
+ED53   FD 7E 00               LD   A,(IY+0)   ;Convert Hours
+ED56   C6 01                  ADD   A,01H   ;Increase hours by one
+ED58   27                     DAA      
+ED59   FE 24                  CP   24H   ;Reset at 24
+ED5B   20 01                  JR   NZ,CLKDIS   ;If not 24 then update clock
+ED5D   AF                     XOR   A   ;Set Hour to 0
+ED5E                CLKDIS:      ;Display the Clock screen
+ED5E   FD 77 00               LD   (IY+0),A   ;Save update value
+ED61   06 03                  LD   B,03H   
+ED63   21 06 30               LD   HL,SCREEN_E   ;Work backwards from S->M->H
+ED66   DD 21 07 30            LD   IX,CLKDATA   
+ED6A                CLK2:        
+ED6A   DD 7E 00               LD   A,(IX+0)   ;Get Clock data (H/M/S)
+ED6D   DD 23                  INC   IX   
+ED6F   C5                     PUSH   BC   
+ED70   F5                     PUSH   AF   
+ED71   E6 0F                  AND   0FH   ;Convert low nibble from hex to seven segment
+ED73   47                     LD   B,A   
+ED74   CD B1 ED               CALL   TBLLOOKUP   ;Convert and update display at HL
+ED77   F1                     POP   AF   
+ED78   CB 3F                  SRL   A   ;Now get the high nibble
+ED7A   CB 3F                  SRL   A   
+ED7C   CB 3F                  SRL   A   
+ED7E   CB 3F                  SRL   A   
+ED80   47                     LD   B,A   
+ED81   CD B1 ED               CALL   TBLLOOKUP   ;Convert and update display at HL
+ED84   C1                     POP   BC   
+ED85   10 E3                  DJNZ   CLK2   ;Do for S, M, then H
+ED87   06 FC                  LD   B,0FCH   
+ED89                CLK3:        ;Multiplex the Screen
+ED89   DD 21 00 30            LD   IX,SCREEN   
+ED8D   C5                     PUSH   BC   
+ED8E   06 07                  LD   B,07H   
+ED90   0E 40                  LD   C,40H   ;Start from Left (Hr) and go to right (Sec)
+ED92                CLK4:        
+ED92   DD 7E 00               LD   A,(IX+0)   
+ED95   D3 02                  OUT   (DSEGMENT),A   
+ED97   79                     LD   A,C   
+ED98   D3 01                  OUT   (DSCAN),A   
+ED9A   CB 39                  SRL   C   ;Move to next segment
+ED9C   AF                     XOR   A   
+ED9D   1E 87                  LD   E,87H   ;Timing to keep display on for 1 second
+ED9F                CLK5:        
+ED9F   1D                     DEC   E   
+EDA0   20 FD                  JR   NZ,CLK5   
+EDA2   D3 01                  OUT   (DSCAN),A   ;Clear screen
+EDA4   DD 23                  INC   IX   
+EDA6   10 EA                  DJNZ   CLK4   
+EDA8   C1                     POP   BC   
+EDA9   CD BF EE               CALL   CHKSHIFT   
+EDAC   10 DB                  DJNZ   CLK3   
+EDAE   C3 BD ED               JP   TIMEDELAY   ;More delay for one second display
+EDB1                TBLLOOKUP:      ;Convert Hex to Seven Segment
+EDB1   11 D9 EE               LD   DE,HEX2SEG   
+EDB4   F5                     PUSH   AF   
+EDB5   7B                     LD   A,E   
+EDB6   80                     ADD   A,B   
+EDB7   5F                     LD   E,A   
+EDB8   1A                     LD   A,(DE)   
+EDB9   77                     LD   (HL),A   
+EDBA   2B                     DEC   HL   
+EDBB   F1                     POP   AF   
+EDBC   C9                     RET      
+EDBD                TIMEDELAY:      
+EDBD   06 27                  LD   B,27H   ;Timing to keep display on for 1 second
+EDBF                CLK6:        
+EDBF   10 FE                  DJNZ   CLK6   
+EDC1   C3 3B ED               JP   CLKLOOP   
+EDC4                             ;---------------------------;
+EDC4                             ;Counter #1 - Issue 13 P 14 ;
+EDC4                             ;---------------------------;
+EDC4                             ;Counter from 0-9 example, uses a lookup table to convert from HEX to Seven Segment
+EDC4                             ;Use "4" key to increment
+EDC4                COUNT1:      
+EDC4   3E 01                  LD   A,01H   
+EDC6   D3 01                  OUT   (DSCAN),A   
+EDC8   21 D9 EE               LD   HL,HEX2SEG   ;Look at TEC Clock
+EDCB   06 0A                  LD   B,0AH   ;Ten Numbers
+EDCD                CNT11:       
+EDCD   7E                     LD   A,(HL)   
+EDCE   D3 02                  OUT   (DSEGMENT),A   
+EDD0                CNT12:       
+EDD0   CF                     RST   08H   
+EDD1   CD BF EE               CALL   CHKSHIFT   
+EDD4   FE 04                  CP   04H   ;Key "4" Pressed
+EDD6   20 F8                  JR   NZ,CNT12   ;Loop until "4" key pressed
+EDD8   23                     INC   HL   ;Increment Number
+EDD9   10 F2                  DJNZ   CNT11   
+EDDB   18 E7                  JR   COUNT1   ;Once 9 is reached, reset to 0
+EDDD                             ;---------------------------;
+EDDD                             ;Counter #2 - Issue 13 P 15 ;
+EDDD                             ;---------------------------;
+EDDD                             ;Counter from 00-99 example, uses a lookup table to convert from HEX to Seven Segment
+EDDD                             ;Use "4" key to increment. Uses HL for Ones and DE for Tens.
+EDDD                COUNT2:      
+EDDD   AF                     XOR   A   
+EDDE   11 D9 EE               LD   DE,HEX2SEG   
+EDE1                CNT21:       
+EDE1   21 D9 EE               LD   HL,HEX2SEG   
+EDE4                CNT2PLEX:      
+EDE4   AF                     XOR   A   ;Output HL (Ones) to first segment
+EDE5   D3 01                  OUT   (DSCAN),A   
+EDE7   7E                     LD   A,(HL)   
+EDE8   D3 02                  OUT   (DSEGMENT),A   
+EDEA   3E 01                  LD   A,01H   ;First Segment
+EDEC   D3 01                  OUT   (DSCAN),A   
+EDEE   06 10                  LD   B,10H   
+EDF0   10 FE        CNT22:    DJNZ   CNT22   
+EDF2   CD BF EE               CALL   CHKSHIFT   
+EDF5   AF                     XOR   A   ;Output DE (Ones) to first segment
+EDF6   D3 01                  OUT   (DSCAN),A   
+EDF8   1A                     LD   A,(DE)   
+EDF9   D3 02                  OUT   (DSEGMENT),A   
+EDFB   3E 02                  LD   A,02H   ;Second Segment
+EDFD   D3 01                  OUT   (DSCAN),A   
+EDFF   06 10                  LD   B,10H   
+EE01   10 FE        CNT23:    DJNZ   CNT23   
+EE03   CD BF EE               CALL   CHKSHIFT   
+EE06   E7                     RST   20H   
+EE07   FE 04                  CP   04H   
+EE09   20 D9                  JR   NZ,CNT2PLEX   ;Loop if "4" not pressed
+EE0B   AF                     XOR   A   
+EE0C   23                     INC   HL   ;Increase Ones
+EE0D   7E                     LD   A,(HL)   
+EE0E   FE FF                  CP   0FFH   ;If passed 9 increase Tens
+EE10   20 D2                  JR   NZ,CNT2PLEX   
+EE12   13                     INC   DE   ;Increase Tens
+EE13   1A                     LD   A,(DE)   
+EE14   FE FF                  CP   0FFH   ;If not passed 9
+EE16   20 C9                  JR   NZ,CNT21   ;Reset Ones
+EE18   18 C3                  JR   COUNT2   ;Else Restart
+EE1A                             ;---------------------------;
+EE1A                             ;Counter #3 - Issue 13 P 16 ;
+EE1A                             ;---------------------------;
+EE1A                             ;Counter from 000-999 example, uses a lookup table to convert from HEX to Seven Segment
+EE1A                             ;Use "+" key to increment, "-" key to decrement and "AD" key to clear
+EE1A                COUNT3:      
+EE1A   21 03 30               LD   HL,SCREEN+3   
+EE1D   AF                     XOR   A   
+EE1E   77                     LD   (HL),A   
+EE1F   23                     INC   HL   
+EE20   77                     LD   (HL),A   
+EE21                CNT3LOOP:      
+EE21   01 00 30               LD   BC,SCREEN   
+EE24   11 03 30               LD   DE,SCREEN+3   
+EE27   1A                     LD   A,(DE)   
+EE28   CD 68 EE               CALL   BITE2N   
+EE2B   13                     INC   DE   
+EE2C   1A                     LD   A,(DE)   
+EE2D   CD 75 EE               CALL   NIBBLE   
+EE30   21 02 30               LD   HL,SCREEN+2   
+EE33   CD 80 EE               CALL   CNT3PLEX   
+EE36   21 03 30               LD   HL,SCREEN+3   
+EE39   E7                     RST   20H   
+EE3A                INCREMENT:      
+EE3A   FE 10                  CP   10H   
+EE3C   20 0D                  JR   NZ,DECREMENT   
+EE3E   7E                     LD   A,(HL)   
+EE3F   3C                     INC   A   
+EE40   27                     DAA      
+EE41   77                     LD   (HL),A   
+EE42   30 20                  JR   NC,CLEAR   
+EE44   23                     INC   HL   
+EE45   7E                     LD   A,(HL)   
+EE46   3C                     INC   A   
+EE47   27                     DAA      
+EE48   77                     LD   (HL),A   
+EE49   18 19                  JR   CLEAR   
+EE4B                DECREMENT:      
+EE4B   FE 11                  CP   11H   
+EE4D   20 0D                  JR   NZ,RESET   
+EE4F   7E                     LD   A,(HL)   
+EE50   3D                     DEC   A   
+EE51   27                     DAA      
+EE52   77                     LD   (HL),A   
+EE53   30 0F                  JR   NC,CLEAR   
+EE55   23                     INC   HL   
+EE56   7E                     LD   A,(HL)   
+EE57   3D                     DEC   A   
+EE58   27                     DAA      
+EE59   77                     LD   (HL),A   
+EE5A   18 08                  JR   CLEAR   
+EE5C                RESET:       
+EE5C   FE 13                  CP   13H   
+EE5E   20 04                  JR   NZ,CLEAR   
+EE60   AF                     XOR   A   
+EE61   77                     LD   (HL),A   
+EE62   23                     INC   HL   
+EE63   77                     LD   (HL),A   
+EE64                CLEAR:       
+EE64   3E FF                  LD   A,0FFH   
+EE66   18 B9                  JR   CNT3LOOP   
+EE68                BITE2N:      
+EE68   F5                     PUSH   AF   
+EE69   CD 75 EE               CALL   NIBBLE   
+EE6C   F1                     POP   AF   
+EE6D   1F                     RRA      
+EE6E   1F                     RRA      
+EE6F   1F                     RRA      
+EE70   1F                     RRA      
+EE71   CD 75 EE               CALL   NIBBLE   
+EE74   C9                     RET      
+EE75                NIBBLE:      
+EE75   E6 0F                  AND   0FH   
+EE77   21 D9 EE               LD   HL,HEX2SEG   
+EE7A   85                     ADD   A,L   
+EE7B   6F                     LD   L,A   
+EE7C   7E                     LD   A,(HL)   
+EE7D   02                     LD   (BC),A   
+EE7E   03                     INC   BC   
+EE7F   C9                     RET      
+EE80                CNT3PLEX:      
+EE80   06 04                  LD   B,04H   
+EE82                CNT31:       
+EE82   7E                     LD   A,(HL)   
+EE83   D3 02                  OUT   (DSEGMENT),A   
+EE85   78                     LD   A,B   
+EE86   D3 01                  OUT   (DSCAN),A   
+EE88   06 50                  LD   B,50H   
+EE8A   10 FE        CNT32:    DJNZ   CNT32   
+EE8C   CD BF EE               CALL   CHKSHIFT   
+EE8F   2B                     DEC   HL   
+EE90   47                     LD   B,A   
+EE91   AF                     XOR   A   
+EE92   D3 01                  OUT   (DSCAN),A   
+EE94   CB 08                  RRC   B   
+EE96   30 EA                  JR   NC,CNT31   
+EE98   C9                     RET      
+EE99                             ;------------------;
+EE99                             ; Utility Routines ;
+EE99                             ;------------------;
+EE99                             ;The following are general utility routines that are used across all programs
+EE99                             ;General Delay Routine, Really Fast Timer Delay
+EE99                DELAY_RF:      
+EE99   C5                     PUSH   BC   
+EE9A   06 01                  LD   B,01H   
+EE9C   18 0F                  JR   DELAY   
+EE9E                             ;General Delay Routine, Fast Timer Delay
+EE9E                DELAY_F:      
+EE9E   C5                     PUSH   BC   
+EE9F   06 10                  LD   B,10H   
+EEA1   18 0A                  JR   DELAY   
+EEA3                             ;General Delay Routine, Quick Timer Delay
+EEA3                DELAY_Q:      
+EEA3   C5                     PUSH   BC   
+EEA4   06 20                  LD   B,20H   
+EEA6   18 05                  JR   DELAY   
+EEA8                             ;General Delay Routine, Mid Timer Delay
+EEA8                DELAY_M:      
+EEA8   C5                     PUSH   BC   
+EEA9   06 55                  LD   B,55H   
+EEAB   18 00                  JR   DELAY   
+EEAD                             ;Delay Routine (Actual)
+EEAD                DELAY:       
+EEAD   0E FF                  LD   C,0FFH   
+EEAF                D1:          
+EEAF   0D                     DEC   C   
+EEB0   20 FD                  JR   NZ,D1   
+EEB2   10 F9                  DJNZ   DELAY   
+EEB4   C1                     POP   BC   
+EEB5   C9                     RET      
+EEB6                             ;General Delay Routine, Full 16 byte Delay
+EEB6                DELAY_FULL:      
+EEB6   11 00 00               LD   DE,0000H   
+EEB9                D3:          
+EEB9   1B                     DEC   DE   
+EEBA   7A                     LD   A,D   
+EEBB   B3                     OR   E   
+EEBC   20 FB                  JR   NZ,D3   
+EEBE   C9                     RET      
+EEBF                             ;Menu Return checks if a Shift "Go" has been pressed.  If so then jump back to action
+EEBF                CHKSHIFT:      
+EEBF   F5                     PUSH   AF   
+EEC0   DB 03                  IN   A,(KEYPRESS)   ;Check for key pressed
+EEC2   CB 77                  BIT   6,A   
+EEC4   20 11                  JR   NZ,CHKS1   ;Exit if no key pressed
+EEC6   DB 00                  IN   A,(KEYBOARD)   ;Get actual key
+EEC8   CB 6F                  BIT   5,A   ;Has shift been pressed?
+EECA   20 0B                  JR   NZ,CHKS1   ;Exit if shift not pressed
+EECC   E6 1F                  AND   1FH   ;Mask unwanted bits
+EECE   FE 12                  CP   12H   ;"GO" pressed
+EED0   20 05                  JR   NZ,CHKS1   
+EED2   F1                     POP   AF   ;Restore Stack
+EED3   C1                     POP   BC   ;Fake POP to remove PC as we aren't returning
+EED4   C3 0B E8               JP   MENU   ;GOTO Menu
+EED7                CHKS1:       
+EED7   F1                     POP   AF   
+EED8   C9                     RET      
+EED9                             ;Hex to Seven Segment Lookup table that converts 0x00-0x09 its Visual equivilant
+EED9                HEX2SEG:      ;0-9 in seven segments
+EED9   EB 28 CD AD 2E A7 E7 29 EF AF DB   0EBH,28H,0CDH,0ADH,2EH,0A7H,0E7H,29H,0EFH,0AFH   
+EEE3   FF                     DB   0FFH   ;This is only used for Counter #2 (Because it's inefficient!)
+EEE4                             ;Menu Command String
+EEE4                M_DATA:      
+EEE4   FF FF                  DB   0xFF,0xFF   ; Blank
+EEE6   00 1D                  DB   0x00,0x1D   ; First menu item and number of menu items, = 30
+EEE8   EF EE                  DW   MENU_JP_TBL   ; Jump table for menu items
+EEEA   49 EF                  DW   MENU_AD_TBL   ; Menu Address LED display table
+EEEC   C1 EF                  DW   MENU_DA_TBL   ; Menu Data LED display table
+EEEE   C9                     DB   0xC9   ; return (unused)
+EEEF                MENU_JP_TBL:      ; Menu Jump table
+EEEF                             ; Seven Segment Routines
+EEEF   C3 0E E8               JP   SEGMOV   ; Segment Move
+EEF2   C3 1D E8               JP   SEGCYC   ; Segment Cycle
+EEF5   C3 2E E8               JP   SEGFLH   ; Segment Flash
+EEF8   C3 44 E8               JP   SEGRND1   ; Segment Around #1
+EEFB   C3 9C E8               JP   SEGRND2   ; Segment Around #2
+EEFE   C3 D3 E8               JP   SEGRND3   ; Segment Around #3
+EF01   C3 00 E9               JP   SEGBAF   ; Segment B & F
+EF04   C3 20 E9               JP   SEGKBD   ; Segment Keyboard Move
+EF07   C3 3C E9               JP   SEGKBR   ; Segment Keyboard Move with Run
+EF0A   C3 61 E9               JP   SEGTWO   ; Segment display two
+EF0D   C3 B4 E9               JP   SEGBOX   ; Segment Box animation
+EF10   C3 5C EA               JP   SEGBRG   ; Segment Boomerang
+EF13                             ; 8x8 LED Routines
+EF13   C3 97 EA               JP   LEDRND   ; 8x8 LED Around
+EF16   C3 E9 EA               JP   LEDBAF   ; 8x8 LED B & F
+EF19   C3 11 EB               JP   LEDFN1   ; 8x8 LED Fanout #1
+EF1C   C3 23 EB               JP   LEDFN2   ; 8x8 LED Fanout #2
+EF1F   C3 45 EB               JP   LEDFN3   ; 8x8 LED Fanout #3
+EF22   C3 66 EB               JP   LEDMYS   ; 8x8 LED Mystery Effect
+EF25   C3 B3 EB               JP   LEDKBD   ; 8x8 LED Keyboard Move
+EF28   C3 E6 EB               JP   LEDBBL   ; 8x8 LED Ball Bounce
+EF2B   C3 16 EC               JP   LEDANI   ; 8x8 LED Animation
+EF2E                             ; Sound Routines
+EF2E   C3 5F EC               JP   ETATTC   ; Aliens Attack Sound
+EF31   C3 97 EC               JP   OSCLAT   ; Oscilate the Speaker
+EF34   C3 AD EC               JP   FREQSP   ; Frequency Sweep
+EF37   C3 D9 EC               JP   SPCINV   ; Space Invaders
+EF3A                             ; Other Routines
+EF3A   C3 03 ED               JP   QKDRAW   ; Quick Draw
+EF3D   C3 2E ED               JP   TECCLK   ; TEC Clock
+EF40   C3 C4 ED               JP   COUNT1   ; Counter 0-9
+EF43   C3 DD ED               JP   COUNT2   ; Counter 00-99
+EF46   C3 1A EE               JP   COUNT3   ; Counter 000-999
+EF49                MENU_AD_TBL:      ; Menu Display for ADDRESS LEDs
+EF49                             ; Seven Segment Routines
+EF49   A7 C7 E3 A7            DB   0xA7,0xC7,0xE3,0xA7   ; "SEGS"
+EF4D   A7 C7 E3 C3            DB   0xA7,0xC7,0xE3,0xC3   ; "SEGC"
+EF51   A7 C7 E3 47            DB   0xA7,0xC7,0xE3,0x47   ; "SEGF"
+EF55   A7 C7 E3 44            DB   0xA7,0xC7,0xE3,0x44   ; "SEGr"
+EF59   A7 C7 E3 44            DB   0xA7,0xC7,0xE3,0x44   ; "SEGr"
+EF5D   A7 C7 E3 44            DB   0xA7,0xC7,0xE3,0x44   ; "SEGr"
+EF61   A7 C7 E3 E6            DB   0xA7,0xC7,0xE3,0xE6   ; "SEGb"
+EF65   A7 C7 E3 67            DB   0xA7,0xC7,0xE3,0x67   ; "SEGK"
+EF69   A7 C7 E3 67            DB   0xA7,0xC7,0xE3,0x67   ; "SEGK"
+EF6D   A7 C7 E3 C6            DB   0xA7,0xC7,0xE3,0xC6   ; "SEGt"
+EF71   A7 C7 E3 E6            DB   0xA7,0xC7,0xE3,0xE6   ; "SEGb"
+EF75   A7 C7 E3 E6            DB   0xA7,0xC7,0xE3,0xE6   ; "SEGb"
+EF79                             ; 8x8 LED Routines
+EF79   C2 C7 EC 44            DB   0xC2,0xC7,0xEC,0x44   ; "LEdr"
+EF7D   C2 C7 EC E6            DB   0xC2,0xC7,0xEC,0xE6   ; "LEdb"
+EF81   C2 C7 EC 47            DB   0xC2,0xC7,0xEC,0x47   ; "LEdF"
+EF85   C2 C7 EC 47            DB   0xC2,0xC7,0xEC,0x47   ; "LEdF"
+EF89   C2 C7 EC 47            DB   0xC2,0xC7,0xEC,0x47   ; "LEdF"
+EF8D   C2 C7 EC C7            DB   0xC2,0xC7,0xEC,0xC7   ; "LEdE"
+EF91   C2 C7 EC 67            DB   0xC2,0xC7,0xEC,0x67   ; "LEdK"
+EF95   C2 C7 EC E6            DB   0xC2,0xC7,0xEC,0xE6   ; "LEdb"
+EF99   C2 C7 EC 6F            DB   0xC2,0xC7,0xEC,0x6F   ; "LEdA"
+EF9D                             ; Sound Routines
+EF9D   C7 C6 6F C6            DB   0xC7,0xC6,0x6F,0xC6   ; "EtAt"
+EFA1   EB A7 C3 C2            DB   0xEB,0xA7,0xC3,0xC2   ; "OSCL"
+EFA5   47 44 C7 3F            DB   0x47,0x44,0xC7,0x3F   ; "FREq"
+EFA9   A7 4F C3 28            DB   0xA7,0x4F,0xC3,0x28   ; "SPCI"
+EFAD                             ; Other Routines
+EFAD   3F EA EC 44            DB   0x3F,0xEA,0xEC,0x44   ; "qUdr"
+EFB1   C6 C7 C3 C3            DB   0xC6,0xC7,0xC3,0xC3   ; "tECC"
+EFB5   C3 EB EA 6B            DB   0xC3,0xEB,0xEA,0x6B   ; "COUn"
+EFB9   C3 EB EA 6B            DB   0xC3,0xEB,0xEA,0x6B   ; "COUn"
+EFBD   C3 EB EA 6B            DB   0xC3,0xEB,0xEA,0x6B   ; "COUn"
+EFC1                MENU_DA_TBL:      ; Menu Display for DATA LEDs
+EFC1                             ; Seven Segment Routines
+EFC1   47 C6                  DB   0x47,0xC6   ; "Ft"
+EFC3   AE C3                  DB   0xAE,0xC3   ; "yC"
+EFC5   C2 6E                  DB   0xC2,0x6E   ; "LH"
+EFC7   EC 28                  DB   0xEC,0x28   ; "d1"
+EFC9   EC CD                  DB   0xEC,0xCD   ; "d2"
+EFCB   EC AD                  DB   0xEC,0xAD   ; "d3"
+EFCD   6F 47                  DB   0x6F,0x47   ; "AF"
+EFCF   E6 EC                  DB   0xE6,0xEC   ; "bd"
+EFD1   E6 44                  DB   0xE6,0x44   ; "br"
+EFD3   E1 EB                  DB   0xE1,0xEB   ; "wO"
+EFD5   EB 26                  DB   0xEB,0x26   ; "OX"
+EFD7   44 E3                  DB   0x44,0xE3   ; "rX"
+EFD9                             ; 8x8 LED Routines
+EFD9   6B EC                  DB   0x6B,0xEC   ; "nd"
+EFDB   6F 47                  DB   0x6F,0x47   ; "AF"
+EFDD   6B 28                  DB   0x6B,0x28   ; "n1"
+EFDF   6B CD                  DB   0x6B,0xCD   ; "n2"
+EFE1   6B AD                  DB   0x6B,0xAD   ; "n3"
+EFE3   47 47                  DB   0x47,0x47   ; "FF"
+EFE5   E6 EC                  DB   0xE6,0xEC   ; "bd"
+EFE7   E6 C2                  DB   0xE6,0xC2   ; "bL"
+EFE9   6B 28                  DB   0x6B,0x28   ; "nI"
+EFEB                             ; Sound Routines
+EFEB   C6 C3                  DB   0xC6,0xC3   ; "tC"
+EFED   6F C6                  DB   0x6F,0xC6   ; "At"
+EFEF   A7 4F                  DB   0xA7,0x4F   ; "SP"
+EFF1   6B E0                  DB   0x6B,0xE0   ; "nv"
+EFF3                             ; Other Routines
+EFF3   6F E1                  DB   0x6F,0xE1   ; "Aw"
+EFF5   C2 67                  DB   0xC2,0x67   ; "Lk"
+EFF7   C6 28                  DB   0xC6,0x28   ; "t1"
+EFF9   C6 CD                  DB   0xC6,0xCD   ; "t2"
+EFFB   C6 AD                  DB   0xC6,0xAD   ; "t3"
+EFFD   FF FF FF               DB   0xFF,0xFF,0xFF   ;EOF Buffer to make 2K
+
+
+KEYBOARD:           0000 DEFINED AT LINE 57
+                    > USED AT LINE 1236
+DSCAN:              0001 DEFINED AT LINE 58
+                    > USED AT LINE 86
+                    > USED AT LINE 98
+                    > USED AT LINE 117
+                    > USED AT LINE 120
+                    > USED AT LINE 135
+                    > USED AT LINE 158
+                    > USED AT LINE 184
+                    > USED AT LINE 216
+                    > USED AT LINE 245
+                    > USED AT LINE 253
+                    > USED AT LINE 271
+                    > USED AT LINE 293
+                    > USED AT LINE 311
+                    > USED AT LINE 324
+                    > USED AT LINE 336
+                    > USED AT LINE 348
+                    > USED AT LINE 359
+                    > USED AT LINE 378
+                    > USED AT LINE 385
+                    > USED AT LINE 424
+                    > USED AT LINE 794
+                    > USED AT LINE 796
+                    > USED AT LINE 812
+                    > USED AT LINE 816
+                    > USED AT LINE 830
+                    > USED AT LINE 832
+                    > USED AT LINE 843
+                    > USED AT LINE 845
+                    > USED AT LINE 867
+                    > USED AT LINE 870
+                    > USED AT LINE 898
+                    > USED AT LINE 903
+                    > USED AT LINE 917
+                    > USED AT LINE 990
+                    > USED AT LINE 997
+                    > USED AT LINE 1028
+                    > USED AT LINE 1055
+                    > USED AT LINE 1059
+                    > USED AT LINE 1064
+                    > USED AT LINE 1068
+                    > USED AT LINE 1172
+                    > USED AT LINE 1179
+DSEGMENT:           0002 DEFINED AT LINE 59
+                    > USED AT LINE 84
+                    > USED AT LINE 102
+                    > USED AT LINE 114
+                    > USED AT LINE 131
+                    > USED AT LINE 145
+                    > USED AT LINE 149
+                    > USED AT LINE 154
+                    > USED AT LINE 168
+                    > USED AT LINE 172
+                    > USED AT LINE 203
+                    > USED AT LINE 227
+                    > USED AT LINE 243
+                    > USED AT LINE 267
+                    > USED AT LINE 292
+                    > USED AT LINE 326
+                    > USED AT LINE 338
+                    > USED AT LINE 350
+                    > USED AT LINE 361
+                    > USED AT LINE 380
+                    > USED AT LINE 383
+                    > USED AT LINE 387
+                    > USED AT LINE 427
+                    > USED AT LINE 901
+                    > USED AT LINE 919
+                    > USED AT LINE 988
+                    > USED AT LINE 1033
+                    > USED AT LINE 1057
+                    > USED AT LINE 1066
+                    > USED AT LINE 1170
+KEYPRESS:           0003 DEFINED AT LINE 60
+                    > USED AT LINE 1233
+LEDROW:             0006 DEFINED AT LINE 61
+                    > USED AT LINE 446
+                    > USED AT LINE 462
+                    > USED AT LINE 470
+                    > USED AT LINE 486
+                    > USED AT LINE 507
+                    > USED AT LINE 517
+                    > USED AT LINE 535
+                    > USED AT LINE 551
+                    > USED AT LINE 560
+                    > USED AT LINE 578
+                    > USED AT LINE 598
+                    > USED AT LINE 606
+                    > USED AT LINE 619
+                    > USED AT LINE 648
+                    > USED AT LINE 676
+                    > USED AT LINE 692
+                    > USED AT LINE 704
+                    > USED AT LINE 737
+LEDCOL:             0005 DEFINED AT LINE 62
+                    > USED AT LINE 450
+                    > USED AT LINE 458
+                    > USED AT LINE 474
+                    > USED AT LINE 482
+                    > USED AT LINE 503
+                    > USED AT LINE 534
+                    > USED AT LINE 550
+                    > USED AT LINE 559
+                    > USED AT LINE 577
+                    > USED AT LINE 595
+                    > USED AT LINE 609
+                    > USED AT LINE 618
+                    > USED AT LINE 646
+                    > USED AT LINE 663
+                    > USED AT LINE 688
+                    > USED AT LINE 700
+                    > USED AT LINE 739
+                    > USED AT LINE 746
+START:              E800 DEFINED AT LINE 65
+MENU:               E80B DEFINED AT LINE 71
+                    > USED AT LINE 1244
+SEGMOV:             E80E DEFINED AT LINE 82
+                    > USED AT LINE 1265
+SML1:               E812 DEFINED AT LINE 85
+                    > USED AT LINE 90
+SEGCYC:             E81D DEFINED AT LINE 96
+                    > USED AT LINE 1266
+SEGC1:              E822 DEFINED AT LINE 100
+                    > USED AT LINE 106
+SEGFLH:             E82E DEFINED AT LINE 112
+                    > USED AT LINE 1267
+SEGF1:              E832 DEFINED AT LINE 115
+                    > USED AT LINE 123
+SEGRND1:            E844 DEFINED AT LINE 129
+                    > USED AT LINE 176
+                    > USED AT LINE 1268
+SEGR11:             E84C DEFINED AT LINE 134
+                    > USED AT LINE 142
+SEGR12:             E877 DEFINED AT LINE 157
+                    > USED AT LINE 165
+SEGRND2:            E89C DEFINED AT LINE 182
+                    > USED AT LINE 201
+                    > USED AT LINE 1269
+SEGR21:             E8CA DEFINED AT LINE 202
+                    > USED AT LINE 186
+                    > USED AT LINE 188
+                    > USED AT LINE 190
+                    > USED AT LINE 192
+                    > USED AT LINE 194
+                    > USED AT LINE 196
+                    > USED AT LINE 198
+                    > USED AT LINE 200
+SEGRND3:            E8D3 DEFINED AT LINE 212
+                    > USED AT LINE 221
+                    > USED AT LINE 1270
+SEGR31:             E8D5 DEFINED AT LINE 214
+                    > USED AT LINE 220
+SEGLKP:             E8E3 DEFINED AT LINE 222
+                    > USED AT LINE 217
+SEGR32:             E8E8 DEFINED AT LINE 225
+                    > USED AT LINE 232
+SEGTAB:             E8F7 DEFINED AT LINE 234
+                    > USED AT LINE 223
+SEGBAF:             E900 DEFINED AT LINE 241
+                    > USED AT LINE 1271
+SEGB1:              E904 DEFINED AT LINE 244
+                    > USED AT LINE 250
+                    > USED AT LINE 258
+SEGB2:              E911 DEFINED AT LINE 251
+                    > USED AT LINE 256
+SEGKBD:             E920 DEFINED AT LINE 265
+                    > USED AT LINE 1272
+SEGK1:              E925 DEFINED AT LINE 269
+                    > USED AT LINE 279
+                    > USED AT LINE 284
+SKEYWAIT:           E928 DEFINED AT LINE 272
+                    > USED AT LINE 282
+SLEFT:              E92C DEFINED AT LINE 275
+SRIGHT:             E934 DEFINED AT LINE 280
+                    > USED AT LINE 277
+SEGKBR:             E93C DEFINED AT LINE 290
+                    > USED AT LINE 1273
+SEGKR1:             E943 DEFINED AT LINE 295
+                    > USED AT LINE 306
+                    > USED AT LINE 314
+SRLEFT:             E947 DEFINED AT LINE 299
+                    > USED AT LINE 297
+SRRIGHT:            E94F DEFINED AT LINE 304
+                    > USED AT LINE 301
+SRMOVE:             E955 DEFINED AT LINE 308
+                    > USED AT LINE 303
+SEGTWO:             E961 DEFINED AT LINE 320
+                    > USED AT LINE 356
+                    > USED AT LINE 1274
+SEGT1:              E963 DEFINED AT LINE 322
+                    > USED AT LINE 331
+SEGT2:              E979 DEFINED AT LINE 334
+                    > USED AT LINE 343
+SEGT3:              E98F DEFINED AT LINE 346
+                    > USED AT LINE 355
+SECOND:             E9A5 DEFINED AT LINE 357
+                    > USED AT LINE 329
+                    > USED AT LINE 341
+                    > USED AT LINE 353
+SEGBOX:             E9B4 DEFINED AT LINE 370
+                    > USED AT LINE 398
+                    > USED AT LINE 1275
+BOX1:               E9BC DEFINED AT LINE 374
+                    > USED AT LINE 397
+BOX2:               E9BE DEFINED AT LINE 376
+                    > USED AT LINE 391
+BOX3:               E9C8 DEFINED AT LINE 381
+                    > USED AT LINE 381
+BOX4:               E9D7 DEFINED AT LINE 388
+                    > USED AT LINE 388
+BOXTAB:             E9EC DEFINED AT LINE 399
+                    > USED AT LINE 371
+SEGBRG:             EA5C DEFINED AT LINE 419
+                    > USED AT LINE 432
+                    > USED AT LINE 1276
+BRG1:               EA61 DEFINED AT LINE 422
+                    > USED AT LINE 431
+BRGTAB:             EA73 DEFINED AT LINE 433
+                    > USED AT LINE 420
+LEDRND:             EA97 DEFINED AT LINE 444
+                    > USED AT LINE 493
+                    > USED AT LINE 1279
+LEDR1:              EA9F DEFINED AT LINE 449
+                    > USED AT LINE 455
+LEDR2:              EAB3 DEFINED AT LINE 461
+                    > USED AT LINE 467
+LEDR3:              EAC7 DEFINED AT LINE 473
+                    > USED AT LINE 479
+LEDR4:              EADB DEFINED AT LINE 485
+                    > USED AT LINE 491
+LEDBAF:             EAE9 DEFINED AT LINE 499
+                    > USED AT LINE 1280
+LEDB1:              EAEB DEFINED AT LINE 501
+                    > USED AT LINE 525
+LEDB2:              EAF2 DEFINED AT LINE 506
+                    > USED AT LINE 512
+LEDB3:              EB02 DEFINED AT LINE 516
+                    > USED AT LINE 522
+LEDFN1:             EB11 DEFINED AT LINE 531
+                    > USED AT LINE 541
+                    > USED AT LINE 1281
+LEDF11:             EB13 DEFINED AT LINE 533
+                    > USED AT LINE 540
+LEDFN2:             EB23 DEFINED AT LINE 547
+                    > USED AT LINE 1282
+LEDF21:             EB25 DEFINED AT LINE 549
+                    > USED AT LINE 556
+                    > USED AT LINE 566
+LEDF22:             EB35 DEFINED AT LINE 558
+                    > USED AT LINE 565
+LEDFN3:             EB45 DEFINED AT LINE 572
+                    > USED AT LINE 583
+                    > USED AT LINE 1283
+LEDF31:             EB4A DEFINED AT LINE 575
+                    > USED AT LINE 582
+FANTAB:             EB5A DEFINED AT LINE 584
+                    > USED AT LINE 573
+LEDMYS:             EB66 DEFINED AT LINE 592
+                    > USED AT LINE 624
+                    > USED AT LINE 1284
+LEDM1:              EB6E DEFINED AT LINE 597
+                    > USED AT LINE 602
+LEDM2:              EB7F DEFINED AT LINE 608
+                    > USED AT LINE 613
+LEDM3:              EB8C DEFINED AT LINE 617
+                    > USED AT LINE 623
+LEDMOV:             EB99 DEFINED AT LINE 625
+                    > USED AT LINE 600
+                    > USED AT LINE 611
+                    > USED AT LINE 621
+                    > USED AT LINE 637
+LEDM4:              EBA5 DEFINED AT LINE 632
+                    > USED AT LINE 630
+LEDKBD:             EBB3 DEFINED AT LINE 643
+                    > USED AT LINE 1285
+LKEYWAIT:           EBBC DEFINED AT LINE 649
+                    > USED AT LINE 664
+                    > USED AT LINE 672
+                    > USED AT LINE 677
+LLEFT:              EBC0 DEFINED AT LINE 652
+LRIGHT:             EBC8 DEFINED AT LINE 657
+                    > USED AT LINE 654
+UPDATEX:            EBCE DEFINED AT LINE 661
+                    > USED AT LINE 656
+LUP:                EBD3 DEFINED AT LINE 665
+                    > USED AT LINE 659
+LDOWN:              EBDB DEFINED AT LINE 670
+                    > USED AT LINE 667
+UPDATEY:            EBE1 DEFINED AT LINE 674
+                    > USED AT LINE 669
+LEDBBL:             EBE6 DEFINED AT LINE 684
+                    > USED AT LINE 1286
+LEDBB1:             EBE8 DEFINED AT LINE 686
+                    > USED AT LINE 712
+LEDBB2:             EBEF DEFINED AT LINE 691
+                    > USED AT LINE 697
+LEDBB3:             EC05 DEFINED AT LINE 703
+                    > USED AT LINE 709
+LEDANI:             EC16 DEFINED AT LINE 718
+                    > USED AT LINE 755
+                    > USED AT LINE 1287
+ANI1:               EC1C DEFINED AT LINE 723
+                    > USED AT LINE 754
+ANI2:               EC27 DEFINED AT LINE 729
+ANI3:               EC28 DEFINED AT LINE 731
+                    > USED AT LINE 750
+ANI4:               EC2E DEFINED AT LINE 735
+                    > USED AT LINE 748
+ANI5:               EC36 DEFINED AT LINE 741
+                    > USED AT LINE 741
+ANIDAT:             EC4E DEFINED AT LINE 756
+                    > USED AT LINE 719
+ETATTC:             EC5F DEFINED AT LINE 764
+                    > USED AT LINE 773
+                    > USED AT LINE 1290
+ET1:                EC67 DEFINED AT LINE 769
+                    > USED AT LINE 772
+ET2:                EC6F DEFINED AT LINE 774
+                    > USED AT LINE 797
+ET3:                EC71 DEFINED AT LINE 777
+                    > USED AT LINE 765
+ET4:                EC74 DEFINED AT LINE 779
+                    > USED AT LINE 783
+ET5:                EC7F DEFINED AT LINE 788
+                    > USED AT LINE 770
+ET6:                EC84 DEFINED AT LINE 792
+                    > USED AT LINE 801
+OSCLAT:             EC97 DEFINED AT LINE 810
+                    > USED AT LINE 819
+                    > USED AT LINE 1291
+FREQSP:             ECAD DEFINED AT LINE 825
+                    > USED AT LINE 855
+                    > USED AT LINE 1292
+FRQ1:               ECB0 DEFINED AT LINE 828
+                    > USED AT LINE 838
+FRQ2:               ECB9 DEFINED AT LINE 834
+                    > USED AT LINE 836
+FRQ3:               ECC3 DEFINED AT LINE 841
+                    > USED AT LINE 854
+FRQ4:               ECCD DEFINED AT LINE 848
+                    > USED AT LINE 850
+SPCINV:             ECD9 DEFINED AT LINE 861
+                    > USED AT LINE 874
+                    > USED AT LINE 883
+                    > USED AT LINE 1293
+SPC1:               ECDD DEFINED AT LINE 864
+                    > USED AT LINE 877
+SPC2:               ECF4 DEFINED AT LINE 878
+                    > USED AT LINE 882
+SPCDLY:             ECFE DEFINED AT LINE 884
+                    > USED AT LINE 868
+                    > USED AT LINE 871
+SPC3:               ECFF DEFINED AT LINE 886
+                    > USED AT LINE 888
+QKDRAW:             ED03 DEFINED AT LINE 896
+                    > USED AT LINE 922
+                    > USED AT LINE 1296
+QKDL1:              ED11 DEFINED AT LINE 904
+                    > USED AT LINE 910
+QKDRT:              ED1C DEFINED AT LINE 911
+                    > USED AT LINE 907
+QKDLT:              ED20 DEFINED AT LINE 914
+                    > USED AT LINE 909
+QDEND:              ED22 DEFINED AT LINE 916
+                    > USED AT LINE 913
+SCREEN:             3000 DEFINED AT LINE 929
+                    > USED AT LINE 725
+                    > USED AT LINE 734
+                    > USED AT LINE 930
+                    > USED AT LINE 982
+                    > USED AT LINE 1092
+                    > USED AT LINE 1098
+                    > USED AT LINE 1099
+                    > USED AT LINE 1105
+                    > USED AT LINE 1107
+SCREEN_E:           3006 DEFINED AT LINE 930
+                    > USED AT LINE 961
+CLKDATA:            3007 DEFINED AT LINE 931
+                    > USED AT LINE 934
+                    > USED AT LINE 935
+                    > USED AT LINE 937
+                    > USED AT LINE 940
+                    > USED AT LINE 962
+TECCLK:             ED2E DEFINED AT LINE 932
+                    > USED AT LINE 1297
+CLKLOOP:            ED3B DEFINED AT LINE 939
+                    > USED AT LINE 1019
+CLK1:               ED41 DEFINED AT LINE 942
+                    > USED AT LINE 951
+CLKDIS:             ED5E DEFINED AT LINE 958
+                    > USED AT LINE 947
+                    > USED AT LINE 956
+CLK2:               ED6A DEFINED AT LINE 963
+                    > USED AT LINE 979
+CLK3:               ED89 DEFINED AT LINE 981
+                    > USED AT LINE 1002
+CLK4:               ED92 DEFINED AT LINE 986
+                    > USED AT LINE 999
+CLK5:               ED9F DEFINED AT LINE 994
+                    > USED AT LINE 996
+TBLLOOKUP:          EDB1 DEFINED AT LINE 1004
+                    > USED AT LINE 970
+                    > USED AT LINE 977
+TIMEDELAY:          EDBD DEFINED AT LINE 1015
+                    > USED AT LINE 1003
+CLK6:               EDBF DEFINED AT LINE 1017
+                    > USED AT LINE 1018
+COUNT1:             EDC4 DEFINED AT LINE 1026
+                    > USED AT LINE 1041
+                    > USED AT LINE 1298
+CNT11:              EDCD DEFINED AT LINE 1031
+                    > USED AT LINE 1040
+CNT12:              EDD0 DEFINED AT LINE 1034
+                    > USED AT LINE 1038
+COUNT2:             EDDD DEFINED AT LINE 1048
+                    > USED AT LINE 1084
+                    > USED AT LINE 1299
+CNT21:              EDE1 DEFINED AT LINE 1051
+                    > USED AT LINE 1083
+CNT2PLEX:           EDE4 DEFINED AT LINE 1053
+                    > USED AT LINE 1074
+                    > USED AT LINE 1079
+CNT22:              EDF0 DEFINED AT LINE 1061
+                    > USED AT LINE 1061
+CNT23:              EE01 DEFINED AT LINE 1070
+                    > USED AT LINE 1070
+COUNT3:             EE1A DEFINED AT LINE 1091
+                    > USED AT LINE 1300
+CNT3LOOP:           EE21 DEFINED AT LINE 1097
+                    > USED AT LINE 1146
+INCREMENT:          EE3A DEFINED AT LINE 1109
+DECREMENT:          EE4B DEFINED AT LINE 1123
+                    > USED AT LINE 1111
+RESET:              EE5C DEFINED AT LINE 1137
+                    > USED AT LINE 1125
+CLEAR:              EE64 DEFINED AT LINE 1144
+                    > USED AT LINE 1116
+                    > USED AT LINE 1122
+                    > USED AT LINE 1130
+                    > USED AT LINE 1136
+                    > USED AT LINE 1139
+BITE2N:             EE68 DEFINED AT LINE 1147
+                    > USED AT LINE 1101
+NIBBLE:             EE75 DEFINED AT LINE 1157
+                    > USED AT LINE 1104
+                    > USED AT LINE 1149
+                    > USED AT LINE 1155
+CNT3PLEX:           EE80 DEFINED AT LINE 1166
+                    > USED AT LINE 1106
+CNT31:              EE82 DEFINED AT LINE 1168
+                    > USED AT LINE 1181
+CNT32:              EE8A DEFINED AT LINE 1174
+                    > USED AT LINE 1174
+DELAY_RF:           EE99 DEFINED AT LINE 1190
+DELAY_F:            EE9E DEFINED AT LINE 1195
+                    > USED AT LINE 508
+                    > USED AT LINE 518
+                    > USED AT LINE 813
+                    > USED AT LINE 817
+DELAY_Q:            EEA3 DEFINED AT LINE 1200
+                    > USED AT LINE 104
+                    > USED AT LINE 137
+                    > USED AT LINE 146
+                    > USED AT LINE 150
+                    > USED AT LINE 160
+                    > USED AT LINE 169
+                    > USED AT LINE 173
+                    > USED AT LINE 228
+                    > USED AT LINE 327
+                    > USED AT LINE 339
+                    > USED AT LINE 351
+                    > USED AT LINE 362
+                    > USED AT LINE 451
+                    > USED AT LINE 463
+                    > USED AT LINE 475
+                    > USED AT LINE 487
+                    > USED AT LINE 537
+                    > USED AT LINE 553
+                    > USED AT LINE 562
+                    > USED AT LINE 580
+                    > USED AT LINE 626
+                    > USED AT LINE 633
+                    > USED AT LINE 635
+                    > USED AT LINE 693
+                    > USED AT LINE 705
+DELAY_M:            EEA8 DEFINED AT LINE 1205
+                    > USED AT LINE 87
+                    > USED AT LINE 118
+                    > USED AT LINE 121
+                    > USED AT LINE 204
+                    > USED AT LINE 246
+                    > USED AT LINE 254
+                    > USED AT LINE 312
+                    > USED AT LINE 429
+DELAY:              EEAD DEFINED AT LINE 1211
+                    > USED AT LINE 1193
+                    > USED AT LINE 1198
+                    > USED AT LINE 1203
+                    > USED AT LINE 1208
+                    > USED AT LINE 1216
+D1:                 EEAF DEFINED AT LINE 1213
+                    > USED AT LINE 1215
+DELAY_FULL:         EEB6 DEFINED AT LINE 1221
+                    > USED AT LINE 899
+D3:                 EEB9 DEFINED AT LINE 1223
+                    > USED AT LINE 1227
+CHKSHIFT:           EEBF DEFINED AT LINE 1231
+                    > USED AT LINE 89
+                    > USED AT LINE 105
+                    > USED AT LINE 122
+                    > USED AT LINE 138
+                    > USED AT LINE 147
+                    > USED AT LINE 151
+                    > USED AT LINE 161
+                    > USED AT LINE 170
+                    > USED AT LINE 174
+                    > USED AT LINE 205
+                    > USED AT LINE 229
+                    > USED AT LINE 249
+                    > USED AT LINE 257
+                    > USED AT LINE 274
+                    > USED AT LINE 313
+                    > USED AT LINE 328
+                    > USED AT LINE 340
+                    > USED AT LINE 352
+                    > USED AT LINE 363
+                    > USED AT LINE 389
+                    > USED AT LINE 430
+                    > USED AT LINE 452
+                    > USED AT LINE 464
+                    > USED AT LINE 476
+                    > USED AT LINE 488
+                    > USED AT LINE 509
+                    > USED AT LINE 519
+                    > USED AT LINE 538
+                    > USED AT LINE 554
+                    > USED AT LINE 563
+                    > USED AT LINE 581
+                    > USED AT LINE 627
+                    > USED AT LINE 634
+                    > USED AT LINE 636
+                    > USED AT LINE 651
+                    > USED AT LINE 694
+                    > USED AT LINE 706
+                    > USED AT LINE 742
+                    > USED AT LINE 786
+                    > USED AT LINE 814
+                    > USED AT LINE 818
+                    > USED AT LINE 837
+                    > USED AT LINE 853
+                    > USED AT LINE 879
+                    > USED AT LINE 921
+                    > USED AT LINE 1001
+                    > USED AT LINE 1036
+                    > USED AT LINE 1062
+                    > USED AT LINE 1071
+                    > USED AT LINE 1175
+CHKS1:              EED7 DEFINED AT LINE 1245
+                    > USED AT LINE 1235
+                    > USED AT LINE 1238
+                    > USED AT LINE 1241
+HEX2SEG:            EED9 DEFINED AT LINE 1250
+                    > USED AT LINE 1005
+                    > USED AT LINE 1029
+                    > USED AT LINE 1050
+                    > USED AT LINE 1052
+                    > USED AT LINE 1159
+M_DATA:             EEE4 DEFINED AT LINE 1255
+                    > USED AT LINE 67
+MENU_JP_TBL:        EEEF DEFINED AT LINE 1263
+                    > USED AT LINE 1258
+MENU_AD_TBL:        EF49 DEFINED AT LINE 1302
+                    > USED AT LINE 1259
+MENU_DA_TBL:        EFC1 DEFINED AT LINE 1341
+                    > USED AT LINE 1260

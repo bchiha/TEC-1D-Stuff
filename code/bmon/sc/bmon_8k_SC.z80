@@ -194,7 +194,7 @@ SIO_END:    EQU     3F9AH                               ;SEND OF SIO TRANSFER AD
 
 ; FREE RAM BETWEEN 3FA0 - 3FDF
 
-USER_TBL:   EQU     3FE0H - 2                           ;User Table -2
+USER_TBL:   EQU     3FE0H                               ;User Table
 BMON_XROM:  EQU     4000H                               ;BMON EXPANSION ROM ADDRESS START LOCATION 
 BMON_XINI:  EQU     57F0H                               ;BMOM EXPANSION INITIALISATION ENTRY
 BMON_XJMP:  EQU     5D00H                               ;START OF THE JUMP TABLE IN THE BMON EXPANSION
@@ -500,13 +500,13 @@ L014E:      JR      L00E1                               ;JUMP (VIA A JUMP) TO UP
 
 KEY_FUNC:   LD      A, B                                ;PUT MONITOR CONTROL BYTE IN A
             AND     0x0C                                ;MASK IT DOWN TO FUNCTION BITS
-            LD      HL, L07E0 - 2                       ;JMON FUNCTION JUMP TABLE BASE -2
+            LD      HL, BMON_XJMP - 2                   ;BMON EXT. JUMP TABLE BASE - 2
             JR      Z, L0162                            ;JUMP IF FUNCTION 1 OR SHIFT
-            LD      HL, USER_TBL                        ;LOAD HL WITH USER TABLE -2
-                                                        ;*** Value is 3FBE as User Table is at 3FC0
-            CP      0x04                                ;TEST FOR FUNCTION 2
+            LD      HL, USER_TBL - 2                    ;LOAD HL WITH USER TABLE - 2
+                                                        ;*** Value is 3FDE as User Table is at 3FE0
+            CP      0x0C                                ;TEST FOR FUNCTION 2
             JR      Z, L0162                            ;JUMP IF FUNCTION 2 (USER FUNCTION)
-            LD      HL, BMON_XJMP -2                    ;OTHERWISE MUST BE FUNCTION 3
+            LD      HL, L07E0 - 2                       ;OTHERWISE MUST BE FUNCTION 1
 L0162:      LD      A, (V_KEY)                          ;GET INPUT KEY FROM INPUT BUFFER
             INC     A                                   ;ADD ONE IN CASE IT WAS ZERO
             LD      B, A                                ;PUT IN B TO USE AS A LOOP COUNTER
@@ -642,10 +642,10 @@ L0200:      SET     7, (HL)                             ;SET DOT IN DISPLAY BUFF
             RET                                         ;DONE
 
 L0206:      DEC     B                                   ;FUNCTION MODE: SET B FOR ONE DOT
-            BIT     3, A                                ;TEST FOR FUNCTION 3
-            JR      NZ, L0211                           ;JUMP IF FUNCTION 3 TO ADD HL+1
-            BIT     2, A                                ;TEST FOR FUNCTION 2
-            JR      NZ, L0210                           ;JUMP IF FUNCTION 2 TO ADD HL+2
+            BIT     2, A                                ;TEST FOR FUNCTION 3
+            JR      NZ, L0210                           ;JUMP IF FUNCTION 3 TO ADD HL+1
+            BIT     3, A                                ;TEST FOR FUNCTION 2
+            JR      Z, L0211                            ;JUMP IF FUNCTION 2 TO ADD HL+2
 L020F:      INC     HL                                  ;INCREMENT HL TO POINT TO THE
 L0210:      INC     HL                                  ;REQUIRED DISPLAY BYTE
 L0211:      INC     HL                                  ;
@@ -692,7 +692,7 @@ J_LCD:
             LD      A, (V_LCD)                          ;TEST LCD MASK
             OR      A
             RET     NZ                                  ;NOT ZERO = LCD NOT REQUIRED OR FITTED
-            LD      A, 0x80                             ;SET LCD CURSOR TO HOME
+            LD      A, 0x01                             ;SET LCD CURSOR TO HOME
             OUT     (P_LCDINST), A
             RST     30H                                 ;WAIT UNTIL LCD READY
             CALL    LCD_LINE1                           ;CALL SET-UP AND OUTPUT FIRST LINE
@@ -799,7 +799,7 @@ L029B:      LD      A, C                                ;NEXT PROMPT LOCATION AD
             ADD     A, L                                ;ADDR, 12 IF FUNCTION, NOTE THAT TABLE
             LD      L, A                                ;IS STAGGERED (SEE 07AD): ADD A TO BASE
             CP      0xBC                                ;IF A=BC THEN MODE IS FUNCTION MODE
-            LD      BC, 0484H                           ;LOAD C WITH PORT, B WITH BYTE COUNT
+            LD      BC, 04H * 100H + P_LCDDATA          ;LOAD C WITH PORT, B WITH BYTE COUNT
             JR      Z, L02C7                            ;JUMP IF FUNCTION MDDE TO OUT 3 BYTES
 L02C1:      OUTI                                        ;OUT (HL) TO (C) B=B-1
             RST     30H                                 ;HL=HL+1: WAIT FOR LCD BUSY FLAG
@@ -1698,8 +1698,8 @@ KEY_GET:    IN      A, (KEYBOARD)                       ;GET INPUT KEY FROM ENCO
 ;FITTED, OTHERWISE THE ROUTINE WHICH READS THE BUSY FLAG MAY LOOP FOREVER.
 
 LCD_RESET:  LD      HL, LCDRST_TBL                      ;POINT HL TO LCD INITIALIZE TABLE
-            LD      BC, 0x0404                          ;B=4 BYTES, C=PORT 4
-L06DE:      LD      DE, 1000H                           ;DELAY BETWEEN
+            LD      BC, 04H * 100H + P_LCDINST          ;B=4 BYTES, C=PORT 4
+L06DE:      LD      DE, 3000H                           ;DELAY BETWEEN
 L06E1:      DEC     DE                                  ;EACH BYTE
             LD      A, D                                ;AS PER
             OR      E                                   ;LCD MANUFACTER'S

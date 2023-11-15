@@ -1,0 +1,56 @@
+;General Menu Driver for My Game Chips
+
+            ORG    0FF70H 
+START:
+            ; Copy Menu Data to JMON location
+            LD      HL,M_DATA ; Menu data
+            LD      DE,088DH ; Destination for menu/perimiter to use
+            LD      BC,000BH ; Number of bytes to copy
+            LDIR     ; Copy it
+MENU:
+            JP      0041H ; Call the menu
+
+;Menu Command String
+M_DATA:
+            DB      0xFF,0xFF ; Blank
+            DB      0x00,0x07 ; First menu item and number of menu items, = 8
+            DW      MENU_JP_TBL ; Jump table for menu items
+            DW      MENU_AD_TBL ; Menu Address LED display table
+            DW      MENU_DA_TBL ; Menu Data LED display table
+            DB      0xC9 ; return (unused)
+
+MENU_JP_TBL:        ; Menu Jump table
+                    ; Seven Segment Routines 
+            JP      0F000H   ; TEC Invaders
+            JP      0F400H   ; TEC Maze
+            JP      0FA70H   ; TEC Runner
+            JP      0FDF0H   ; Magic Square
+            JP      0F800H   ; Game Of Life
+            JP      0E800H   ; TEC Magazine Code
+            JP      0FD20H   ; Fast Forward
+            JP      0FF40H   ; Banger
+
+MENU_AD_TBL:        ; Menu Display for ADDRESS LEDs
+                    ; Seven Segment Routines 
+            DB      0x28,0x6B,0xE0,0x6F ; "InvA"
+            DB      0x65,0x6F,0xC9,0xC7 ; "mAzE"
+            DB      0x44,0xEA,0x6B,0x6B ; "runn"
+            DB      0x65,0x6F,0xE3,0x28 ; "mAGI"
+            DB      0xE3,0x6F,0xC2,0x28 ; "GALI"
+            DB      0xC6,0xC7,0xC3,0x65 ; "TECm"
+            DB      0x47,0x6F,0xA7,0xC6 ; "FAST"
+            DB      0xE6,0x6F,0x6B,0xE3 ; "bAnG"
+
+MENU_DA_TBL:        ; Menu Display for DATA LEDs
+                    ; Seven Segment Routines 
+            DB      0xEC,0xC7 ; "dE"
+            DB      0x85,0x04 ; "=-"
+            DB      0xC7,0x44 ; "Er"
+            DB      0xC3,0xEB ; "C0"
+            DB      0x47,0xC7 ; "FE"
+            DB      0x6F,0xE3 ; "AG"
+            DB      0x47,0xEC ; "Fd"
+            DB      0xC7,0x44 ; "Er"
+
+            DB      0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 ;Fill
+            DB      0x00,0x00,0x00,0x00,0x00,0x00,0x00 ;Fill

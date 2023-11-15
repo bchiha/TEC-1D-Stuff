@@ -1,0 +1,135 @@
+;STEP_REGS:  EQU     3F6Ah <- start of Registers AF,BC,DE,HL,IX,IY,AF',BC',DE',HL',SP
+;                    3F68 <- Next PC
+
+; 01234567890123456789
+; AF xxxx BC xxxx  SZ
+; DE xxxx HL xxxx  YH
+; IX xxxx IY xxxx  XP
+; SP xxxx PC xxxx  NC
+
+; LCD Ports
+LCDCOM:      EQU     0x04 ;LCD Command Port (Port 4)
+LCDDAT:      EQU     0x84 ;LCD Data Port (A7 + Port 4)
+STEP_REGS:   EQU     086AH ;Registers
+STEP_SP:     EQU     087EH ;SP
+STEP_PC:     EQU     0868H ;PC
+
+
+            ORG     0F9B0H
+
+BMON_STEP:           
+
+;Display Bytes Received
+            RST     30H ;Wait for LCD to be ready
+            LD      A,01H ;Clear LCD screen
+            OUT     (LCDCOM),A 
+            
+            LD      DE,LCDROWS ;Store DE the LCD Row indexing
+            LD      HL,REGTEXT
+            LD      B,08H
+PRINT_TXT:              
+            RST     30H ;Wait for LCD to be ready
+            LD      A,(DE) ;Get Current LCD Row
+            OUT     (LCDCOM),A
+            INC     DE
+            
+            RST     30H
+            LD      A,(HL)
+            OUT     (LCDDAT),A
+            INC     HL
+            RST     30H
+            LD      A,(HL)
+            OUT     (LCDDAT),A
+            INC     HL
+            DJNZ    PRINT_TXT
+
+PRINT_DATA:
+            LD      DE,LCDROWS ;Store DE the LCD Row indexing
+            LD      HL,STEP_REGS
+            LD      B,06H
+            CALL    PRINT_REG
+
+            LD      HL,STEP_SP
+            LD      B,01H
+            CALL    PRINT_REG
+
+            LD      HL,STEP_PC
+            LD      B,01H
+            CALL    PRINT_REG
+
+PRINT_FLAGS:
+            LD      A,(STEP_REGS)
+            LD      C,A
+            LD      DE,FLAGROWS
+            LD      HL,FLAGS
+FLAG_ROW:
+            RST     30H ;Wait for LCD to be ready
+            LD      A,(DE) ;Get Current LCD Row
+            OR      A
+            RET     Z
+            OUT     (LCDCOM),A
+            INC     DE
+
+            LD      B,02H
+FLAG_COL:
+            RST     30H ;Wait for LCD to be ready
+            LD      A,(HL)
+            INC     HL
+            RLC     C
+            JR      C,FLAG_OK
+            ADD     A,20H
+FLAG_OK:    OUT     (LCDDAT),A
+            DJNZ    FLAG_COL
+            JR      FLAG_ROW
+
+PRINT_REG:
+            RST     30H ;Wait for LCD to be ready
+            LD      A,(DE) ;Get Current LCD Row
+            ADD     A,03H
+            OUT     (LCDCOM),A
+            INC     DE
+            
+            PUSH    DE
+            LD      E,(HL)
+            INC     HL
+            LD      D,(HL)
+            INC     HL
+            CALL    DE2ASCII
+            POP     DE
+            DJNZ    PRINT_REG
+            RET
+
+DE2ASCII:            
+            PUSH    DE 
+            LD      A,D 
+            CALL    A2ASCII 
+            POP     DE
+            LD      A,E 
+A2ASCII:             
+            PUSH    AF 
+            RRA      
+            RRA      
+            RRA      
+            RRA      
+            CALL    NIBBLE 
+            POP     AF 
+NIBBLE:              
+            AND     0x0F 
+            ADD     A,0x90 
+            DAA      
+            ADC     A,0x40 
+            DAA
+            LD      C,A
+            RST     30H
+            LD      A,C
+            OUT     (LCDDAT),A 
+            RET      
+
+FLAGS:      DB      "SZYHXPNC" 
+REGTEXT:    DB      "AFBCDEHLIXIYSPPC" 
+LCDROWS:    DB      80H,88H,0C0H,0C8H,94H,9CH,0D4H,0DCH
+FLAGROWS:   DB      91H,0D1H,0A5H,0E5H,00H
+
+            DB      00H,00H,00H,00H,00H,00H,00H,00H  ;Fill
+            DB      00H,00H,00H,00H,00H,00H,00H      ;Fill
+

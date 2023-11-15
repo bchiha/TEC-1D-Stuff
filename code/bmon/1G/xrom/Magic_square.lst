@@ -1,0 +1,268 @@
+0000                             ; Magic Square
+0000                             ; 
+0000                             ; Keys Used are 1,5,9,2,6,A,3,7,B.  Uses the 8x8 LED Matrix connected to ports 5 & 6
+0000                             ; Need to end up with a hollow square
+0000                             ; 
+0000                SCREEN:   EQU   3000H   ;Screen data for 8x8                 (8-bytes)
+0000                SQRDAT:   EQU   3009H   ;Store top, middle and bottom rows   (3-bytes)
+0000                KEYFLG:   EQU   300CH   ;Key Pressed Flag                    (1-byte)
+0000                KEYBOARD:   EQU   0x00   ;KEYBOARD ENCODER
+0000                KEYPRESS:   EQU   0x03   ;KEYBOARD PRESS
+0000                DSCAN:    EQU   0x01   ;DISPLAY CATHODE DRIVER LATCH
+0000                LEDROW:   EQU   0x06   ;8x8 LCD ROW Port
+0000                LEDCOL:   EQU   0x05   ;8x8 LCD COLUMN Port
+FDF0                          .ORG   0FDF0H   
+FDF0                START:       
+FDF0   11 00 00               LD   DE,0000H   ;Random Number generator
+FDF3                LOOP1:       
+FDF3   13                     INC   DE   
+FDF4   DB 03                  IN   A,(KEYPRESS)   
+FDF6   CB 77                  BIT   6,A   
+FDF8   28 F9                  JR   Z,LOOP1   
+FDFA   ED 5F                  LD   A,R   
+FDFC   82                     ADD   A,D   
+FDFD   32 09 30               LD   (SQRDAT),A   
+FE00   8B                     ADC   A,E   
+FE01   32 0A 30               LD   (SQRDAT+1),A   
+FE04   82                     ADD   A,D   
+FE05   83                     ADD   A,E   
+FE06   07                     RLCA      
+FE07   32 0B 30               LD   (SQRDAT+2),A   
+FE0A                PRINT:       
+FE0A   CD 9D FE               CALL   FORMAT   
+FE0D                GAME:        
+FE0D   CD DA FE               CALL   SCAN   
+FE10   DB 03                  IN   A,(KEYPRESS)   
+FE12   CB 77                  BIT   6,A   
+FE14   28 06                  JR   Z,KEYHIT   
+FE16   AF                     XOR   A   
+FE17   32 0C 30               LD   (KEYFLG),A   
+FE1A   18 F1                  JR   GAME   
+FE1C                KEYHIT:      
+FE1C   3A 0C 30               LD   A,(KEYFLG)   
+FE1F   B7                     OR   A   
+FE20   20 EB                  JR   NZ,GAME   
+FE22   3E FF                  LD   A,0FFH   
+FE24   32 0C 30               LD   (KEYFLG),A   
+FE27   21 F3 FE               LD   HL,DATTBL   
+FE2A   01 09 00               LD   BC,0009H   
+FE2D   DB 00                  IN   A,(KEYBOARD)   
+FE2F   E6 1F                  AND   1FH   
+FE31   ED B1                  CPIR      
+FE33   20 D8                  JR   NZ,GAME   
+FE35   CD CA FE               CALL   BEEP   
+FE38   2B                     DEC   HL   
+FE39   11 09 00               LD   DE,0009H   
+FE3C   06 03                  LD   B,03H   
+FE3E                LOOP2:       
+FE3E   19                     ADD   HL,DE   
+FE3F   7E                     LD   A,(HL)   
+FE40   19                     ADD   HL,DE   
+FE41   E5                     PUSH   HL   
+FE42   6E                     LD   L,(HL)   
+FE43   26 30                  LD   H,30H   ;Force to use RAM
+FE45   AE                     XOR   (HL)   
+FE46   77                     LD   (HL),A   
+FE47   E1                     POP   HL   
+FE48   10 F4                  DJNZ   LOOP2   
+FE4A   21 09 30               LD   HL,SQRDAT   
+FE4D   7E                     LD   A,(HL)   
+FE4E   E6 07                  AND   07H   
+FE50   FE 07                  CP   07H   
+FE52   20 B6                  JR   NZ,PRINT   
+FE54   23                     INC   HL   
+FE55   7E                     LD   A,(HL)   
+FE56   E6 07                  AND   07H   
+FE58   FE 05                  CP   05H   
+FE5A   20 AE                  JR   NZ,PRINT   
+FE5C   23                     INC   HL   
+FE5D   7E                     LD   A,(HL)   
+FE5E   E6 07                  AND   07H   
+FE60   FE 07                  CP   07H   
+FE62   20 A6                  JR   NZ,PRINT   
+FE64   CD 9D FE               CALL   FORMAT   
+FE67   11 30 00               LD   DE,0030H   
+FE6A   CD CD FE               CALL   BEEP+3   
+FE6D   06 03                  LD   B,03H   
+FE6F                LOOP3:       
+FE6F   C5                     PUSH   BC   
+FE70   16 10                  LD   D,10H   
+FE72                LOOP4:       
+FE72   CD DA FE               CALL   SCAN   
+FE75   15                     DEC   D   
+FE76   20 FA                  JR   NZ,LOOP4   
+FE78   AF                     XOR   A   
+FE79   D3 06                  OUT   (LEDROW),A   
+FE7B   CD CA FE               CALL   BEEP   
+FE7E   01 00 15               LD   BC,1500H   
+FE81                LOOP5:       
+FE81   0B                     DEC   BC   
+FE82   78                     LD   A,B   
+FE83   B1                     OR   C   
+FE84   20 FB                  JR   NZ,LOOP5   
+FE86   C1                     POP   BC   
+FE87   10 E6                  DJNZ   LOOP3   
+FE89                LOOP6:       
+FE89   CD DA FE               CALL   SCAN   
+FE8C   DB 00                  IN   A,(KEYBOARD)   
+FE8E   E6 1F                  AND   1FH   
+FE90   FE 12                  CP   12H   
+FE92   20 F5                  JR   NZ,LOOP6   
+FE94   11 80 00               LD   DE,0080H   
+FE97   CD CD FE               CALL   BEEP+3   
+FE9A   C3 F0 FD               JP   START   
+FE9D                FORMAT:      
+FE9D   06 03                  LD   B,03H   
+FE9F   21 09 30               LD   HL,SQRDAT   
+FEA2   11 00 30               LD   DE,SCREEN   
+FEA5                LOOP7:       
+FEA5   C5                     PUSH   BC   
+FEA6   7E                     LD   A,(HL)   
+FEA7   CD B6 FE               CALL   BITCON   
+FEAA   12                     LD   (DE),A   
+FEAB   13                     INC   DE   
+FEAC   12                     LD   (DE),A   
+FEAD   13                     INC   DE   
+FEAE   AF                     XOR   A   
+FEAF   12                     LD   (DE),A   
+FEB0   13                     INC   DE   
+FEB1   23                     INC   HL   
+FEB2   C1                     POP   BC   
+FEB3   10 F0                  DJNZ   LOOP7   
+FEB5   C9                     RET      
+FEB6                BITCON:      
+FEB6   01 00 03               LD   BC,0300H   
+FEB9                LOOP8:       
+FEB9   0F                     RRCA      
+FEBA   30 02                  JR   NC,ROTC   
+FEBC   CB F9                  SET   7,C   
+FEBE                ROTC:        
+FEBE   CB 11                  RL   C   
+FEC0   CB 11                  RL   C   
+FEC2   CB 11                  RL   C   
+FEC4   10 F3                  DJNZ   LOOP8   
+FEC6   CB 19                  RR   C   
+FEC8   79                     LD   A,C   
+FEC9   C9                     RET      
+FECA                BEEP:        
+FECA   11 50 50               LD   DE,5050H   
+FECD   3E 80                  LD   A,80H   
+FECF                LOOP9:       
+FECF   D3 01                  OUT   (DSCAN),A   
+FED1   42                     LD   B,D   
+FED2   10 FE        LOOP10:   DJNZ   LOOP10   
+FED4   EE 80                  XOR   80H   
+FED6   1D                     DEC   E   
+FED7   20 F6                  JR   NZ,LOOP9   
+FED9                             ;            XOR     A
+FED9                             ;            OUT     (DSCAN),A
+FED9   C9                     RET      
+FEDA                SCAN:        
+FEDA   21 07 30               LD   HL,SCREEN+7   
+FEDD   06 80                  LD   B,80H   
+FEDF                LOOP11:      
+FEDF   7E                     LD   A,(HL)   
+FEE0   D3 05                  OUT   (LEDCOL),A   
+FEE2   78                     LD   A,B   
+FEE3   D3 06                  OUT   (LEDROW),A   
+FEE5   06 40                  LD   B,40H   
+FEE7   10 FE        LOOP12:   DJNZ   LOOP12   
+FEE9   2B                     DEC   HL   
+FEEA   47                     LD   B,A   
+FEEB   AF                     XOR   A   
+FEEC   D3 06                  OUT   (LEDROW),A   
+FEEE   CB 08                  RRC   B   
+FEF0   30 ED                  JR   NC,LOOP11   
+FEF2   C9                     RET      
+FEF3   01 05 09 02 06 0A 03 07 0B DATTBL:   DB   01H,05H,09H,02H,06H,0AH,03H,07H,0BH   ;key pressed
+FEFC   06 04 00 07 02 00 03 01 00 DB   06H,04H,00H,07H,02H,00H,03H,01H,00H   ;bottom row bits of key pressed
+FF05   09 09 09 09 09 09 09 09 09 DB   09H,09H,09H,09H,09H,09H,09H,09H,09H   ;first 3x3 location SQRDAT
+FF0E   04 06 04 02 07 02 01 03 01 DB   04H,06H,04H,02H,07H,02H,01H,03H,01H   ;middle row bits of key pressed
+FF17   0A 0A 0A 0A 0A 0A 0A 0A 0A DB   0AH,0AH,0AH,0AH,0AH,0AH,0AH,0AH,0AH   ;second 3x3 location SQRDAT+1
+FF20   00 04 06 00 02 07 00 01 03 DB   00H,04H,06H,00H,02H,07H,00H,01H,03H   ;top row bits of key pressed
+FF29   0B 0B 0B 0B 0B 0B 0B 0B 0B DB   0BH,0BH,0BH,0BH,0BH,0BH,0BH,0BH,0BH   ;third 3x3 location SQRDAT+2
+FF32   00 00 00 00 00 00 00 00 00 DB   00H,00H,00H,00H,00H,00H,00H,00H,00H   ;fill
+FF3B   00 00 00 00 00         DB   00H,00H,00H,00H,00H   ;fill
+
+
+SCREEN:             3000 DEFINED AT LINE 6
+                    > USED AT LINE 121
+                    > USED AT LINE 165
+SQRDAT:             3009 DEFINED AT LINE 7
+                    > USED AT LINE 28
+                    > USED AT LINE 30
+                    > USED AT LINE 34
+                    > USED AT LINE 72
+                    > USED AT LINE 120
+KEYFLG:             300C DEFINED AT LINE 8
+                    > USED AT LINE 43
+                    > USED AT LINE 46
+                    > USED AT LINE 50
+KEYBOARD:           0000 DEFINED AT LINE 10
+                    > USED AT LINE 53
+                    > USED AT LINE 111
+KEYPRESS:           0003 DEFINED AT LINE 11
+                    > USED AT LINE 23
+                    > USED AT LINE 39
+DSCAN:              0001 DEFINED AT LINE 12
+                    > USED AT LINE 155
+LEDROW:             0006 DEFINED AT LINE 13
+                    > USED AT LINE 99
+                    > USED AT LINE 171
+                    > USED AT LINE 177
+LEDCOL:             0005 DEFINED AT LINE 14
+                    > USED AT LINE 169
+START:              FDF0 DEFINED AT LINE 19
+                    > USED AT LINE 117
+LOOP1:              FDF3 DEFINED AT LINE 21
+                    > USED AT LINE 25
+PRINT:              FE0A DEFINED AT LINE 35
+                    > USED AT LINE 76
+                    > USED AT LINE 81
+                    > USED AT LINE 86
+GAME:               FE0D DEFINED AT LINE 37
+                    > USED AT LINE 44
+                    > USED AT LINE 48
+                    > USED AT LINE 56
+KEYHIT:             FE1C DEFINED AT LINE 45
+                    > USED AT LINE 41
+LOOP2:              FE3E DEFINED AT LINE 61
+                    > USED AT LINE 71
+LOOP3:              FE6F DEFINED AT LINE 91
+                    > USED AT LINE 108
+LOOP4:              FE72 DEFINED AT LINE 94
+                    > USED AT LINE 97
+LOOP5:              FE81 DEFINED AT LINE 102
+                    > USED AT LINE 106
+LOOP6:              FE89 DEFINED AT LINE 109
+                    > USED AT LINE 114
+FORMAT:             FE9D DEFINED AT LINE 118
+                    > USED AT LINE 36
+                    > USED AT LINE 87
+LOOP7:              FEA5 DEFINED AT LINE 122
+                    > USED AT LINE 135
+BITCON:             FEB6 DEFINED AT LINE 137
+                    > USED AT LINE 125
+LOOP8:              FEB9 DEFINED AT LINE 139
+                    > USED AT LINE 147
+ROTC:               FEBE DEFINED AT LINE 143
+                    > USED AT LINE 141
+BEEP:               FECA DEFINED AT LINE 151
+                    > USED AT LINE 57
+                    > USED AT LINE 89
+                    > USED AT LINE 100
+                    > USED AT LINE 116
+LOOP9:              FECF DEFINED AT LINE 154
+                    > USED AT LINE 160
+LOOP10:             FED2 DEFINED AT LINE 157
+                    > USED AT LINE 157
+SCAN:               FEDA DEFINED AT LINE 164
+                    > USED AT LINE 38
+                    > USED AT LINE 95
+                    > USED AT LINE 110
+LOOP11:             FEDF DEFINED AT LINE 167
+                    > USED AT LINE 179
+LOOP12:             FEE7 DEFINED AT LINE 173
+                    > USED AT LINE 173
+DATTBL:             FEF3 DEFINED AT LINE 182
+                    > USED AT LINE 51

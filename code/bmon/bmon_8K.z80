@@ -1711,9 +1711,9 @@ L06EA:      DJNZ    L06EA                               ;SHORT DELAY
 ;AT 0700 IS THE MAIN MENU JUMP TABLE.
 ORG     0x0700
 MAIN_JP_TBL:
+            JP      J_INTEL_IN                         ;SIO INTEL HEX FILE INPUT
             JP      J_SIO_TRANS                        ;SIO TRANSFER IN
             JP      J_SIO_TRANS                        ;SIO TRANSFER OUT
-            JP      J_INTEL_IN                         ;SIO INTEL HEX FILE INPUT
             JP      J_ALT_KEY                          ;SWITCH BETWEEN ALTERNATE KEYBOARD LAYOUT
             JP      J_MSG_SCRL                         ;MESSAGE SCROLL ROUTINE
             JP      J_MINT                             ;MINT PROGRAMMING LANGUAGE
@@ -1752,9 +1752,9 @@ L0740:      JP      J_LCD                               ;LCD ROUTINE 3F48
 
 ;BELOW ARE THE DISPLAY TABLES FOR THE MAIN MENU ADDRESS DISPLAYS
 MAIN_AD_TBL:
-            DB      0xA7, 0x28, 0xEB, 0x04              ;"SIO-"
-            DB      0xA7, 0x28, 0xEB, 0x04              ;"SIO-"
             DB      0x28, 0x6B, 0xC6, 0xC7              ;"INtE"
+            DB      0xA7, 0x28, 0xEB, 0x04              ;"SIO-"
+            DB      0xA7, 0x28, 0xEB, 0x04              ;"SIO-"
             DB      0x6F, 0xC2, 0xC6, 0x67              ;"ALTK"
             DB      0xEF, 0x6F, 0x6B, 0x6B              ;"BANN"
 ;EXTENDED MENU
@@ -1768,9 +1768,9 @@ LOAD_AD_F:  DB      0x47, 0x6F, 0x28, 0xC2              ;"FAIL"
 
 ;BELOW ARE THE MAIN MENU DATA DISPLAYS.
 MAIN_DA_TBL:
+            DB      0xC2, 0x00                          ;"L "
             DB      0x20, 0x64                          ;"in"
             DB      0xE4, 0xC6                          ;"ot"
-            DB      0xC2, 0x00                          ;"L "
             DB      0xC7, 0xAE                          ;"EY"
             DB      0xC7, 0x4B                          ;"ER"
 ;EXTENDED MENU

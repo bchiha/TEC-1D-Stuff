@@ -1,0 +1,166 @@
+0000                             ;STEP_REGS:  EQU     3F6Ah <- start of Registers AF,BC,DE,HL,IX,IY,AF",BC",DE",HL",SP
+0000                             ;                    3F68 <- Next PC
+0000                             ; 01234567890123456789
+0000                             ; AF xxxx BC xxxx  SZ
+0000                             ; DE xxxx HL xxxx  YH
+0000                             ; IX xxxx IY xxxx  XP
+0000                             ; SP xxxx PC xxxx  NC
+0000                             ; LCD Ports
+0000                LCDCOM:   EQU   0x04   ;LCD Command Port (Port 4)
+0000                LCDDAT:   EQU   0x84   ;LCD Data Port (A7 + Port 4)
+0000                STEP_REGS:   EQU   086AH   ;Registers
+0000                STEP_SP:   EQU   087EH   ;SP
+0000                STEP_PC:   EQU   0868H   ;PC
+F9B0                          .ORG   0F9B0H   
+F9B0                BMON_STEP:      
+F9B0                             ;Display Bytes Received
+F9B0   F7                     RST   30H   ;Wait for LCD to be ready
+F9B1   3E 01                  LD   A,01H   ;Clear LCD screen
+F9B3   D3 04                  OUT   (LCDCOM),A   
+F9B5   11 54 FA               LD   DE,LCDROWS   ;Store DE the LCD Row indexing
+F9B8   21 44 FA               LD   HL,REGTEXT   
+F9BB   06 08                  LD   B,08H   
+F9BD                PRINT_TXT:      
+F9BD   F7                     RST   30H   ;Wait for LCD to be ready
+F9BE   1A                     LD   A,(DE)   ;Get Current LCD Row
+F9BF   D3 04                  OUT   (LCDCOM),A   
+F9C1   13                     INC   DE   
+F9C2   F7                     RST   30H   
+F9C3   7E                     LD   A,(HL)   
+F9C4   D3 84                  OUT   (LCDDAT),A   
+F9C6   23                     INC   HL   
+F9C7   F7                     RST   30H   
+F9C8   7E                     LD   A,(HL)   
+F9C9   D3 84                  OUT   (LCDDAT),A   
+F9CB   23                     INC   HL   
+F9CC   10 EF                  DJNZ   PRINT_TXT   
+F9CE                PRINT_DATA:      
+F9CE   11 54 FA               LD   DE,LCDROWS   ;Store DE the LCD Row indexing
+F9D1   21 6A 08               LD   HL,STEP_REGS   
+F9D4   06 06                  LD   B,06H   
+F9D6   CD 0B FA               CALL   PRINT_REG   
+F9D9   21 7E 08               LD   HL,STEP_SP   
+F9DC   06 01                  LD   B,01H   
+F9DE   CD 0B FA               CALL   PRINT_REG   
+F9E1   21 68 08               LD   HL,STEP_PC   
+F9E4   06 01                  LD   B,01H   
+F9E6   CD 0B FA               CALL   PRINT_REG   
+F9E9                PRINT_FLAGS:      
+F9E9   3A 6A 08               LD   A,(STEP_REGS)   
+F9EC   4F                     LD   C,A   
+F9ED   11 5C FA               LD   DE,FLAGROWS   
+F9F0   21 3C FA               LD   HL,FLAGS   
+F9F3                FLAG_ROW:      
+F9F3   F7                     RST   30H   ;Wait for LCD to be ready
+F9F4   1A                     LD   A,(DE)   ;Get Current LCD Row
+F9F5   B7                     OR   A   
+F9F6   C8                     RET   Z   
+F9F7   D3 04                  OUT   (LCDCOM),A   
+F9F9   13                     INC   DE   
+F9FA   06 02                  LD   B,02H   
+F9FC                FLAG_COL:      
+F9FC   F7                     RST   30H   ;Wait for LCD to be ready
+F9FD   7E                     LD   A,(HL)   
+F9FE   23                     INC   HL   
+F9FF   CB 01                  RLC   C   
+FA01   38 02                  JR   C,FLAG_OK   
+FA03   C6 20                  ADD   A,20H   
+FA05   D3 84        FLAG_OK:   OUT   (LCDDAT),A   
+FA07   10 F3                  DJNZ   FLAG_COL   
+FA09   18 E8                  JR   FLAG_ROW   
+FA0B                PRINT_REG:      
+FA0B   F7                     RST   30H   ;Wait for LCD to be ready
+FA0C   1A                     LD   A,(DE)   ;Get Current LCD Row
+FA0D   C6 03                  ADD   A,03H   
+FA0F   D3 04                  OUT   (LCDCOM),A   
+FA11   13                     INC   DE   
+FA12   D5                     PUSH   DE   
+FA13   5E                     LD   E,(HL)   
+FA14   23                     INC   HL   
+FA15   56                     LD   D,(HL)   
+FA16   23                     INC   HL   
+FA17   CD 1E FA               CALL   DE2ASCII   
+FA1A   D1                     POP   DE   
+FA1B   10 EE                  DJNZ   PRINT_REG   
+FA1D   C9                     RET      
+FA1E                DE2ASCII:      
+FA1E   D5                     PUSH   DE   
+FA1F   7A                     LD   A,D   
+FA20   CD 25 FA               CALL   A2ASCII   
+FA23   D1                     POP   DE   
+FA24   7B                     LD   A,E   
+FA25                A2ASCII:      
+FA25   F5                     PUSH   AF   
+FA26   1F                     RRA      
+FA27   1F                     RRA      
+FA28   1F                     RRA      
+FA29   1F                     RRA      
+FA2A   CD 2E FA               CALL   NIBBLE   
+FA2D   F1                     POP   AF   
+FA2E                NIBBLE:      
+FA2E   E6 0F                  AND   0x0F   
+FA30   C6 90                  ADD   A,0x90   
+FA32   27                     DAA      
+FA33   CE 40                  ADC   A,0x40   
+FA35   27                     DAA      
+FA36   4F                     LD   C,A   
+FA37   F7                     RST   30H   
+FA38   79                     LD   A,C   
+FA39   D3 84                  OUT   (LCDDAT),A   
+FA3B   C9                     RET      
+FA3C   53 5A 59 48 58 50 4E 43 FLAGS:   DB   "SZYHXPNC"   
+FA44   41 46 42 43 44 45 48 4C 49 58 49 59 53 50 50 43 REGTEXT:   DB   "AFBCDEHLIXIYSPPC"   
+FA54   80 88 C0 C8 94 9C D4 DC LCDROWS:   DB   80H,88H,0C0H,0C8H,94H,9CH,0D4H,0DCH   
+FA5C   91 D1 A5 E5 00 FLAGROWS:   DB   91H,0D1H,0A5H,0E5H,00H   
+FA61   00 00 00 00 00 00 00 00 DB   00H,00H,00H,00H,00H,00H,00H,00H   ;Fill
+FA69   00 00 00 00 00 00 00   DB   00H,00H,00H,00H,00H,00H,00H   ;Fill
+
+
+LCDCOM:             0004 DEFINED AT LINE 11
+                    > USED AT LINE 25
+                    > USED AT LINE 33
+                    > USED AT LINE 70
+                    > USED AT LINE 89
+LCDDAT:             0084 DEFINED AT LINE 12
+                    > USED AT LINE 38
+                    > USED AT LINE 42
+                    > USED AT LINE 81
+                    > USED AT LINE 125
+STEP_REGS:          086A DEFINED AT LINE 13
+                    > USED AT LINE 48
+                    > USED AT LINE 61
+STEP_SP:            087E DEFINED AT LINE 14
+                    > USED AT LINE 52
+STEP_PC:            0868 DEFINED AT LINE 15
+                    > USED AT LINE 56
+BMON_STEP:          F9B0 DEFINED AT LINE 20
+PRINT_TXT:          F9BD DEFINED AT LINE 30
+                    > USED AT LINE 44
+PRINT_DATA:         F9CE DEFINED AT LINE 46
+PRINT_FLAGS:        F9E9 DEFINED AT LINE 60
+FLAG_ROW:           F9F3 DEFINED AT LINE 65
+                    > USED AT LINE 83
+FLAG_COL:           F9FC DEFINED AT LINE 74
+                    > USED AT LINE 82
+FLAG_OK:            FA05 DEFINED AT LINE 81
+                    > USED AT LINE 79
+PRINT_REG:          FA0B DEFINED AT LINE 85
+                    > USED AT LINE 50
+                    > USED AT LINE 54
+                    > USED AT LINE 58
+                    > USED AT LINE 99
+DE2ASCII:           FA1E DEFINED AT LINE 102
+                    > USED AT LINE 97
+A2ASCII:            FA25 DEFINED AT LINE 108
+                    > USED AT LINE 105
+NIBBLE:             FA2E DEFINED AT LINE 116
+                    > USED AT LINE 114
+FLAGS:              FA3C DEFINED AT LINE 128
+                    > USED AT LINE 64
+REGTEXT:            FA44 DEFINED AT LINE 129
+                    > USED AT LINE 28
+LCDROWS:            FA54 DEFINED AT LINE 130
+                    > USED AT LINE 27
+                    > USED AT LINE 47
+FLAGROWS:           FA5C DEFINED AT LINE 131
+                    > USED AT LINE 63

@@ -1,0 +1,20 @@
+0000                             ;Jump table for BMON Fn-3
+FD00                          .ORG   0FD00H   
+FD00   70 FF                  DW   0FF70H   ;#0 Menu
+FD02   00 E8                  DW   0E800H   ;#1 Magazine Code
+FD04   00 F0                  DW   0F000H   ;#2 Invaders
+FD06   00 F4                  DW   0F400H   ;#3 Maze
+FD08   70 FA                  DW   0FA70H   ;#4 Runner
+FD0A   00 F8                  DW   0F800H   ;#5 Game of life
+FD0C   F0 FD                  DW   0FDF0H   ;#6 Magic Square
+FD0E   40 FF                  DW   0FF40H   ;#7 Banger Music
+FD10   20 FD                  DW   0FD20H   ;#8 Fast Forward
+FD12   00 00                  DW   0000H   ;#9 Spare
+FD14   00 00                  DW   0000H   ;#A Spare
+FD16   00 00                  DW   0000H   ;#B Spare
+FD18   00 00                  DW   0000H   ;#C Spare
+FD1A   00 00                  DW   0000H   ;#D Spare
+FD1C   00 00                  DW   0000H   ;#E Spare
+FD1E   00 00                  DW   0000H   ;#F Spare
+
+

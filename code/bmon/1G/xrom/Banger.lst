@@ -1,0 +1,49 @@
+0000                             ; Music Banger Demo - By Anonamyous
+0000                             ; 
+0000                             ; Here is an example of pulsing the speaker bit and
+0000                             ; creating music.  No RAM needed.
+0000                             ; 
+0000                DSCAN:    EQU   0x01   ;DISPLAY CATHODE DRIVER LATCH
+0000                             ; 
+FF40                          .ORG   0FF40H   
+FF40                START:       
+FF40   AF                     XOR   A   
+FF41   5F                     LD   E,A   
+FF42   57                     LD   D,A   
+FF43   4F                     LD   C,A   
+FF44   0C                     INC   C   
+FF45   3E 06                  LD   A,06H   
+FF47   91                     SUB   C   
+FF48   28 F6                  JR   Z,START   
+FF4A   13                     INC   DE   
+FF4B   47                     LD   B,A   
+FF4C   29                     ADD   HL,HL   
+FF4D   10 FD                  DJNZ   $ - 1   
+FF4F   62                     LD   H,D   
+FF50   6A                     LD   L,D   
+FF51   41                     LD   B,C   
+FF52   29                     ADD   HL,HL   
+FF53   10 FD                  DJNZ   $ - 1   
+FF55   7C                     LD   A,H   
+FF56   B3                     OR   E   
+FF57   87                     ADD   A,A   
+FF58   47                     LD   B,A   
+FF59   87                     ADD   A,A   
+FF5A   87                     ADD   A,A   
+FF5B   80                     ADD   A,B   
+FF5C   E6 80                  AND   80H   
+FF5E   D3 01                  OUT   (DSCAN),A   
+FF60   7A                     LD   A,D   
+FF61   B3                     OR   E   
+FF62   20 E1                  JR   NZ,START + 5   
+FF64   18 DE                  JR   START + 4   
+FF66   00 00 00 00 00 00 00 00 00 00 DB   00H,00H,00H,00H,00H,00H,00H,00H,00H,00H   
+FF70                             ; 
+
+
+DSCAN:              0001 DEFINED AT LINE 6
+                    > USED AT LINE 35
+START:              FF40 DEFINED AT LINE 9
+                    > USED AT LINE 17
+                    > USED AT LINE 38
+                    > USED AT LINE 39
